@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UTM Builder – GetGround</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root {
+    --bg: #0d2b2e;
+    --card: #0f3336;
+    --card2: #123a3d;
+    --border: #1e5055;
+    --accent: #A3ECEE;
+    --accent-dim: rgba(163,236,238,0.12);
+    --text: #e8f7f8;
+    --muted: #7bbfc3;
+    --white: #ffffff;
+    --input-bg: #0a2528;
+    --input-border: #1e5055;
+    --red: #f87171;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --radius: 10px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.5; }
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; }
+
+  .header { background: var(--card); border-bottom: 1px solid var(--border); padding: 18px 28px; display: flex; align-items: center; gap: 14px; }
+  .header-icon { width: 40px; height: 40px; border-radius: 9px; background: var(--accent-dim); border: 1px solid var(--border); display: grid; place-items: center; flex-shrink: 0; }
+  .header-icon svg { width: 18px; height: 18px; color: var(--accent); }
+  .header h1 { font-size: 1.2rem; font-weight: 700; color: var(--white); }
+  .header p { font-size: 0.78rem; color: var(--muted); margin-top: 1px; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 20px; display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; }
+  @media (max-width: 860px) { .container { grid-template-columns: 1fr; } }
+
+  .info-banner { background: var(--accent-dim); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 16px; display: flex; gap: 10px; margin-bottom: 18px; }
+  .info-banner svg { width: 15px; height: 15px; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+  .info-banner p { font-size: 0.8rem; color: var(--text); line-height: 1.5; }
+  .info-banner strong { font-weight: 600; color: var(--white); }
+  .info-sub { display: flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 0.72rem; color: var(--muted); }
+  .info-sub svg { width: 11px; height: 11px; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-bottom: 16px; }
+  .card-title { font-size: 0.95rem; font-weight: 600; color: var(--white); display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+  .card-title svg { width: 16px; height: 16px; color: var(--accent); }
+
+  .preset-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .preset-btn { padding: 5px 13px; border-radius: 999px; background: transparent; border: 1px solid var(--border); font-size: 0.78rem; font-weight: 500; color: var(--muted); transition: all .15s; }
+  .preset-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+  .form-group { margin-bottom: 20px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 20px; }
+  @media (max-width: 580px) { .form-row { grid-template-columns: 1fr; } }
+  .field-label { font-size: 0.875rem; font-weight: 600; color: var(--white); margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
+  .field-label .req { color: var(--red); }
+  .field-desc { font-size: 0.75rem; color: var(--muted); margin-bottom: 8px; line-height: 1.4; }
+  input[type="text"], input[type="url"], select {
+    width: 100%; padding: 10px 13px;
+    background: var(--input-bg); border: 1px solid var(--input-border);
+    border-radius: 8px; font-size: 0.875rem; font-family: var(--font);
+    color: var(--text); outline: none; transition: border-color .15s; appearance: none;
+  }
+  input::placeholder { color: var(--muted); opacity: 0.7; }
+  input:focus, select:focus { border-color: var(--accent); }
+  select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237bbfc3' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 34px; }
+  select option { background: #0a2528; color: var(--text); }
+  .custom-input { margin-top: 8px; }
+  .format-hint { font-size: 0.72rem; color: var(--muted); margin-top: 5px; }
+  .format-hint span { font-family: ui-monospace, Menlo, monospace; color: var(--accent); font-weight: 600; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 22px 0 18px; }
+  .optional-label { font-size: 0.78rem; color: var(--muted); margin-bottom: 18px; }
+
+  .autocomplete-wrap { position: relative; }
+  .autocomplete-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #0a2528; border: 1px solid var(--border); border-radius: 8px; z-index: 50; max-height: 180px; overflow-y: auto; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+  .autocomplete-list.open { display: block; }
+  .autocomplete-item { padding: 9px 13px; font-size: 0.83rem; cursor: pointer; color: var(--text); transition: background .1s; }
+  .autocomplete-item:hover { background: var(--card2); color: var(--accent); }
+
+  .url-display { background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; font-family: ui-monospace, Menlo, monospace; font-size: 0.75rem; color: var(--accent); word-break: break-all; line-height: 1.6; margin-bottom: 14px; }
+  .params-box { background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }
+  .params-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .params-label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .params-copy-btn { font-size: 0.73rem; color: var(--muted); display: flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--border); background: transparent; transition: all .15s; }
+  .params-copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .params-copy-btn svg { width: 12px; height: 12px; }
+  .params-list { font-family: ui-monospace, Menlo, monospace; font-size: 0.8rem; display: flex; flex-direction: column; gap: 3px; }
+  .param-row { display: flex; }
+  .param-key { color: var(--muted); }
+  .param-val { color: var(--accent); font-weight: 600; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn-primary { padding: 10px 20px; background: var(--accent); color: #06363A; border-radius: 8px; font-size: 0.875rem; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; transition: all .15s; }
+  .btn-primary:hover { background: #7fdee0; }
+  .btn-primary svg, .btn-secondary svg { width: 15px; height: 15px; }
+  .btn-secondary { padding: 10px 20px; background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; transition: all .15s; text-decoration: none; }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .help-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  @media (max-width: 640px) { .help-grid { grid-template-columns: 1fr 1fr; } }
+  .help-card { background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 13px; transition: border-color .15s; }
+  .help-card:hover { border-color: var(--accent); }
+  .help-card-title { display: flex; align-items: center; gap: 6px; font-family: ui-monospace, Menlo, monospace; font-size: 0.75rem; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
+  .help-card-title svg { width: 14px; height: 14px; }
+  .help-card p { font-size: 0.72rem; color: var(--muted); line-height: 1.5; }
+
+  .history-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; position: sticky; top: 20px; }
+  .history-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .history-title { font-size: 0.95rem; font-weight: 600; color: var(--white); display: flex; align-items: center; gap: 8px; }
+  .history-title svg { width: 15px; height: 15px; color: var(--accent); }
+  .history-actions { display: flex; gap: 12px; align-items: center; }
+  .history-toggle { font-size: 0.75rem; color: var(--muted); transition: color .15s; }
+  .history-toggle:hover { color: var(--accent); }
+  .history-clear { font-size: 0.75rem; color: var(--red); opacity: 0.7; transition: opacity .15s; }
+  .history-clear:hover { opacity: 1; }
+  .sync-indicator { font-size: 0.7rem; color: var(--muted); display: flex; align-items: center; gap: 4px; margin-bottom: 10px; }
+  .sync-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--accent); display: inline-block; }
+  .sync-dot.syncing { background: #f59e0b; animation: pulse 1s infinite; }
+  .sync-dot.error { background: var(--red); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .confirm-box { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .confirm-box p { font-size: 0.82rem; color: var(--text); margin-bottom: 10px; }
+  .confirm-actions { display: flex; gap: 8px; }
+  .btn-danger { padding: 5px 12px; background: var(--red); color: white; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+  .btn-cancel { padding: 5px 12px; background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; font-size: 0.75rem; }
+  .search-wrap { position: relative; margin-bottom: 12px; }
+  .search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; color: var(--muted); pointer-events: none; }
+  .search-wrap input { padding-left: 30px; font-size: 0.8rem; }
+  .history-list { max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 2px; }
+  .history-empty { text-align: center; padding: 32px 0; font-size: 0.8rem; color: var(--muted); }
+  .history-item { padding: 10px 12px; border-radius: 8px; background: var(--card2); border: 1px solid var(--border); cursor: pointer; transition: all .15s; position: relative; }
+  .history-item:hover { border-color: var(--accent); }
+  .history-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+  .tag { padding: 2px 8px; border-radius: 999px; font-size: 0.68rem; font-weight: 600; }
+  .tag-source { background: rgba(163,236,238,0.15); color: var(--accent); }
+  .tag-medium { background: rgba(163,236,238,0.08); color: var(--muted); border: 1px solid var(--border); }
+  .history-campaign { font-size: 0.8rem; font-weight: 600; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+  .history-url { font-size: 0.7rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px; font-family: ui-monospace, Menlo, monospace; }
+  .history-meta { font-size: 0.68rem; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+  .history-item-actions { position: absolute; top: 8px; right: 8px; display: none; gap: 4px; }
+  .history-item:hover .history-item-actions { display: flex; }
+  .item-action-btn { width: 24px; height: 24px; border-radius: 5px; display: grid; place-items: center; background: var(--card); border: 1px solid var(--border); transition: all .15s; }
+  .item-action-btn:hover { border-color: var(--accent); }
+  .item-action-btn.del:hover { border-color: var(--red); background: rgba(248,113,113,0.1); }
+  .item-action-btn svg { width: 11px; height: 11px; color: var(--muted); }
+  .item-action-btn:hover svg { color: var(--accent); }
+  .item-action-btn.del:hover svg { color: var(--red); }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #06363A; padding: 10px 20px; border-radius: 999px; font-size: 0.82rem; font-weight: 600; z-index: 100; opacity: 0; transition: opacity .2s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+  .history-list::-webkit-scrollbar { width: 3px; }
+  .history-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+<meta name="color-scheme" content="light dark"><style>:where(:root){color-scheme:light dark;}:where(html,body){background-color:Canvas;color:CanvasText;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;}:where(a){color:LinkText;}</style><script src="/api/sandbox/mcp-shim.js?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMzUzYTg4YTMtOWJhOS00NzY5LWI2YjgtMWFlYTY5MDNlN2ZjIiwiZW1haWwiOiJlbGl6YWJldGgucHJlbmRlcmdhc3RAZ2V0Z3JvdW5kLmNvLnVrIiwic3ViIjoiMzUzYTg4YTMtOWJhOS00NzY5LWI2YjgtMWFlYTY5MDNlN2ZjIiwiZXhwIjoxNzgwNzM5NTc3LCJpYXQiOjE3NzgxNDc1Nzd9.efJwm4xhyqc7PG6lL_j9nvCgP5UVhLTJy7-PdBf2LZQ"></script></head>
+<body>
+
+<header class="header">
+  <div class="header-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+  </div>
+  <div>
+    <h1>Campaign URL Builder</h1>
+    <p>Generate UTM-tagged URLs for campaign tracking</p>
+  </div>
+</header>
+
+<div class="container">
+  <div>
+    <div class="info-banner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      <div>
+        <p>Use this tool to create campaign URLs with UTM parameters. Values are <strong>automatically formatted</strong> to lowercase with underscores for consistency.</p>
+        <div class="info-sub">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 15a4 4 0 004 4h9a5 5 0 10-1-9.9A5 5 0 103 15z"/></svg>
+          History synced across all devices and team members
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Quick Presets
+      </div>
+      <div class="preset-grid" id="preset-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        Build Your URL
+      </div>
+
+      <div class="form-group">
+        <div class="field-label">Website URL <span class="req">*</span></div>
+        <div class="field-desc">The destination page URL where you want to send traffic</div>
+        <input type="url" id="base-url" value="https://www.getground.co.uk" placeholder="https://www.getground.co.uk/spv-company">
+      </div>
+
+      <div class="form-row">
+        <div>
+          <div class="field-label">Campaign Source <span class="req">*</span></div>
+          <div class="field-desc">Where the traffic is coming from (the platform or website)</div>
+          <select id="source"><option value="">Select a source...</option></select>
+          <input type="text" id="custom-source" class="custom-input" placeholder="e.g. twitter, reddit" maxlength="30" style="display:none">
+        </div>
+        <div>
+          <div class="field-label">Campaign Medium <span class="req">*</span></div>
+          <div class="field-desc">How traffic gets to you (the marketing channel or type of link)</div>
+          <select id="medium"><option value="">Select a medium...</option></select>
+          <input type="text" id="custom-medium" class="custom-input" placeholder="e.g. influencer, podcast" maxlength="30" style="display:none">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="field-label">Campaign Name <span class="req">*</span></div>
+        <div class="field-desc">A unique name to identify this specific campaign or promotion</div>
+        <div class="autocomplete-wrap">
+          <input type="text" id="campaign" placeholder="e.g. growth_MTD_1125" maxlength="50">
+          <div class="autocomplete-list" id="campaign-ac"></div>
+        </div>
+        <p class="format-hint" id="campaign-hint" style="display:none">Will be formatted as: <span id="campaign-preview"></span></p>
+      </div>
+
+      <hr class="divider">
+      <p class="optional-label">Optional Parameters</p>
+
+      <div class="form-group">
+        <div class="field-label">Campaign Content</div>
+        <div class="field-desc">Differentiate between ads or links pointing to the same URL (A/B tests, creative variants)</div>
+        <div class="autocomplete-wrap">
+          <input type="text" id="content" placeholder="e.g. banner" maxlength="50">
+          <div class="autocomplete-list" id="content-ac"></div>
+        </div>
+      </div>
+
+      <div class="form-group" id="term-group" style="display:none">
+        <div class="field-label">Campaign Term</div>
+        <div class="field-desc">The paid search keyword or phrase you're bidding on</div>
+        <div class="autocomplete-wrap">
+          <input type="text" id="term" placeholder="e.g. buy_to_let_mortgage" maxlength="50">
+          <div class="autocomplete-list" id="term-ac"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="field-label">Created By</div>
+        <div class="field-desc">Your name or team, for tracking who created this URL</div>
+        <div class="autocomplete-wrap">
+          <input type="text" id="created-by" placeholder="e.g. beth" maxlength="30">
+          <div class="autocomplete-list" id="createdby-ac"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="output-card" style="display:none">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+        Generated URL
+      </div>
+      <div class="url-display" id="generated-url"></div>
+      <div class="params-box">
+        <div class="params-header">
+          <span class="params-label">UTM Parameters</span>
+          <button class="params-copy-btn" id="copy-params-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            Copy for Slack/Notion
+          </button>
+        </div>
+        <div class="params-list" id="params-list"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" id="copy-url-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copy URL
+        </button>
+        <a class="btn-secondary" id="test-link" href="#" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Test URL
+        </a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">UTM Parameter Guide</div>
+      <div class="help-grid">
+        <div class="help-card"><div class="help-card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>utm_source</div><p>The platform or site sending traffic (e.g., google, meta, newsletter)</p></div>
+        <div class="help-card"><div class="help-card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>utm_medium</div><p>The marketing channel (e.g., paid_search, email, organic_social)</p></div>
+        <div class="help-card"><div class="help-card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>utm_campaign</div><p>Campaign identifier using team_initiative_date format</p></div>
+        <div class="help-card"><div class="help-card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg>utm_content</div><p>Differentiates similar content for A/B testing</p></div>
+        <div class="help-card"><div class="help-card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>utm_term</div><p>Paid search keywords (shows only for paid_search medium)</p></div>
+        <div class="help-card"><div class="help-card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Auto-formatting</div><p>All values converted to lowercase_with_underscores automatically</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- History sidebar -->
+  <div>
+    <div class="history-card">
+      <div class="history-header">
+        <div class="history-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          History
+        </div>
+        <div class="history-actions">
+          <button class="history-toggle" id="history-toggle">Hide</button>
+          <button class="history-clear" id="history-clear" style="display:none">Clear All</button>
+        </div>
+      </div>
+      <div id="history-panel">
+        <div class="sync-indicator" id="sync-indicator">
+          <span class="sync-dot" id="sync-dot"></span>
+          <span id="sync-label">Synced</span>
+        </div>
+        <div class="confirm-box" id="clear-confirm" style="display:none">
+          <p>Clear all history?</p>
+          <div class="confirm-actions">
+            <button class="btn-danger" id="confirm-clear">Confirm</button>
+            <button class="btn-cancel" id="cancel-clear">Cancel</button>
+          </div>
+        </div>
+        <div class="search-wrap" id="history-search-wrap" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="history-search" placeholder="Search history...">
+        </div>
+        <div class="history-list" id="history-list">
+          <p class="history-empty">Loading history...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Supabase config ──────────────────────────────────────────
+var SUPABASE_URL = 'https://nckkfaldcplgfmldsrou.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_DLQRih3BYJ7U9F3jk7TyaA_u731Rwvt';
+var TABLE = 'utm_history';
+var MAX_HISTORY = 100;
+
+function sbUrl(path) { return SUPABASE_URL + '/rest/v1/' + path; }
+function sbHeaders(extra) {
+  var h = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' };
+  return Object.assign(h, extra || {});
+}
+
+async function sbFetch(method, path, body) {
+  var opts = { method: method, headers: sbHeaders(method !== 'GET' ? { 'Prefer': 'return=representation' } : {}) };
+  if (body) opts.body = JSON.stringify(body);
+  var res = await fetch(sbUrl(path), opts);
+  if (!res.ok) { var t = await res.text(); throw new Error(t); }
+  var text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+// ── Data ──────────────────────────────────────────────────────
+var SOURCE_OPTIONS = ['Meta','Google','TikTok','LinkedIn','Bing','Email','YouTube','Instagram','Reddit','In Person','OOH','Marketing Website','Spotify','App','WhatsApp','Other'];
+var MEDIUM_OPTIONS = [
+  {value:'gg_hubspot',label:'GG HubSpot'},{value:'ba_hubspot',label:'BA HubSpot'},
+  {value:'sendgrid',label:'SendGrid'},{value:'ppc',label:'PPC'},
+  {value:'paid_search',label:'Paid Search'},{value:'paid_social',label:'Paid Social'},
+  {value:'organic_social',label:'Organic Social'},{value:'offline',label:'Offline'},
+  {value:'internal',label:'Internal'},{value:'podcast',label:'Podcast'},{value:'other',label:'Other'}
+];
+var PRESETS = [
+  {name:'Meta Paid Social',source:'Meta',medium:'paid_social'},
+  {name:'Google Paid Search',source:'Google',medium:'paid_search'},
+  {name:'TikTok Paid Social',source:'TikTok',medium:'paid_social'},
+  {name:'LinkedIn Paid Social',source:'LinkedIn',medium:'paid_social'},
+  {name:'LinkedIn Organic',source:'LinkedIn',medium:'organic_social'},
+  {name:'Bing Paid Search',source:'Bing',medium:'paid_search'},
+  {name:'Email',source:'Email',medium:'gg_hubspot'},
+  {name:'Newsletter',source:'Email',medium:'sendgrid'},
+  {name:'QR Code',source:'Direct',medium:'offline'},
+  {name:'Partner Referral',source:'Other',medium:'organic_social'},
+  {name:'Affiliate Referral',source:'Other',medium:'organic_social'},
+  {name:'YouTube Organic',source:'YouTube',medium:'organic_social'}
+];
+
+var history = [];
+var showHistoryPanel = true;
+
+function formatValue(v) {
+  return String(v||'').toLowerCase().replace(/\s+/g,'_').replace(/-+/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+}
+function sanitize(v) { return String(v||'').replace(/[^a-zA-Z0-9\s_-]/g,'').slice(0,50); }
+function formatDate(ds) { return new Date(ds).toLocaleDateString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }
+
+var toastTimer;
+function toast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 2200);
+}
+function setSyncState(state, msg) {
+  var dot = document.getElementById('sync-dot');
+  var label = document.getElementById('sync-label');
+  dot.className = 'sync-dot' + (state === 'syncing' ? ' syncing' : state === 'error' ? ' error' : '');
+  label.textContent = msg || (state === 'syncing' ? 'Syncing...' : state === 'error' ? 'Sync error' : 'Synced');
+}
+
+// ── DOM refs ──────────────────────────────────────────────────
+var $baseUrl   = document.getElementById('base-url');
+var $source    = document.getElementById('source');
+var $custSrc   = document.getElementById('custom-source');
+var $medium    = document.getElementById('medium');
+var $custMed   = document.getElementById('custom-medium');
+var $campaign  = document.getElementById('campaign');
+var $content   = document.getElementById('content');
+var $term      = document.getElementById('term');
+var $termGroup = document.getElementById('term-group');
+var $createdBy = document.getElementById('created-by');
+var $outputCard= document.getElementById('output-card');
+var $genUrl    = document.getElementById('generated-url');
+var $paramsList= document.getElementById('params-list');
+var $testLink  = document.getElementById('test-link');
+var $histList  = document.getElementById('history-list');
+var $histSearch= document.getElementById('history-search');
+var $clearConf = document.getElementById('clear-confirm');
+
+// Populate selects
+SOURCE_OPTIONS.forEach(function(s) {
+  var o = document.createElement('option'); o.value = s; o.textContent = s; $source.appendChild(o);
+});
+MEDIUM_OPTIONS.forEach(function(m) {
+  var o = document.createElement('option'); o.value = m.value; o.textContent = m.label; $medium.appendChild(o);
+});
+
+// Presets
+document.getElementById('preset-grid') && PRESETS.forEach(function(p) {
+  var btn = document.createElement('button');
+  btn.className = 'preset-btn'; btn.textContent = p.name;
+  btn.addEventListener('click', function() {
+    $source.value = p.source; $custSrc.style.display = p.source === 'Other' ? '' : 'none';
+    $medium.value = p.medium; $custMed.style.display = p.medium === 'other' ? '' : 'none';
+    toggleTerm(); generate();
+  });
+  document.getElementById('preset-grid').appendChild(btn);
+});
+
+$source.addEventListener('change', function() {
+  $custSrc.style.display = $source.value === 'Other' ? '' : 'none';
+  if ($source.value !== 'Other') $custSrc.value = '';
+  generate();
+});
+$medium.addEventListener('change', function() {
+  $custMed.style.display = $medium.value === 'other' ? '' : 'none';
+  if ($medium.value !== 'other') $custMed.value = '';
+  toggleTerm(); generate();
+});
+function toggleTerm() {
+  $termGroup.style.display = $medium.value === 'paid_search' ? '' : 'none';
+  if ($medium.value !== 'paid_search') $term.value = '';
+}
+
+[$baseUrl,$custSrc,$custMed,$content,$term,$createdBy].forEach(function(el) { el.addEventListener('input', generate); });
+$campaign.addEventListener('input', function() {
+  var fmt = formatValue(sanitize($campaign.value));
+  var hint = document.getElementById('campaign-hint'), prev = document.getElementById('campaign-preview');
+  if ($campaign.value && fmt) { hint.style.display = ''; prev.textContent = fmt; } else { hint.style.display = 'none'; }
+  generate();
+  updateAC('campaign', $campaign, document.getElementById('campaign-ac'));
+});
+
+// Generate
+var currentUrl = '', currentParams = [];
+function getSourceVal() { return $source.value === 'Other' ? $custSrc.value.trim() : $source.value; }
+function getMediumVal() { return $medium.value === 'other' ? $custMed.value.trim() : $medium.value; }
+function isValid() { return $baseUrl.value.trim() && getSourceVal() && getMediumVal() && $campaign.value.trim(); }
+
+function generate() {
+  if (!isValid()) { $outputCard.style.display = 'none'; currentUrl = ''; return; }
+  var params = new URLSearchParams();
+  currentParams = [
+    {key:'utm_source',value:formatValue(getSourceVal())},
+    {key:'utm_medium',value:formatValue(getMediumVal())},
+    {key:'utm_campaign',value:formatValue($campaign.value)}
+  ];
+  if ($content.value.trim()) currentParams.push({key:'utm_content',value:formatValue($content.value)});
+  if ($term.value.trim() && $medium.value === 'paid_search') currentParams.push({key:'utm_term',value:formatValue($term.value)});
+  currentParams.forEach(function(p) { params.set(p.key, p.value); });
+  var base = $baseUrl.value.trim();
+  currentUrl = base + (base.includes('?') ? '&' : '?') + params.toString();
+  $genUrl.textContent = currentUrl;
+  $paramsList.innerHTML = currentParams.map(function(p) {
+    return '<div class="param-row"><span class="param-key">'+p.key+'=</span><span class="param-val">'+p.value+'</span></div>';
+  }).join('');
+  $testLink.href = currentUrl + (currentUrl.includes('?') ? '&' : '?') + 'utm_test=true';
+  $outputCard.style.display = '';
+}
+
+// Copy buttons
+document.getElementById('copy-url-btn').addEventListener('click', async function() {
+  if (!currentUrl) return;
+  await navigator.clipboard.writeText(currentUrl);
+  await addToHistory();
+  var btn = document.getElementById('copy-url-btn');
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+  setTimeout(function() { btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy URL'; }, 2000);
+});
+
+document.getElementById('copy-params-btn').addEventListener('click', async function() {
+  if (!currentParams.length) return;
+  await navigator.clipboard.writeText(currentParams.map(function(p){return p.key+'='+p.value;}).join('\n'));
+  var btn = document.getElementById('copy-params-btn');
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+  setTimeout(function() { btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy for Slack/Notion'; }, 2000);
+});
+
+// ── Supabase history ──────────────────────────────────────────
+async function fetchHistory() {
+  setSyncState('syncing');
+  try {
+    var data = await sbFetch('GET', TABLE + '?order=created_at.desc&limit=' + MAX_HISTORY);
+    history = (data || []).map(function(r) {
+      return { id: r.id, url: r.full_url, source: r.source, medium: r.medium, campaign: r.campaign, content: r.content||'', term: r.term||'', baseUrl: r.base_url, createdAt: r.created_at, createdBy: r.created_by||'Anonymous' };
+    });
+    setSyncState('ok');
+    renderHistory();
+  } catch(e) {
+    setSyncState('error', 'Sync error');
+    $histList.innerHTML = '<p class="history-empty">Could not load history.</p>';
+  }
+}
+
+async function addToHistory() {
+  if (!currentUrl || !isValid()) return;
+  if (history.find(function(h){return h.url===currentUrl;})) return;
+  setSyncState('syncing');
+  try {
+    var row = {
+      base_url: $baseUrl.value.trim(),
+      source: formatValue(getSourceVal()), medium: formatValue(getMediumVal()),
+      campaign: formatValue($campaign.value), content: formatValue($content.value)||null,
+      term: (formatValue($term.value)||null), created_by: $createdBy.value.trim()||'Anonymous',
+      full_url: currentUrl
+    };
+    var data = await sbFetch('POST', TABLE, row);
+    if (data && data[0]) {
+      var r = data[0];
+      history.unshift({ id:r.id, url:r.full_url, source:r.source, medium:r.medium, campaign:r.campaign, content:r.content||'', term:r.term||'', baseUrl:r.base_url, createdAt:r.created_at, createdBy:r.created_by||'Anonymous' });
+      renderHistory();
+    }
+    setSyncState('ok');
+  } catch(e) { setSyncState('error','Save failed'); toast('Could not save to history'); }
+}
+
+async function deleteFromHistory(id) {
+  setSyncState('syncing');
+  try {
+    await sbFetch('DELETE', TABLE + '?id=eq.' + id);
+    history = history.filter(function(h){return h.id!==id;});
+    setSyncState('ok'); renderHistory();
+  } catch(e) { setSyncState('error','Delete failed'); toast('Could not delete'); }
+}
+
+async function clearHistory() {
+  setSyncState('syncing');
+  try {
+    await sbFetch('DELETE', TABLE + '?id=neq.00000000-0000-0000-0000-000000000000');
+    history = []; setSyncState('ok'); renderHistory();
+    document.getElementById('clear-confirm').style.display = 'none';
+    toast('History cleared');
+  } catch(e) { setSyncState('error','Clear failed'); toast('Could not clear history'); }
+}
+
+function loadFromHistory(item) {
+  $baseUrl.value = item.baseUrl;
+  var srcMatch = SOURCE_OPTIONS.find(function(s){return formatValue(s)===item.source;});
+  if (srcMatch && srcMatch!=='Other'){$source.value=srcMatch;$custSrc.style.display='none';$custSrc.value='';}
+  else{$source.value='Other';$custSrc.style.display='';$custSrc.value=item.source;}
+  var medMatch = MEDIUM_OPTIONS.find(function(m){return m.value===item.medium;});
+  if (medMatch && medMatch.value!=='other'){$medium.value=medMatch.value;$custMed.style.display='none';$custMed.value='';}
+  else{$medium.value='other';$custMed.style.display='';$custMed.value=item.medium;}
+  $campaign.value=item.campaign; $content.value=item.content||''; $term.value=item.term||'';
+  $createdBy.value=item.createdBy!=='Anonymous'?item.createdBy:'';
+  toggleTerm(); generate(); toast('Loaded into form');
+}
+
+function renderHistory() {
+  var search = ($histSearch.value||'').toLowerCase();
+  var filtered = search ? history.filter(function(h){
+    return [h.url,h.campaign,h.source,h.medium,h.content,h.createdBy].some(function(v){return (v||'').toLowerCase().includes(search);});
+  }) : history;
+  document.getElementById('history-search-wrap').style.display = history.length ? '' : 'none';
+  document.getElementById('history-clear').style.display = history.length ? '' : 'none';
+  if (!filtered.length) {
+    $histList.innerHTML = '<p class="history-empty">'+(history.length?'No matching results.':'No history yet. Generated URLs will appear here.')+'</p>';
+    return;
+  }
+  $histList.innerHTML = filtered.map(function(item){
+    return '<div class="history-item" data-id="'+item.id+'">'+
+      '<div class="history-tags"><span class="tag tag-source">'+item.source+'</span><span class="tag tag-medium">'+item.medium+'</span></div>'+
+      '<div class="history-campaign">'+(item.campaign||'—')+'</div>'+
+      '<div class="history-url">'+item.url+'</div>'+
+      '<div class="history-meta"><span>'+item.createdBy+'</span><span>·</span><span>'+formatDate(item.createdAt)+'</span></div>'+
+      '<div class="history-item-actions">'+
+        '<button class="item-action-btn copy-item" data-url="'+item.url.replace(/"/g,'&quot;')+'" title="Copy URL"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>'+
+        '<button class="item-action-btn del delete-item" data-id="'+item.id+'" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+  $histList.querySelectorAll('.history-item').forEach(function(el){
+    el.addEventListener('click',function(e){
+      if(e.target.closest('.copy-item')||e.target.closest('.delete-item'))return;
+      var item=history.find(function(h){return h.id===el.dataset.id;});
+      if(item)loadFromHistory(item);
+    });
+  });
+  $histList.querySelectorAll('.copy-item').forEach(function(btn){
+    btn.addEventListener('click',function(e){e.stopPropagation();navigator.clipboard.writeText(btn.dataset.url);toast('Copied!');});
+  });
+  $histList.querySelectorAll('.delete-item').forEach(function(btn){
+    btn.addEventListener('click',function(e){e.stopPropagation();deleteFromHistory(btn.dataset.id);});
+  });
+}
+
+// History controls
+document.getElementById('history-toggle').addEventListener('click',function(){
+  showHistoryPanel=!showHistoryPanel;
+  document.getElementById('history-panel').style.display=showHistoryPanel?'':'none';
+  document.getElementById('history-toggle').textContent=showHistoryPanel?'Hide':'Show';
+});
+document.getElementById('history-clear').addEventListener('click',function(){document.getElementById('clear-confirm').style.display='';});
+document.getElementById('cancel-clear').addEventListener('click',function(){document.getElementById('clear-confirm').style.display='none';});
+document.getElementById('confirm-clear').addEventListener('click',clearHistory);
+$histSearch.addEventListener('input',renderHistory);
+
+// Autocomplete
+function getSuggestions(field){return history.map(function(h){return h[field];}).filter(function(v,i,a){return v&&a.indexOf(v)===i;});}
+function updateAC(field,input,listEl){
+  var val=input.value.toLowerCase();
+  var suggs=getSuggestions(field).filter(function(s){return s.includes(val)&&s!==val;});
+  if(!val||!suggs.length){listEl.classList.remove('open');return;}
+  listEl.innerHTML=suggs.slice(0,8).map(function(s){return '<div class="autocomplete-item">'+s+'</div>';}).join('');
+  listEl.classList.add('open');
+  listEl.querySelectorAll('.autocomplete-item').forEach(function(item){
+    item.addEventListener('mousedown',function(e){e.preventDefault();input.value=item.textContent;listEl.classList.remove('open');generate();});
+  });
+}
+[[$content,'content',document.getElementById('content-ac')],
+ [$term,'term',document.getElementById('term-ac')],
+ [$createdBy,'createdBy',document.getElementById('createdby-ac')]].forEach(function(arr){
+  arr[0].addEventListener('input',function(){updateAC(arr[1],arr[0],arr[2]);});
+  arr[0].addEventListener('blur',function(){setTimeout(function(){arr[2].classList.remove('open');},150);});
+});
+$campaign.addEventListener('blur',function(){setTimeout(function(){document.getElementById('campaign-ac').classList.remove('open');},150);});
+
+// Boot
+fetchHistory();
+generate();
+</script>
+</body>
+</html>
