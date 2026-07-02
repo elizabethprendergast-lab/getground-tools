@@ -339,6 +339,12 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// Wrapped in an IIFE so our `history` variable is function-scoped and does
+// NOT collide with the browser built-in window.history (a read-only object
+// with no .map/.find/.filter). At global scope `var history = []` silently
+// fails to override window.history, which caused every "history.map/find is
+// not a function" crash. Scoping it here fixes that permanently.
+(function(){
 // ── Supabase config ──────────────────────────────────────────
 var SUPABASE_URL = 'https://nckkfaldcplgfmldsrou.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_DLQRih3BYJ7U9F3jk7TyaA_u731Rwvt';
@@ -715,6 +721,7 @@ $campaign.addEventListener('blur',function(){setTimeout(function(){document.getE
 // Boot
 fetchHistory();
 generate();
+})();
 </script>
 </body>
 </html>
