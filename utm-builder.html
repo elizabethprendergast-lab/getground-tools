@@ -152,7 +152,7 @@
   .history-list::-webkit-scrollbar { width: 3px; }
   .history-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 </style>
-<meta name="color-scheme" content="light dark"><style>:where(:root){color-scheme:light dark;}:where(html,body){background-color:Canvas;color:CanvasText;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;}:where(a){color:LinkText;}</style><script src="/api/sandbox/mcp-shim.js?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMzUzYTg4YTMtOWJhOS00NzY5LWI2YjgtMWFlYTY5MDNlN2ZjIiwiZW1haWwiOiJlbGl6YWJldGgucHJlbmRlcmdhc3RAZ2V0Z3JvdW5kLmNvLnVrIiwic3ViIjoiMzUzYTg4YTMtOWJhOS00NzY5LWI2YjgtMWFlYTY5MDNlN2ZjIiwiZXhwIjoxNzgwNzM5NTc3LCJpYXQiOjE3NzgxNDc1Nzd9.efJwm4xhyqc7PG6lL_j9nvCgP5UVhLTJy7-PdBf2LZQ"></script></head>
+</head>
 <body>
 
 <header class="header">
@@ -275,6 +275,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
           Copy URL
         </button>
+        <button class="btn-secondary" id="save-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save to history
+        </button>
         <a class="btn-secondary" id="test-link" href="#" target="_blank" rel="noopener noreferrer">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           Test URL
@@ -343,7 +347,14 @@ var MAX_HISTORY = 100;
 
 function sbUrl(path) { return SUPABASE_URL + '/rest/v1/' + path; }
 function sbHeaders(extra) {
-  var h = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' };
+  var h = { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' };
+  // New-style keys (sb_publishable_... / sb_secret_...) are NOT JWTs, so they
+  // must not go in an Authorization: Bearer header — PostgREST would try to
+  // parse them as a JWT and reject the request with a 401. The apikey header
+  // alone authenticates as the anon role. Only legacy JWT keys use Bearer.
+  if (SUPABASE_KEY.indexOf('sb_') !== 0) {
+    h['Authorization'] = 'Bearer ' + SUPABASE_KEY;
+  }
   return Object.assign(h, extra || {});
 }
 
@@ -351,7 +362,7 @@ async function sbFetch(method, path, body) {
   var opts = { method: method, headers: sbHeaders(method !== 'GET' ? { 'Prefer': 'return=representation' } : {}) };
   if (body) opts.body = JSON.stringify(body);
   var res = await fetch(sbUrl(path), opts);
-  if (!res.ok) { var t = await res.text(); throw new Error(t); }
+  if (!res.ok) { var t = await res.text(); throw new Error('HTTP ' + res.status + ': ' + t); }
   var text = await res.text();
   return text ? JSON.parse(text) : null;
 }
@@ -401,6 +412,24 @@ function setSyncState(state, msg) {
   var label = document.getElementById('sync-label');
   dot.className = 'sync-dot' + (state === 'syncing' ? ' syncing' : state === 'error' ? ' error' : '');
   label.textContent = msg || (state === 'syncing' ? 'Syncing...' : state === 'error' ? 'Sync error' : 'Synced');
+}
+
+// Clipboard with fallback for non-secure (file://) contexts.
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (e) { /* fall through to legacy path */ }
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    var ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch (e) { return false; }
 }
 
 // ── DOM refs ──────────────────────────────────────────────────
@@ -493,21 +522,32 @@ function generate() {
   $outputCard.style.display = '';
 }
 
-// Copy buttons
+// Copy buttons — saving no longer depends on the clipboard succeeding.
 document.getElementById('copy-url-btn').addEventListener('click', async function() {
   if (!currentUrl) return;
-  await navigator.clipboard.writeText(currentUrl);
+  var ok = await copyText(currentUrl);
   await addToHistory();
   var btn = document.getElementById('copy-url-btn');
-  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+  btn.innerHTML = ok
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg> Copy failed';
+  if (!ok) toast('Could not copy to clipboard, but URL was saved to history');
   setTimeout(function() { btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy URL'; }, 2000);
+});
+
+// Explicit "Save to history" button — works even if clipboard is blocked.
+document.getElementById('save-btn').addEventListener('click', async function() {
+  if (!currentUrl) return;
+  await addToHistory();
 });
 
 document.getElementById('copy-params-btn').addEventListener('click', async function() {
   if (!currentParams.length) return;
-  await navigator.clipboard.writeText(currentParams.map(function(p){return p.key+'='+p.value;}).join('\n'));
+  var ok = await copyText(currentParams.map(function(p){return p.key+'='+p.value;}).join('\n'));
   var btn = document.getElementById('copy-params-btn');
-  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+  btn.innerHTML = ok
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg> Copy failed';
   setTimeout(function() { btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy for Slack/Notion'; }, 2000);
 });
 
@@ -516,46 +556,68 @@ async function fetchHistory() {
   setSyncState('syncing');
   try {
     var data = await sbFetch('GET', TABLE + '?order=created_at.desc&limit=' + MAX_HISTORY);
-    history = (data || []).map(function(r) {
+    // Defensive: Supabase should return an array, but never let a non-array
+    // response turn `history` into something without .map/.find/.filter.
+    var rows = Array.isArray(data) ? data : [];
+    history = rows.map(function(r) {
       return { id: r.id, url: r.full_url, source: r.source, medium: r.medium, campaign: r.campaign, content: r.content||'', term: r.term||'', baseUrl: r.base_url, createdAt: r.created_at, createdBy: r.created_by||'Anonymous' };
     });
     setSyncState('ok');
     renderHistory();
   } catch(e) {
-    setSyncState('error', 'Sync error');
-    $histList.innerHTML = '<p class="history-empty">Could not load history.</p>';
+    console.error('[UTM Builder] Could not load history:', e);
+    setSyncState('error', 'Load failed');
+    $histList.innerHTML = '<p class="history-empty">Could not load history. See console for details.</p>';
   }
 }
 
 async function addToHistory() {
   if (!currentUrl || !isValid()) return;
-  if (history.find(function(h){return h.url===currentUrl;})) return;
+  if (history.find(function(h){return h.url===currentUrl;})) { toast('Already in history'); return; }
   setSyncState('syncing');
+  var row = {
+    base_url: $baseUrl.value.trim(),
+    source: formatValue(getSourceVal()), medium: formatValue(getMediumVal()),
+    campaign: formatValue($campaign.value), content: formatValue($content.value)||null,
+    term: (formatValue($term.value)||null), created_by: $createdBy.value.trim()||'Anonymous',
+    full_url: currentUrl
+  };
   try {
-    var row = {
-      base_url: $baseUrl.value.trim(),
-      source: formatValue(getSourceVal()), medium: formatValue(getMediumVal()),
-      campaign: formatValue($campaign.value), content: formatValue($content.value)||null,
-      term: (formatValue($term.value)||null), created_by: $createdBy.value.trim()||'Anonymous',
-      full_url: currentUrl
-    };
     var data = await sbFetch('POST', TABLE, row);
-    if (data && data[0]) {
-      var r = data[0];
-      history.unshift({ id:r.id, url:r.full_url, source:r.source, medium:r.medium, campaign:r.campaign, content:r.content||'', term:r.term||'', baseUrl:r.base_url, createdAt:r.created_at, createdBy:r.created_by||'Anonymous' });
-      renderHistory();
-    }
+    // POST may return the inserted row(s), or nothing if the table's RLS
+    // has no SELECT policy. Either way the insert succeeded, so reflect it.
+    var r = (data && data[0]) ? data[0] : null;
+    history.unshift({
+      id: r ? r.id : ('local-' + Date.now()),
+      url: r ? r.full_url : row.full_url,
+      source: r ? r.source : row.source,
+      medium: r ? r.medium : row.medium,
+      campaign: r ? r.campaign : row.campaign,
+      content: (r ? r.content : row.content) || '',
+      term: (r ? r.term : row.term) || '',
+      baseUrl: r ? r.base_url : row.base_url,
+      createdAt: r ? r.created_at : new Date().toISOString(),
+      createdBy: (r ? r.created_by : row.created_by) || 'Anonymous'
+    });
+    renderHistory();
     setSyncState('ok');
-  } catch(e) { setSyncState('error','Save failed'); toast('Could not save to history'); }
+    toast('Saved to history');
+  } catch(e) {
+    console.error('[UTM Builder] Save failed:', e);
+    setSyncState('error','Save failed');
+    toast('Could not save: ' + (e.message || e));
+  }
 }
 
 async function deleteFromHistory(id) {
   setSyncState('syncing');
   try {
-    await sbFetch('DELETE', TABLE + '?id=eq.' + id);
+    if (String(id).indexOf('local-') !== 0) {
+      await sbFetch('DELETE', TABLE + '?id=eq.' + id);
+    }
     history = history.filter(function(h){return h.id!==id;});
     setSyncState('ok'); renderHistory();
-  } catch(e) { setSyncState('error','Delete failed'); toast('Could not delete'); }
+  } catch(e) { console.error('[UTM Builder] Delete failed:', e); setSyncState('error','Delete failed'); toast('Could not delete'); }
 }
 
 async function clearHistory() {
@@ -565,7 +627,7 @@ async function clearHistory() {
     history = []; setSyncState('ok'); renderHistory();
     document.getElementById('clear-confirm').style.display = 'none';
     toast('History cleared');
-  } catch(e) { setSyncState('error','Clear failed'); toast('Could not clear history'); }
+  } catch(e) { console.error('[UTM Builder] Clear failed:', e); setSyncState('error','Clear failed'); toast('Could not clear history'); }
 }
 
 function loadFromHistory(item) {
@@ -589,7 +651,7 @@ function renderHistory() {
   document.getElementById('history-search-wrap').style.display = history.length ? '' : 'none';
   document.getElementById('history-clear').style.display = history.length ? '' : 'none';
   if (!filtered.length) {
-    $histList.innerHTML = '<p class="history-empty">'+(history.length?'No matching results.':'No history yet. Generated URLs will appear here.')+'</p>';
+    $histList.innerHTML = '<p class="history-empty">'+(history.length?'No matching results.':'No history yet. Saved URLs will appear here.')+'</p>';
     return;
   }
   $histList.innerHTML = filtered.map(function(item){
@@ -612,7 +674,7 @@ function renderHistory() {
     });
   });
   $histList.querySelectorAll('.copy-item').forEach(function(btn){
-    btn.addEventListener('click',function(e){e.stopPropagation();navigator.clipboard.writeText(btn.dataset.url);toast('Copied!');});
+    btn.addEventListener('click',async function(e){e.stopPropagation();var ok=await copyText(btn.dataset.url);toast(ok?'Copied!':'Copy failed');});
   });
   $histList.querySelectorAll('.delete-item').forEach(function(btn){
     btn.addEventListener('click',function(e){e.stopPropagation();deleteFromHistory(btn.dataset.id);});
