@@ -1,0 +1,11 @@
+{
+  "name": "getground-tools",
+  "owner": { "name": "GetGround", "url": "https://github.com/elizabethprendergast-lab" },
+  "plugins": [
+    {
+      "name": "email-builder",
+      "source": "./plugins/email-builder",
+      "description": "Build branded GetGround/BuyAssociation marketing emails via the hosted builder (short link), with Notion voice, UTMs, Supabase drafts + feedback, and Compliance flagging."
+    }
+  ]
+}
