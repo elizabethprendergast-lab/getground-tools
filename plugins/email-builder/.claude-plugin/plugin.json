@@ -1,0 +1,7 @@
+{
+  "name": "email-builder",
+  "version": "0.1.0",
+  "description": "Build a branded GetGround or BuyAssociation marketing email and open it in the hosted email builder via a short link. Pulls brand voice and content from Notion, matches the team UTM scheme, saves drafts to Supabase, logs usage, and flags Compliance.",
+  "author": { "name": "GetGround" },
+  "keywords": ["email", "marketing", "getground", "buyassociation", "builder"]
+}
