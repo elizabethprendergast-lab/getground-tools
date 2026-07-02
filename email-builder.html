@@ -6529,15 +6529,35 @@ function applyIncomingDraft(draft, opts) {
   return true;
 }
 
-// A shared link carries the whole email in the URL hash.
-//   #z=<base64url(deflate(json))>  — compressed (short links, preferred)
-//   #d=<base64(json)>              — uncompressed (legacy)
+// Supabase (shared with the UTM builder). The publishable key is safe to be public.
+const GG_SUPABASE_URL = 'https://nckkfaldcplgfmldsrou.supabase.co';
+const GG_SUPABASE_KEY = 'sb_publishable_DLQRih3BYJ7U9F3jk7TyaA_u731Rwvt';
+
+// A shared link carries the email either as a short id (draft stored in Supabase) or
+// inline in the hash:
+//   #id=<short id>                 — draft fetched from Supabase (short link, preferred)
+//   #z=<base64url(deflate(json))>  — compressed inline (fallback)
+//   #d=<base64(json)>              — uncompressed inline (legacy)
 // This takes precedence over any draft baked into the file.
 async function loadDraftFromHash() {
   const h = location.hash || '';
+  const mid = h.match(/[#&]id=([^&]+)/);
   const mz = h.match(/[#&]z=([^&]+)/);
   const md = h.match(/[#&]d=([^&]+)/);
   try {
+    // Short-id: fetch the draft row from Supabase.
+    if (mid) {
+      const id = decodeURIComponent(mid[1]);
+      const res = await fetch(GG_SUPABASE_URL + '/rest/v1/email_drafts?select=draft&id=eq.' + encodeURIComponent(id), {
+        headers: { apikey: GG_SUPABASE_KEY, Authorization: 'Bearer ' + GG_SUPABASE_KEY }
+      });
+      const rows = await res.json();
+      if (rows && rows[0] && rows[0].draft) {
+        const draft = typeof rows[0].draft === 'string' ? JSON.parse(rows[0].draft) : rows[0].draft;
+        return applyIncomingDraft(draft, { rerender: true });
+      }
+      return false;
+    }
     let json = null;
     if (mz && typeof DecompressionStream !== 'undefined') {
       let b64 = decodeURIComponent(mz[1]).replace(/-/g, '+').replace(/_/g, '/');
@@ -6555,7 +6575,7 @@ async function loadDraftFromHash() {
   } catch (e) { return false; }
 }
 
-const hasHashDraft = /[#&][zd]=/.test(location.hash || '');
+const hasHashDraft = /[#&](id|[zd])=/.test(location.hash || '');
 if (hasHashDraft) {
   loadDraftFromHash(); // async; re-renders itself when done
 } else {
