@@ -51,31 +51,52 @@ Use AskUserQuestion BEFORE writing anything. Required:
 - Tone and rough length.
 Do not generate the email until brand, audience, and goal are clear.
 
-### 2. Pull brand voice AND content context from Notion — fresh every time
-Never rely on memory or hardcoded copies. Each run, search Notion twice:
+### 2. Pull content context from Notion (keep it fast)
+Do ONE Notion search for the topic of this email (the product, feature, plan, offer, or
+audience segment), e.g. "<product/feature>", "<product> benefits", "<campaign> messaging".
+Read the result snippets. Only fetch a full page when the snippets lack the specific facts
+you need, one fetch at most. Pull real facts, figures, proof points, partner names and
+compliance credentials, do not invent numbers or claims. Keep Notion access read-only.
 
-(a) Brand voice — queries like "<brand> tone of voice", "<brand> brand guidelines",
-"<brand> email voice", "<brand> messaging". Extract: voice principles, preferred words,
-words to avoid, sentence/length rules, colour palette, do's and don'ts.
-
-(b) Content context — search the Knowledge Hub and product/campaign pages for the topic
-of THIS email (e.g. the product name, feature, plan, offer, or audience segment). Try
-queries built from the brief, e.g. "<product/feature>", "<product> benefits",
-"<campaign> messaging", "<audience segment> pain points", plus relevant JTBD pages.
-Pull real facts, figures, proof points, partner names and compliance credentials from
-these pages and use them in the copy — do not invent numbers or claims.
+For brand voice, use the built-in defaults in step 3 (they are stable). Only run a second
+Notion search for voice if the user says the guidelines changed or asks you to refresh them.
+This keeps a run to a single Notion call in the common case.
 
 If nothing is found for either, say so and ask the user to point to the page before
 continuing. Keep Notion access read-only.
 
-### 3. Apply brand design tokens
-Use what Notion specifies. Sensible defaults if the page is silent:
-- **GetGround** (`profile: "getground"`): dark teal `#06363A`, cyan `#A3ECEE`,
-  soft tint `#F4FCFD` / `#F2FBFB`, body text `#06363A` / `#46625F`. Voice: expert,
-  calm, confident, outcome-led. Sentence case. No em-dashes (use commas/full stops).
-  12–16 words per sentence. Front-load value. Tie claims to proof.
-- **BuyAssociation** (`profile: "buyassociation"`): accent `#e71d70`, navy text.
-  Pull exact voice/colour from its Notion page.
+### 3. Apply brand design tokens (baked in from real sent emails)
+Use these tokens directly. They are derived from real GetGround and BuyAssociation emails,
+so follow them closely; only override if Notion explicitly specifies something different.
+
+**GetGround** (`profile: "getground"`):
+- Colours: dark teal `#06363A` (headings, buttons, body); cyan `#A3ECEE`; link/CTA teal
+  `#00a4bd` and `#159FA2`; body ink `#1A2530` / `#3a4854`; muted `#46625F` / `#7a8a87`;
+  tint panels `#F0FAFA` / `#F2FBFB` / `#F9FAFB`; footer band `#D0E0E3` / `#CFE2F3`.
+- Buttons: solid `#06363A`, white bold text, ~10px radius.
+- Type: body ~18px, centred headings and body common. Sentence case.
+- Voice: expert, calm, confident, outcome-led. No em-dashes (commas/full stops). 12–16 words
+  per sentence. Front-load value; tie claims to proof (30,000+ landlords, £2B assets,
+  HMRC/MTD-compliant, FCA-regulated partners).
+- Footer: `#D0E0E3` band, ~12px `#23496d`. On finance/mortgage emails include the Fiducia
+  (FRN 917537) and Stonebridge (FRN 454811) lines and the fraud warning.
+
+**BuyAssociation** (`profile: "buyassociation"`):
+- Colours: accent pink `#e71d70` (buttons, UPPERCASE section labels, quote left-borders);
+  headings navy/slate `#323e48`; body grey `#58595b`; light grey cards `#f7f7f7`; white
+  background `#FEFEFE`; links `#00a4bd`.
+- Buttons: solid `#e71d70`, white bold text, ~8px radius (e.g. "Investor brochure",
+  "WhatsApp for details"). CTA is usually WhatsApp / phone / brochure, not "book a call".
+- Type: body ~14px, line-height ~1.6. Headings left-aligned.
+- Structure that works: navy logo → property image (radius ~5%) → small UPPERCASE pink
+  section label (`heading`, size ~14, colour `#e71d70`) → navy sub-heading (`heading`, size
+  ~18, `#323e48`) → grey body → spec / amenity / location / payment items as `quote` cards
+  (bg `#f7f7f7`, accent `#e71d70`, italic, ~13px). Use `spacer` between sections.
+- Voice: property-investment led (developments, yields, payment plans, amenities, location),
+  factual and aspirational; less tax/compliance framing than GetGround.
+- Footer: small print `#666666` ~10px. Entity: "BuyAssociation is the trading name of
+  Direct Marketplace Limited... Manchester M1 3PW". Include capital-at-risk / not-FCA-
+  regulated / no-FSCS wording on investment emails; yields are projected, not guaranteed.
 
 ### 4. Build the email as builder blocks
 Produce a draft object: `{ id, name, profile, blocks: [ ... ] }` where `id` is unique
@@ -114,9 +135,14 @@ dashed "Image slot", and the person uploads the picture directly in the builder.
 Never inline base64. (Auto-upload is deferred until a token-holding proxy exists; see config.)
 
 ### 7. Hand over the link
-Encode the draft and build the link (see **Encoding**), then give it to the person:
-"Open your email in the builder: `<link>`". They click it, the builder opens pre-filled,
-and they edit/export from there.
+Encode the draft and build the link (see **Encoding**), then give it to the person as a
+CLICKABLE link. Output the raw URL on its own line with NO backticks and NO code formatting
+(backticks render as non-clickable code in chat). For example:
+
+Open your email in the builder:
+https://elizabethprendergast-lab.github.io/getground-tools/email-builder.html?v=…#id=…
+
+They click it, the builder opens pre-filled, and they edit/export from there.
 
 ### 8. Compliance — always flag
 GetGround and BuyAssociation emails are regulated communications. Always tell the person
@@ -169,8 +195,9 @@ const cb = Date.now().toString(36);
       body: JSON.stringify({ id, draft, name: draft.name || null })
     });
     if (!res.ok) throw new Error(await res.text());
-    console.log(base + "?v=" + cb + "#id=" + id);
+    console.log(base + "?v=" + cb + "#id=" + id);            // short link
   } catch (e) {
+    // Fallback: inline compressed draft if the DB write fails.
     const z = zlib.deflateSync(Buffer.from(JSON.stringify(draft),"utf8"))
       .toString("base64").replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
     console.log(base + "?v=" + cb + "#z=" + z);
