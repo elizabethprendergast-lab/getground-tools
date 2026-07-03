@@ -275,10 +275,6 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
           Copy URL
         </button>
-        <button class="btn-secondary" id="save-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-          Save to history
-        </button>
         <a class="btn-secondary" id="test-link" href="#" target="_blank" rel="noopener noreferrer">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           Test URL
@@ -349,7 +345,7 @@
 var SUPABASE_URL = 'https://nckkfaldcplgfmldsrou.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_DLQRih3BYJ7U9F3jk7TyaA_u731Rwvt';
 var TABLE = 'utm_history';
-var MAX_HISTORY = 100;
+var MAX_HISTORY = 1000;
 
 function sbUrl(path) { return SUPABASE_URL + '/rest/v1/' + path; }
 function sbHeaders(extra) {
@@ -541,12 +537,6 @@ document.getElementById('copy-url-btn').addEventListener('click', async function
   setTimeout(function() { btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy URL'; }, 2000);
 });
 
-// Explicit "Save to history" button — works even if clipboard is blocked.
-document.getElementById('save-btn').addEventListener('click', async function() {
-  if (!currentUrl) return;
-  await addToHistory();
-});
-
 document.getElementById('copy-params-btn').addEventListener('click', async function() {
   if (!currentParams.length) return;
   var ok = await copyText(currentParams.map(function(p){return p.key+'='+p.value;}).join('\n'));
@@ -579,7 +569,10 @@ async function fetchHistory() {
 
 async function addToHistory() {
   if (!currentUrl || !isValid()) return;
-  if (history.find(function(h){return h.url===currentUrl;})) { toast('Already in history'); return; }
+  var createdByVal = $createdBy.value.trim() || 'Anonymous';
+  // Treat an entry as a duplicate only when BOTH the URL and the creator match,
+  // so changing "Created by" lets you save a distinct entry.
+  if (history.find(function(h){return h.url===currentUrl && (h.createdBy||'Anonymous')===createdByVal;})) { toast('Already in history'); return; }
   setSyncState('syncing');
   var row = {
     base_url: $baseUrl.value.trim(),
