@@ -305,20 +305,12 @@
         </div>
         <div class="history-actions">
           <button class="history-toggle" id="history-toggle">Hide</button>
-          <button class="history-clear" id="history-clear" style="display:none">Clear All</button>
         </div>
       </div>
       <div id="history-panel">
         <div class="sync-indicator" id="sync-indicator">
           <span class="sync-dot" id="sync-dot"></span>
           <span id="sync-label">Synced</span>
-        </div>
-        <div class="confirm-box" id="clear-confirm" style="display:none">
-          <p>Clear all history?</p>
-          <div class="confirm-actions">
-            <button class="btn-danger" id="confirm-clear">Confirm</button>
-            <button class="btn-cancel" id="cancel-clear">Cancel</button>
-          </div>
         </div>
         <div class="search-wrap" id="history-search-wrap" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -648,7 +640,6 @@ function renderHistory() {
     return [h.url,h.campaign,h.source,h.medium,h.content,h.createdBy].some(function(v){return (v||'').toLowerCase().includes(search);});
   }) : history;
   document.getElementById('history-search-wrap').style.display = history.length ? '' : 'none';
-  document.getElementById('history-clear').style.display = history.length ? '' : 'none';
   if (!filtered.length) {
     $histList.innerHTML = '<p class="history-empty">'+(history.length?'No matching results.':'No history yet. Saved URLs will appear here.')+'</p>';
     return;
@@ -686,9 +677,6 @@ document.getElementById('history-toggle').addEventListener('click',function(){
   document.getElementById('history-panel').style.display=showHistoryPanel?'':'none';
   document.getElementById('history-toggle').textContent=showHistoryPanel?'Hide':'Show';
 });
-document.getElementById('history-clear').addEventListener('click',function(){document.getElementById('clear-confirm').style.display='';});
-document.getElementById('cancel-clear').addEventListener('click',function(){document.getElementById('clear-confirm').style.display='none';});
-document.getElementById('confirm-clear').addEventListener('click',clearHistory);
 $histSearch.addEventListener('input',renderHistory);
 
 // Autocomplete
