@@ -519,10 +519,12 @@
 
   .block-actions {
     position: absolute;
-    top: 8px; right: 8px;
+    top: -34px; right: 8px;
     display: none;
     gap: 4px;
-    z-index: 5;
+    z-index: 40;
+    box-shadow: 0 2px 8px rgba(6,54,58,0.28);
+    border-radius: 8px;
   }
   .canvas-block.selected .block-actions,
   .canvas-block:hover .block-actions { display: flex; }
@@ -544,7 +546,7 @@
 
   /* Smaller, less prominent action buttons on child blocks inside sections.
      Visible only on hover/select to avoid cluttering the canvas. */
-  .block-actions.in-section-actions { gap: 2px; top: 4px; right: 4px; }
+  .block-actions.in-section-actions { gap: 2px; top: -30px; right: 6px; }
   .block-actions.in-section-actions button { width: 22px; height: 22px; border-radius: 6px; opacity: 0.92; }
   .block-actions.in-section-actions svg { width: 12px; height: 12px; }
 
@@ -1805,8 +1807,8 @@ const BlockTypes = {
       const subMargin = align === 'center' ? `margin:0 auto ${subBottom}px auto;` : (align === 'right' ? `margin:0 0 ${subBottom}px auto;` : `margin:0 0 ${subBottom}px 0;`);
       const inner = `
         ${b.eyebrow ? `<p data-edit="eyebrow" data-edit-multi="true" style="font-size:${b.eyebrowSize||15}px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 16px 0;color:${textColor};text-align:${align};font-family:${State.brand.font};">${md(b.eyebrow).replace(/\n/g, '<br>')}</p>` : ''}
-        <h1 data-edit="heading" data-edit-multi="true" style="font-size:${headingSize}px;line-height:1.15;font-weight:700;margin:0 0 ${headMargin}px 0;letter-spacing:-0.02em;color:${textColor};text-align:${align};font-family:${State.brand.font};">${md(b.heading).replace(/\n/g, '<br>')}</h1>
-        ${b.sub ? `<p data-edit="sub" data-edit-multi="true" style="font-size:${subSize}px;line-height:1.55;${subMargin}max-width:480px;color:${textColor};text-align:${align};font-family:${State.brand.font};">${md(b.sub).replace(/\n/g, '<br>')}</p>` : ''}
+        <h1 data-edit="heading" data-edit-multi="true" style="font-size:${headingSize}px;line-height:1.15;font-weight:700;margin:0 0 ${headMargin}px 0;letter-spacing:-0.02em;color:${textColor};text-align:${align};text-wrap:balance;font-family:${State.brand.font};">${md(b.heading).replace(/\n/g, '<br>')}</h1>
+        ${b.sub ? `<p data-edit="sub" data-edit-multi="true" style="font-size:${subSize}px;line-height:1.55;${subMargin}max-width:480px;color:${textColor};text-align:${align};text-wrap:pretty;font-family:${State.brand.font};">${md(b.sub).replace(/\n/g, '<br>')}</p>` : ''}
         <div style="text-align:${align};${(!b.sub && b.btnText) ? `padding-top:${vp(beforeBtn)}px;` : ''}">${b.btnText ? mso(b.btnUrl, b.btnText, b.btnBg, b.btnColor, b.btnSize, 'btnText') : ''}</div>`;
       // When radius > 0, wrap in an inner table with overflow:hidden so the
       // gradient bg is clipped to a rounded rectangle.
@@ -1869,7 +1871,7 @@ const BlockTypes = {
       const fs = b.fontSize || 16;
       const r = b.radius || 0;
       const hasBg = b.bg || (b.gradFrom && b.gradTo);
-      const paragraphs = b.text.split(/\n\n+/).map(p => `<p style="font-size:${fs}px;line-height:1.6;margin:0 0 16px 0;color:${c};text-align:${b.align};font-family:${State.brand.font};">${md(p).replace(/\n/g, '<br>')}</p>`).join('');
+      const paragraphs = b.text.split(/\n\n+/).map(p => `<p style="font-size:${fs}px;line-height:1.6;margin:0 0 16px 0;color:${c};text-align:${b.align};text-wrap:pretty;font-family:${State.brand.font};">${md(p).replace(/\n/g, '<br>')}</p>`).join('');
       const inner = `<div data-edit="text" data-edit-multi="true">${paragraphs}</div>`;
       // If user set both bg and radius, wrap in a rounded container
       if (r > 0 && hasBg) {
@@ -1932,7 +1934,7 @@ const BlockTypes = {
           </table>
         </td></tr>`;
       }
-      const content = `<h2 data-edit="text" data-edit-multi="true" style="font-size:${b.size}px;line-height:1.2;font-weight:700;margin:0;letter-spacing:-0.015em;color:${c};text-align:${b.align||'left'};font-family:${State.brand.font};">${md(b.text).replace(/\n/g, '<br>')}</h2>`;
+      const content = `<h2 data-edit="text" data-edit-multi="true" style="font-size:${b.size}px;line-height:1.2;font-weight:700;margin:0;letter-spacing:-0.015em;color:${c};text-align:${b.align||'left'};text-wrap:balance;font-family:${State.brand.font};">${md(b.text).replace(/\n/g, '<br>')}</h2>`;
       return withBg(b, py, '#FFFFFF', content);
     },
     fields: [
