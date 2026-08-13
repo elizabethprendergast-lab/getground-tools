@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Piccadilly Wharf Launch — Live Campaign Dashboard</title>
+<style>
+:root{--bg:#eef1f4;--panel:#fff;--ink:#14202b;--ink-soft:#4a5a68;--line:#dce3ea;--muted:#7b8894;--accent:#0d7d84;--accent-soft:#0d7d8420;--brass:#a97b3c;--good:#1f9d6b;--warn:#cf9026;--bad:#c8455c;--neutral:#8793a0;--shadow:0 1px 2px rgba(20,32,43,.06),0 8px 24px rgba(20,32,43,.05);--radius:14px}
+@media(prefers-color-scheme:dark){:root{--bg:#0c1116;--panel:#131b23;--ink:#e7edf2;--ink-soft:#a9b6c1;--line:#223039;--muted:#7d8b97;--accent:#2bb7be;--accent-soft:#2bb7be24;--brass:#cba260;--good:#35c489;--warn:#e0a944;--bad:#e26380;--neutral:#8b98a4;--shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35)}}
+:root[data-theme="light"]{--bg:#eef1f4;--panel:#fff;--ink:#14202b;--ink-soft:#4a5a68;--line:#dce3ea;--muted:#7b8894;--accent:#0d7d84;--accent-soft:#0d7d8420;--brass:#a97b3c;--good:#1f9d6b;--warn:#cf9026;--bad:#c8455c;--neutral:#8793a0}
+:root[data-theme="dark"]{--bg:#0c1116;--panel:#131b23;--ink:#e7edf2;--ink-soft:#a9b6c1;--line:#223039;--muted:#7d8b97;--accent:#2bb7be;--accent-soft:#2bb7be24;--brass:#cba260;--good:#35c489;--warn:#e0a944;--bad:#e26380;--neutral:#8b98a4}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono,.kpi-value,.mini-v,.funnel-num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1120px;margin:0 auto;padding:32px 24px 72px}
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
+.eyebrow{text-transform:uppercase;letter-spacing:.14em;font-size:11.5px;font-weight:700;color:var(--accent);margin:0 0 6px}
+h1{font-size:clamp(24px,3.4vw,34px);margin:0;letter-spacing:-.02em}
+.sub{color:var(--ink-soft);margin:6px 0 0;font-size:14.5px}
+.top-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.btn{font:inherit;font-size:13px;font-weight:600;cursor:pointer;color:#fff;background:var(--accent);border:0;border-radius:9px;padding:9px 15px;box-shadow:var(--shadow)}
+.btn:hover{filter:brightness(1.07)}.btn:disabled{opacity:.55;cursor:default}
+.refresh-status{font-size:12px;color:var(--muted);min-height:14px;text-align:right;max-width:300px}
+.banner{margin:18px 0 0;padding:10px 14px;border:1px dashed var(--line);border-radius:10px;background:var(--accent-soft);color:var(--ink-soft);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:22px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.kpi-label{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.kpi-value{font-size:34px;font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
+.kpi-sub{font-size:12.5px;color:var(--ink-soft)}
+.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow)}
+.span-2{grid-column:1/-1}
+.card-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}
+h2{font-size:16px;margin:0}.tag{font-size:12px;color:var(--muted)}.tag.warnpill{color:var(--warn);font-weight:600}
+.funnel-row{display:grid;grid-template-columns:140px 1fr 72px 130px;align-items:center;gap:12px;padding:7px 0}
+.funnel-name{font-size:13px;color:var(--ink-soft)}
+.funnel-track{background:var(--bg);border-radius:6px;height:20px;overflow:hidden;border:1px solid var(--line)}
+.funnel-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--brass));border-radius:6px 0 0 6px;min-width:2px}
+.funnel-num{text-align:right;font-weight:700;font-size:14px}.funnel-note{font-size:12px;color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.mini{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:2px}
+.mini-v{font-size:26px;font-weight:700}.mini-l{font-size:12px;color:var(--muted)}
+.emailname{font-size:22px;font-weight:700;color:var(--ink);margin:0 0 14px}
+.emailname a{color:var(--accent);text-decoration:none}.emailmeta{font-size:13px;font-weight:400;color:var(--muted)}
+.rep-row{display:grid;grid-template-columns:120px 1fr 120px;align-items:center;gap:12px;padding:6px 0}
+.rep-name{font-size:13px}.rep-track{display:flex;height:18px;background:var(--bg);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg-done{background:var(--good)}.seg-ns{background:var(--neutral);opacity:.35}.rep-stat{font-size:13px;text-align:right}.muted{color:var(--muted)}
+.out-row{display:grid;grid-template-columns:16px 130px 1fr 34px;align-items:center;gap:10px;padding:5px 0}
+.dot{width:10px;height:10px;border-radius:50%}.dot-good{background:var(--good)}.dot-neutral{background:var(--neutral)}
+.out-label{font-size:13px}.out-track{background:var(--bg);border:1px solid var(--line);border-radius:6px;height:14px;overflow:hidden}
+.out-bar{height:100%}.sem-good{background:var(--good)}.sem-neutral{background:var(--neutral)}.out-num{text-align:right;font-weight:700;font-size:13px}
+.fine{font-size:12px;color:var(--muted);margin:10px 2px 0}
+footer{margin-top:28px;font-size:12px;color:var(--muted);text-align:center}
+.skel{color:var(--muted)}
+@media(max-width:860px){.grid{grid-template-columns:repeat(2,1fr)}.cards{grid-template-columns:1fr}.tiles{grid-template-columns:repeat(2,1fr)}.funnel-row{grid-template-columns:96px 1fr 60px}.funnel-note{display:none}.rep-row{grid-template-columns:96px 1fr 96px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Growth · Campaign performance · live</p>
+      <h1>Piccadilly Wharf Launch</h1>
+      <p class="sub">Teaser email &rarr; click &rarr; sales follow-up. Live from HubSpot via secure proxy.</p>
+    </div>
+    <div class="top-right">
+      <button id="refreshBtn" class="btn" type="button">&#8635; Update from HubSpot</button>
+      <div id="refreshStatus" class="refresh-status">Loading…</div>
+    </div>
+  </header>
+  <div id="setupBanner" class="banner" style="display:none"></div>
+
+  <div class="grid">
+    <div class="kpi"><div class="kpi-label">Meetings booked</div><div class="kpi-value">2</div><div class="kpi-sub">post-engagement · updated 13 Aug 2026</div></div>
+    <div class="kpi"><div class="kpi-label">Deals created</div><div class="kpi-value">0</div><div class="kpi-sub">post-engagement · updated 13 Aug 2026</div></div>
+    <div class="kpi"><div class="kpi-label">Revenue</div><div class="kpi-value">£0</div><div class="kpi-sub">post-engagement · updated 13 Aug 2026</div></div>
+    <div class="kpi"><div class="kpi-label">Contacts engaged</div><div class="kpi-value" id="kEngaged">—</div><div class="kpi-sub">clicked &rarr; call task created · live</div></div>
+  </div>
+
+  <div class="cards">
+    <section class="card span-2">
+      <div class="card-head"><h2>Campaign funnel</h2><span class="tag" id="funnelTag">live</span></div>
+      <div id="funnel"><p class="skel">Loading funnel…</p></div>
+    </section>
+
+    <section class="card span-2">
+      <div class="card-head"><h2>Email performance</h2><span class="tag">live HubSpot stats · workflow has 2 emails</span></div>
+      <p class="emailname"><a id="teaserLink" href="https://app-eu1.hubspot.com/email/25516403/details/449426065654" target="_blank" rel="noopener">Piccadilly Wharf Teaser - 0826</a> <span class="emailmeta">&middot; published 11 Aug 2026</span></p>
+      <div class="tiles" id="teaserTiles"><p class="skel">Loading…</p></div>
+      <p class="emailname" style="margin-top:20px"><a id="launchLink" href="https://app-eu1.hubspot.com/email/25516403/details/451478998244" target="_blank" rel="noopener">Piccadilly Wharf Launch - 0826</a> <span class="emailmeta" id="launchMeta">&middot; not sent yet</span></p>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Call tasks by rep</h2><span class="tag" id="repTag">live</span></div>
+      <div id="reps"><p class="skel">Loading…</p></div>
+      <div style="display:flex;gap:16px;font-size:12px;color:var(--muted);margin-top:10px"><span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--good);margin-right:5px"></i>Completed</span><span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--neutral);opacity:.4;margin-right:5px"></i>Not started</span></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Call outcomes</h2><span class="tag">from last full analysis</span></div>
+      <div class="out-row"><span class="dot dot-good"></span><span class="out-label">Positive</span><div class="out-track"><div class="out-bar sem-good" style="width:100%"></div></div><span class="out-num">6</span></div>
+      <div class="out-row"><span class="dot dot-good"></span><span class="out-label">Progress to deal</span><div class="out-track"><div class="out-bar sem-good" style="width:2%"></div></div><span class="out-num">0</span></div>
+      <div class="out-row"><span class="dot dot-neutral"></span><span class="out-label">No answer</span><div class="out-track"><div class="out-bar sem-neutral" style="width:100%"></div></div><span class="out-num">32</span></div>
+      <p class="fine">51 calls total. Refreshes on full rebuild, not this live view.</p>
+    </section>
+
+    <section class="card span-2">
+      <div class="card-head"><h2>UTM / channel traffic</h2><span class="tag warnpill">pending — Mixpanel billing blocked</span></div>
+      <p class="fine" style="font-size:13px;color:var(--ink-soft)">Email links are tagged <code>utm_campaign=piccadilly_wharf_launch</code>; Mixpanel tracks it on <code>page_viewed</code>/<code>$mp_click</code>. Counts unavailable while the Mixpanel account is payment-blocked.</p>
+    </section>
+  </div>
+
+  <footer>Aggregate campaign stats only — no individual contact data. Live figures via a server-side proxy; the HubSpot token is never in this page.</footer>
+</div>
+
+<script>
+// ⇩⇩⇩  PASTE YOUR DEPLOYED WORKER URL HERE (see DEPLOY.md)  ⇩⇩⇩
+const WORKER_URL = "";
+// ⇧⇧⇧ ------------------------------------------------------ ⇧⇧⇧
+
+var btn = document.getElementById('refreshBtn'), status = document.getElementById('refreshStatus');
+function n(x){ return (x==null)?'—':Number(x).toLocaleString(); }
+function pct(x){ return (x==null)?'—':(Math.round(x*100)/100)+'%'; }
+function el(id){ return document.getElementById(id); }
+
+function renderFunnel(d){
+  var t=d.emails.teaser||{}, list=d.list.size||0, tasks=d.tasks;
+  var steps=[
+    ['Enrolled on list', list, list, list+' — Property high intent'],
+    ['Email sent', t.sent, t.sent, pct((t.delivered/t.sent))+' delivered'],
+    ['Opened (unique)', t.open, t.open, pct(t.openRate)+' open rate'],
+    ['Clicked', t.click, t.click, pct(t.clickThroughRate)+' click-through'],
+    ['Call task created', tasks.total, tasks.total, 'workflow follow-up'],
+    ['Task completed', tasks.completed, tasks.completed, (tasks.total? Math.round(tasks.completed/tasks.total*100):0)+'% of tasks']
+  ];
+  var max=list||1, html='';
+  steps.forEach(function(s){
+    var w=Math.max((s[1]||0)/max*100,0.6);
+    html+='<div class="funnel-row"><div class="funnel-name">'+s[0]+'</div><div class="funnel-track"><div class="funnel-bar" style="width:'+w.toFixed(3)+'%"></div></div><div class="funnel-num">'+n(s[1])+'</div><div class="funnel-note">'+s[3]+'</div></div>';
+  });
+  el('funnel').innerHTML=html;
+}
+function renderTeaser(t){
+  if(!t||t.sent==null){ el('teaserTiles').innerHTML='<p class="skel">No stats yet.</p>'; return; }
+  var unsafe = t.unsubRate!=null && t.unsubRate>2;
+  var tiles=[
+    [n(t.sent),'Sent'],
+    [n(t.delivered),'Delivered '+pct(t.delivered/t.sent)],
+    [n(t.open),'Opens · '+pct(t.openRate)],
+    [n(t.click),'Clicks · '+pct(t.clickThroughRate)+' CTR'],
+    [n(t.reply),'Replies'],
+    ['<span'+(unsafe?' style="color:var(--bad)"':'')+'>'+pct(t.unsubRate)+'</span>','Unsub rate · '+n(t.unsub)+' ppl'+(unsafe?' ⚠':'')]
+  ];
+  el('teaserTiles').innerHTML=tiles.map(function(x){return '<div class="mini"><span class="mini-v">'+x[0]+'</span><span class="mini-l">'+x[1]+'</span></div>';}).join('');
+}
+function renderReps(reps){
+  var order=Object.keys(reps).sort(function(a,b){return reps[b].created-reps[a].created;});
+  el('reps').innerHTML=order.map(function(name){
+    var r=reps[name], c=r.created||0, d=r.done||0, ns=c-d;
+    var dp=c?d/c*100:0, np=c?ns/c*100:0;
+    return '<div class="rep-row"><div class="rep-name">'+name+'</div><div class="rep-track"><div class="seg-done" style="width:'+dp.toFixed(1)+'%"></div><div class="seg-ns" style="width:'+np.toFixed(1)+'%"></div></div><div class="rep-stat"><b>'+d+'</b>/'+c+' <span class="muted">done</span></div></div>';
+  }).join('');
+}
+function render(d){
+  el('kEngaged').textContent=n(d.tasks.total);
+  renderFunnel(d); renderTeaser(d.emails.teaser); renderReps(d.tasks.reps);
+  var lm=d.emails.launch;
+  el('launchMeta').textContent = (lm && lm.sent!=null) ? ('· sent '+n(lm.sent)+' · opens '+n(lm.open)) : '· not sent yet — stats appear here once it sends';
+  var when=new Date(d.generatedAt||Date.now());
+  status.textContent='Updated '+when.toLocaleString();
+}
+function load(){
+  if(!WORKER_URL){
+    var b=el('setupBanner'); b.style.display='block';
+    b.textContent='Set-up: paste your deployed Worker URL into WORKER_URL in this file (see DEPLOY.md), then reload.';
+    status.textContent='Not connected'; btn.disabled=true; return;
+  }
+  btn.disabled=true; status.textContent='Refreshing from HubSpot…';
+  fetch(WORKER_URL,{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
+    if(d.error){ status.textContent='Proxy error: '+d.error; btn.disabled=false; return; }
+    render(d); btn.disabled=false;
+  }).catch(function(e){ status.textContent='Could not reach proxy — check the Worker URL'; btn.disabled=false; });
+}
+btn.addEventListener('click', load);
+load();
+</script>
+</body>
+</html>
