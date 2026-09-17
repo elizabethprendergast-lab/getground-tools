@@ -1,0 +1,7 @@
+{
+  "name": "hubspot-email-direct",
+  "version": "0.1.0",
+  "description": "Build and edit marketing emails directly inside HubSpot (custom-coded templates): fixes structural HTML/CSS via the CMS Source Code API while leaving text and buttons as native HubSpot modules for marketers to edit, always includes unsubscribe + compliance disclaimers, and self-teaches via LEARNINGS.md.",
+  "author": { "name": "GetGround" },
+  "keywords": ["email", "hubspot", "marketing", "getground", "cms", "compliance"]
+}

@@ -6,6 +6,11 @@
       "name": "email-builder",
       "source": "./plugins/email-builder",
       "description": "Build branded GetGround/BuyAssociation marketing emails via the hosted builder (short link), with Notion voice, UTMs, Supabase drafts + feedback, and Compliance flagging."
+    },
+    {
+      "name": "hubspot-email-direct",
+      "source": "./plugins/hubspot-email-direct",
+      "description": "Build and edit marketing emails directly inside HubSpot custom-coded templates via the CMS Source Code API, keeping text/buttons native and editable, with unsubscribe + compliance disclaimers always on."
     }
   ]
 }
