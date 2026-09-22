@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Beth Reports</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --page-plane: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --gridline: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --good: #0ca30c;
+    --warning: #fab219;
+    --serious: #ec835a;
+    --critical: #d03b3b;
+    --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
+    --series-5: #e87ba4; --series-6: #008300; --series-7: #4a3aa7; --series-8: #e34948;
+    --not-done: #c3c2b7;
+    --accent-soft: rgba(42,120,214,0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --page-plane: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --gridline: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255,255,255,0.10);
+      --good: #0ca30c;
+      --warning: #fab219;
+      --serious: #ec835a;
+      --critical: #e66767;
+      --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+      --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
+      --not-done: #383835;
+      --accent-soft: rgba(57,135,229,0.14);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page-plane); color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  header {
+    padding: 20px clamp(16px, 4vw, 40px);
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+  }
+  header .brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  header h1 a { color: inherit; text-decoration: none; }
+  nav.campaign-nav { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.campaign-nav a {
+    font-size: 13px; padding: 6px 12px; border-radius: 999px; text-decoration: none;
+    color: var(--text-secondary); border: 1px solid var(--border); white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  nav.campaign-nav a.active { color: var(--text-primary); background: var(--accent-soft); border-color: var(--series-1); font-weight: 600; }
+  .priority-pill {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 999px; white-space: nowrap; line-height: 1.4;
+  }
+  .priority-pill.high { color: #fff; background: var(--critical); }
+  .priority-pill.medium { color: #3a2a06; background: var(--warning); }
+  .priority-pill.low { color: var(--text-secondary); background: var(--baseline); }
+  .priority-pill.none { color: var(--text-muted); background: transparent; border: 1px solid var(--border); }
+  .scope-note { margin: 0; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+  @media (max-width: 700px) { .scope-note { white-space: normal; } }
+  main { max-width: 1000px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 64px; }
+  .meta-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .meta-row p { margin: 0; color: var(--text-secondary); font-size: 13px; }
+  button#update-btn, .back-link {
+    font: inherit; font-size: 13px; padding: 7px 14px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary);
+    text-decoration: none; display: inline-block;
+  }
+  button#update-btn:active { transform: translateY(1px); }
+  .landing-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  a.landing-card {
+    display: block; background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; text-decoration: none; color: inherit;
+  }
+  a.landing-card h3 { margin: 0; font-size: 15px; font-weight: 600; }
+  a.landing-card .landing-card-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 6px;
+  }
+  a.landing-card p { margin: 0 0 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+  a.landing-card .landing-stats { font-size: 12px; color: var(--text-muted); display: flex; gap: 12px; }
+  section.card {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px clamp(16px, 3vw, 28px); margin-bottom: 20px;
+  }
+  section.card h2 { font-size: 16px; margin: 0 0 4px; font-weight: 600; }
+  section.card .sub { font-size: 13px; color: var(--text-muted); margin: 0 0 18px; }
+  .context-line { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0 0 18px; }
+  .task-name-pattern { font-size: 12px; color: var(--text-muted); margin: -10px 0 18px; }
+  .task-name-pattern code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; background: var(--accent-soft);
+    color: var(--text-primary); padding: 1px 6px; border-radius: 4px; font-size: 11.5px;
+  }
+  .task-name-note { font-style: italic; }
+  .stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+  .stat-tile {
+    flex: 1 1 120px; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
+  }
+  .stat-tile .label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+  .stat-tile .value { font-size: 26px; font-weight: 600; font-variant-numeric: proportional-nums; }
+  .stat-tile.done .value { color: var(--good); }
+  .stat-tile.priority .value { font-size: 18px; font-weight: 700; }
+  .stat-tile.priority.high .value { color: var(--critical); }
+  .stat-tile.priority.medium .value { color: var(--warning); }
+  .stat-tile.priority.low .value { color: var(--text-muted); }
+  .rep-bar-wrap { margin-bottom: 14px; }
+  .rep-bar-head {
+    display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .rep-bar {
+    height: 10px; border-radius: 5px; background: var(--not-done); overflow: hidden; display: flex;
+  }
+  .rep-bar .done-seg { background: var(--good); height: 100%; }
+  .rep-task-link {
+    display: inline-block; margin-top: 6px; font-size: 12px; color: var(--series-1);
+    text-decoration: none;
+  }
+  .rep-task-link:hover { text-decoration: underline; }
+  .legend-row { display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary); margin-top: 12px; }
+  .legend-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .empty-state {
+    padding: 28px 16px; text-align: center; color: var(--text-muted); font-size: 13px;
+    border: 1px dashed var(--gridline); border-radius: 10px;
+  }
+  .overflow-x { overflow-x: auto; }
+  table.number-table, table.outcomes-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+  table.number-table th, table.number-table td,
+  table.outcomes-table th, table.outcomes-table td {
+    text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--gridline);
+  }
+  table.number-table th, table.outcomes-table th { color: var(--text-muted); font-weight: 500; }
+  table.number-table td.left-to-do { font-weight: 600; }
+  table.number-table td.left-to-do.has-left { color: var(--serious); }
+  .outcome-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .outcome-bar-row .name {
+    flex: 0 0 160px; font-size: 13px; color: var(--text-secondary); cursor: help;
+    border-bottom: 1px dashed var(--baseline); width: fit-content;
+  }
+  .outcome-bar-row .name, .outcome-bar-row .count { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .outcome-bar-row .track { flex: 1; height: 10px; border-radius: 5px; background: var(--gridline); overflow: hidden; }
+  .outcome-bar-row .fill { height: 100%; border-radius: 5px; }
+  .outcome-bar-row .count { flex: 0 0 40px; text-align: right; font-size: 13px; color: var(--text-secondary); }
+  #contact-popover {
+    position: fixed; z-index: 50; max-width: 260px; max-height: 260px; overflow-y: auto;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18); padding: 10px 12px; font-size: 12px; display: none;
+  }
+  #contact-popover .ph-title { font-size: 11px; color: var(--text-muted); margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.03em; }
+  #contact-popover a { display: block; padding: 4px 0; color: var(--series-1); text-decoration: none; }
+  #contact-popover a:hover { text-decoration: underline; }
+  footer { text-align: center; font-size: 12px; color: var(--text-muted); padding: 20px 0 40px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <nav class="campaign-nav" id="campaign-nav"></nav>
+  </div>
+</header>
+<main id="main">Loading…</main>
+<div id="contact-popover"></div>
+
+<script>
+const SERIES = ["var(--series-1)","var(--series-2)","var(--series-3)","var(--series-4)","var(--series-5)","var(--series-6)","var(--series-7)","var(--series-8)"];
+const REPORT_KEY = "mrr-nov-sprint";
+
+function fmtDate(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+function fmtDateTime(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+// Dominant priority per campaign — HubSpot's live hs_task_priority on its tasks, majority
+// wins. Recomputed from the same live API pull as everything else, so it (and the sort
+// order below) tracks a priority change in HubSpot automatically next time the page loads
+// or refreshes — no separate polling needed for the data itself, just a periodic refresh
+// (see the auto-refresh interval at the bottom) so an already-open tab picks it up too.
+function dominantPriority(proj) {
+  const rows = (proj.tasks && proj.tasks.priorityBreakdown) || [];
+  return rows[0] ? rows[0].level : "NONE";
+}
+function priorityRank(level) {
+  return { HIGH: 0, MEDIUM: 1, LOW: 2 }[level] ?? 3; // NONE/unset sorts last
+}
+function sortedByPriority(projects) {
+  return [...projects].sort((a, b) => priorityRank(dominantPriority(a)) - priorityRank(dominantPriority(b)));
+}
+function priorityPillHtml(level) {
+  const cls = (level || "NONE").toLowerCase();
+  const label = !level || level === "NONE" ? "Not set" : level.charAt(0) + level.slice(1).toLowerCase();
+  return `<span class="priority-pill ${cls}">${label}</span>`;
+}
+
+function priorityTileHtml(breakdown) {
+  const rows = breakdown || [];
+  if (!rows.length) return `<div class="stat-tile priority"><div class="label">Priority</div><div class="value">—</div></div>`;
+  const top = rows[0];
+  const cls = (top.level || "").toLowerCase();
+  const label = top.level === "NONE" ? "Not set" : (top.level || "").charAt(0) + (top.level || "").slice(1).toLowerCase();
+  const mixed = rows.length > 1 ? ` <span style="font-size:11px;color:var(--text-muted);font-weight:400">(mixed — ${rows.map(r => r.level + ' ' + r.count).join(', ')})</span>` : "";
+  return `<div class="stat-tile priority ${cls}"><div class="label">Priority</div><div class="value">${label}${mixed}</div></div>`;
+}
+
+function callNumberTableHtml(byCallNumber) {
+  if (!byCallNumber || !byCallNumber.length) return "";
+  return `
+    <p class="sub" style="margin-top:18px; margin-bottom:10px">Breakdown by call attempt — left to do</p>
+    <div class="overflow-x">
+      <table class="number-table">
+        <thead><tr><th>Attempt</th><th>Total</th><th>Done</th><th>Left to do</th></tr></thead>
+        <tbody>
+          ${byCallNumber.map((c) => `
+            <tr>
+              <td>${c.number === "?" ? "(no number)" : "#" + c.number}</td>
+              <td>${c.total}</td>
+              <td>${c.done}</td>
+              <td class="left-to-do ${c.notDone > 0 ? "has-left" : ""}">${c.notDone}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function hubspotTaskLink(hubspot, viewId, searchTerm) {
+  if (!hubspot || !viewId) return null;
+  const q = searchTerm ? `?query=${encodeURIComponent(searchTerm)}` : "";
+  return `https://${hubspot.subdomain}/contacts/${hubspot.portalId}/objects/${hubspot.objectTypeId}/views/${viewId}/list${q}`;
+}
+
+function taskNamePatternHtml(proj) {
+  if (!proj.taskNamePattern) return "";
+  return `<p class="task-name-pattern">HubSpot task name: <code>${esc(proj.taskNamePattern)}</code> <span class="task-name-note">(call number, e.g. "#1 |", varies)</span></p>`;
+}
+
+function completionCardHtml(proj, sprintStart, hubspot) {
+  const t = proj.tasks || { total: 0, done: 0, notDone: 0, reps: {}, byCallNumber: [], priorityBreakdown: [] };
+  const contextLine = proj.context ? `<p class="context-line">${esc(proj.context)}</p>` : "";
+  const namePattern = taskNamePatternHtml(proj);
+  if (!t.total) {
+    return `
+      <section class="card">
+        <h2>${esc(proj.label)}</h2>
+        <p class="sub">Call task completion — assigned after ${fmtDate(sprintStart)}</p>
+        ${contextLine}
+        ${namePattern}
+        <div class="empty-state">No matching call tasks yet in this project since ${fmtDate(sprintStart)}.</div>
+      </section>`;
+  }
+  const reps = Object.entries(t.reps || {});
+  return `
+    <section class="card">
+      <h2>${esc(proj.label)}</h2>
+      <p class="sub">Call task completion — assigned after ${fmtDate(sprintStart)}</p>
+      ${contextLine}
+      ${namePattern}
+      <div class="stat-row">
+        <div class="stat-tile"><div class="label">Total assigned</div><div class="value">${t.total}</div></div>
+        <div class="stat-tile done"><div class="label">Done</div><div class="value">${t.done}</div></div>
+        <div class="stat-tile"><div class="label">Not done</div><div class="value">${t.notDone}</div></div>
+        ${priorityTileHtml(t.priorityBreakdown)}
+      </div>
+      ${reps.map(([name, r]) => {
+        const link = hubspotTaskLink(hubspot, hubspot && hubspot.ownerViews && hubspot.ownerViews[name], proj.taskViewQuery);
+        return `
+        <div class="rep-bar-wrap">
+          <div class="rep-bar-head">
+            <span>${esc(name)}</span>
+            <span>${r.done} / ${r.created} done</span>
+          </div>
+          <div class="rep-bar"><div class="done-seg" style="width:${r.created ? (100 * r.done / r.created) : 0}%"></div></div>
+          ${link ? `<a class="rep-task-link" href="${link}" target="_blank" rel="noopener">Open ${esc(name)}'s tasks in HubSpot →</a>` : ""}
+        </div>
+      `;
+      }).join("")}
+      <div class="legend-row">
+        <span><span class="legend-swatch" style="background:var(--good)"></span>Done</span>
+        <span><span class="legend-swatch" style="background:var(--not-done)"></span>Not done</span>
+      </div>
+      ${callNumberTableHtml(t.byCallNumber)}
+    </section>`;
+}
+
+let popoverHideTimer = null;
+function showContactPopover(anchorEl, contacts, portalId) {
+  clearTimeout(popoverHideTimer);
+  const pop = document.getElementById("contact-popover");
+  const unique = [];
+  const seen = new Set();
+  for (const c of contacts) { if (!seen.has(c.id)) { seen.add(c.id); unique.push(c); } }
+  pop.innerHTML = `<p class="ph-title">${unique.length} contact${unique.length === 1 ? "" : "s"}</p>` +
+    unique.slice(0, 40).map(c => `<a href="https://app-eu1.hubspot.com/contacts/${portalId}/record/0-1/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a>`).join("");
+  const rect = anchorEl.getBoundingClientRect();
+  pop.style.display = "block";
+  const top = Math.min(rect.bottom + 6, window.innerHeight - pop.offsetHeight - 12);
+  pop.style.top = Math.max(8, top) + "px";
+  pop.style.left = Math.min(rect.left, window.innerWidth - 280) + "px";
+}
+function scheduleHidePopover() {
+  clearTimeout(popoverHideTimer);
+  popoverHideTimer = setTimeout(() => { document.getElementById("contact-popover").style.display = "none"; }, 250);
+}
+
+function outcomeCardHtml(label, o, portalId) {
+  const rows = (o && o.dispositions) || [];
+  if (!rows.length) {
+    return `
+      <section class="card">
+        <h2>Outcomes — ${esc(label)}</h2>
+        <p class="sub">Call outcomes — live</p>
+        <div class="empty-state">No completed call tasks yet in this project. Updates live as tasks are completed.</div>
+      </section>`;
+  }
+  const max = Math.max(...rows.map(r => r.tasks));
+  const html = `
+    <section class="card">
+      <h2>Outcomes — ${esc(label)}</h2>
+      <p class="sub">Call outcomes — live. Hover an outcome to see who's behind it, click a name to open them in HubSpot.</p>
+      ${rows.map((r, i) => `
+        <div class="outcome-bar-row" data-outcome-index="${i}">
+          <span class="name" data-outcome-index="${i}">${esc(r.outcome)}</span>
+          <div class="track"><div class="fill" style="width:${100 * r.tasks / max}%; background:${SERIES[i % SERIES.length]}"></div></div>
+          <span class="count">${r.tasks}</span>
+        </div>
+      `).join("")}
+      <div class="overflow-x">
+        <table class="outcomes-table">
+          <thead><tr><th>Outcome</th><th>Tasks</th><th>Share</th></tr></thead>
+          <tbody>
+            ${rows.map(r => `<tr><td>${esc(r.outcome)}</td><td>${r.tasks}</td><td>${Math.round(100 * r.tasks / o.totalCompleted)}%</td></tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+      <p class="sub" style="margin-top:12px">${o.totalMatchedToCall} of ${o.totalCompleted} completed tasks matched to a call.</p>
+    </section>`;
+  // Stash rows on a data attribute-free closure via a global lookup keyed by label (simple,
+  // avoids re-parsing HTML to find contacts on hover).
+  window.__outcomeRowsByLabel = window.__outcomeRowsByLabel || {};
+  window.__outcomeRowsByLabel[label] = rows;
+  return html;
+}
+
+function wireOutcomeHovers(label, portalId) {
+  const rows = (window.__outcomeRowsByLabel || {})[label] || [];
+  document.querySelectorAll(`.outcome-bar-row[data-outcome-index], .name[data-outcome-index]`).forEach((el) => {
+    const idx = Number(el.getAttribute("data-outcome-index"));
+    const row = rows[idx];
+    if (!row) return;
+    el.addEventListener("mouseenter", () => showContactPopover(el, row.contacts || [], portalId));
+    el.addEventListener("mouseleave", scheduleHidePopover);
+  });
+  const pop = document.getElementById("contact-popover");
+  pop.addEventListener("mouseenter", () => clearTimeout(popoverHideTimer));
+  pop.addEventListener("mouseleave", scheduleHidePopover);
+}
+
+function dealCardHtml(label, d, portalId) {
+  const rows = (d && d.rows) || [];
+  if (!rows.length) {
+    return `
+      <section class="card">
+        <h2>Deal attribution — ${esc(label)}</h2>
+        <p class="sub">Closed Plans deals — live</p>
+        <div class="empty-state">No contacts from this sequence yet.</div>
+      </section>`;
+  }
+  const max = Math.max(...rows.map(r => r.count));
+  const html = `
+    <section class="card">
+      <h2>Deal attribution — ${esc(label)}</h2>
+      <p class="sub">Contacts put into this sequence who closed a Plans deal (Core/Complete, new or upsell) — live. Hover a row to see who, click a name to open them in HubSpot.</p>
+      ${rows.map((r, i) => `
+        <div class="outcome-bar-row" data-deal-index="${i}">
+          <span class="name" data-deal-index="${i}">${esc(r.label)}</span>
+          <div class="track"><div class="fill" style="width:${100 * r.count / max}%; background:${SERIES[i % SERIES.length]}"></div></div>
+          <span class="count">${r.count}</span>
+        </div>
+      `).join("")}
+      <div class="overflow-x">
+        <table class="outcomes-table">
+          <thead><tr><th>Outcome</th><th>Contacts</th><th>Share</th></tr></thead>
+          <tbody>
+            ${rows.map(r => `<tr><td>${esc(r.label)}</td><td>${r.count}</td><td>${Math.round(100 * r.count / d.totalContacts)}%</td></tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+      <p class="sub" style="margin-top:12px">${d.contactsWithClosedDeal} of ${d.totalContacts} contacts put into this sequence have closed a Plans deal.</p>
+    </section>`;
+  window.__dealRowsByLabel = window.__dealRowsByLabel || {};
+  window.__dealRowsByLabel[label] = rows;
+  return html;
+}
+
+function wireDealHovers(label, portalId) {
+  const rows = (window.__dealRowsByLabel || {})[label] || [];
+  document.querySelectorAll(`[data-deal-index]`).forEach((el) => {
+    const idx = Number(el.getAttribute("data-deal-index"));
+    const row = rows[idx];
+    if (!row) return;
+    el.addEventListener("mouseenter", () => showContactPopover(el, row.contacts || [], portalId));
+    el.addEventListener("mouseleave", scheduleHidePopover);
+  });
+}
+
+function campaignPageHtml(proj, sprintStart, hubspot) {
+  return `
+    <div class="meta-row">
+      <p id="meta-line">Loading…</p>
+      <button id="update-btn">Update</button>
+    </div>
+    ${completionCardHtml(proj, sprintStart, hubspot)}
+    <div id="outcomes-slot"></div>
+    <div id="deals-slot"></div>
+    <footer id="footer-line"></footer>`;
+}
+
+function landingHtml(stats) {
+  const projects = sortedByPriority(stats.projects || []);
+  return `
+    <div class="meta-row">
+      <p id="meta-line">Loading…</p>
+      <button id="update-btn">Update</button>
+    </div>
+    <div class="landing-grid">
+      ${projects.map((p) => `
+        <a class="landing-card" href="/?campaign=${p.key}">
+          <div class="landing-card-head">
+            <h3>${esc(p.label)}</h3>
+            ${priorityPillHtml(dominantPriority(p))}
+          </div>
+          <p>${esc(p.context || "")}</p>
+          <div class="landing-stats">
+            <span>${p.tasks.total} total</span>
+            <span>${p.tasks.notDone} left to do</span>
+          </div>
+        </a>
+      `).join("")}
+    </div>
+    <footer id="footer-line"></footer>`;
+}
+
+function renderNav(stats, activeKey) {
+  const nav = document.getElementById("campaign-nav");
+  const projects = sortedByPriority(stats.projects || []);
+  const allLink = `<a href="/" class="${!activeKey ? "active" : ""}">All campaigns</a>`;
+  nav.innerHTML = allLink + projects.map((p) => `<a href="/?campaign=${p.key}" class="${p.key === activeKey ? "active" : ""}">${esc(p.label)}${priorityPillHtml(dominantPriority(p))}</a>`).join("");
+}
+
+function currentCampaignKey() {
+  return new URLSearchParams(location.search).get("campaign");
+}
+
+// Cached across in-app navigation: switching between already-loaded campaigns is just a
+// re-render of data already in hand, not a reason to hit HubSpot again (stats + outcomes are
+// each a chain of live search/association/batch-read calls — slow). Only "Update" and the
+// very first load force a re-fetch.
+let cache = { stats: null, outcomes: null, deals: null };
+
+async function fetchData() {
+  const [statsRes, outcomesRes, dealsRes] = await Promise.all([
+    fetch(`/api/stats?report=${REPORT_KEY}`).then(r => r.json()),
+    fetch(`/api/outcomes?report=${REPORT_KEY}`).then(r => r.json()).catch(() => null),
+    fetch(`/api/deals?report=${REPORT_KEY}`).then(r => r.json()).catch(() => null),
+  ]);
+  cache = { stats: statsRes, outcomes: outcomesRes, deals: dealsRes };
+}
+
+function render() {
+  const key = currentCampaignKey();
+  const { stats: statsRes, outcomes: outcomesRes, deals: dealsRes } = cache;
+  if (!statsRes) return;
+
+  renderNav(statsRes, key);
+  const main = document.getElementById("main");
+
+  if (!key) {
+    main.innerHTML = landingHtml(statsRes);
+  } else {
+    const proj = (statsRes.projects || []).find(p => p.key === key);
+    if (!proj) {
+      main.innerHTML = `<div class="empty-state">Unknown campaign "${esc(key)}". <a href="/">Back to all campaigns</a>.</div>`;
+      return;
+    }
+    main.innerHTML = campaignPageHtml(proj, statsRes.sprintStart, statsRes.hubspot);
+    const outcomesByKey = Object.fromEntries((outcomesRes && outcomesRes.projects || []).map(p => [p.key, p]));
+    const portalId = (outcomesRes && outcomesRes.portalId) || "25516403";
+    document.getElementById("outcomes-slot").innerHTML = outcomeCardHtml(proj.label, outcomesByKey[key], portalId);
+    wireOutcomeHovers(proj.label, portalId);
+    const dealsByKey = Object.fromEntries((dealsRes && dealsRes.projects || []).map(p => [p.key, p]));
+    document.getElementById("deals-slot").innerHTML = dealCardHtml(proj.label, dealsByKey[key], portalId);
+    wireDealHovers(proj.label, portalId);
+  }
+
+  document.getElementById("meta-line").textContent =
+    `${statsRes.name || "MRR Nov Sprint"} · live, updated ${fmtDateTime(statsRes.generatedAt)}`;
+  const other = statsRes.other || { total: 0 };
+  const footer = document.getElementById("footer-line");
+  if (footer) {
+    footer.textContent = other.total
+      ? `${other.total} matching task${other.total === 1 ? "" : "s"} didn't fit any known project's title pattern and aren't shown.`
+      : "";
+  }
+  document.getElementById("update-btn").addEventListener("click", () => load({ force: true }));
+}
+
+async function load({ force = false } = {}) {
+  try {
+    if (force || !cache.stats) {
+      if (force) document.getElementById("update-btn").textContent = "Updating…";
+      await fetchData();
+    }
+    render();
+  } catch (e) {
+    document.getElementById("main").innerHTML = `<div class="empty-state">Failed to load — ${esc(String(e))}</div>`;
+  }
+}
+
+// Intercept in-app link clicks for snappier nav (no full reload), fall back to normal
+// navigation for anything external or with modifier keys held.
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("a");
+  if (!a) return;
+  const url = new URL(a.href, location.href);
+  if (url.origin !== location.origin) return;
+  if (e.metaKey || e.ctrlKey || e.shiftKey || a.target === "_blank") return;
+  e.preventDefault();
+  history.pushState({}, "", url.pathname + url.search);
+  render();
+});
+window.addEventListener("popstate", render);
+
+// Periodic background refresh so an already-open tab picks up a HubSpot change (priority,
+// new/completed tasks) without someone having to remember to click Update.
+setInterval(() => { if (document.visibilityState === "visible") load({ force: true }); }, 5 * 60 * 1000);
+
+load();
+</script>
+</body>
+</html>
