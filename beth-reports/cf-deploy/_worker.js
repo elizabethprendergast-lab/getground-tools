@@ -343,9 +343,15 @@ async function runTaskSearch(API, H, filterGroups) {
 // project's attributionSearch comment in REPORTS above). One project ("Active Lead") has no
 // word combination distinctive enough to isolate portal-wide and keeps the owner filter as a
 // stopgap (attributionSearch.ownerFiltered: true) — see its comment above for what was tried.
-async function searchTasksForAttribution(API, H, report) {
+async function searchTasksForAttribution(API, H, report, opts = {}) {
   const sprintStartMs = Date.parse(report.sprintStart);
-  const filterGroups = (report.projects || []).map((p) => {
+  // outcomes() and dealAttribution() pin to the original 5 projects (maxProjects: 5) so their
+  // exact pre-6th-project behavior (single filterGroups batch, no extra HubSpot round-trip) is
+  // untouched — new projects beyond 5 land in stats() first (already verified working batched)
+  // until outcomes/deals attribution's batching is proven safe under real concurrent load, not
+  // just in isolated testing.
+  const projects = opts.maxProjects ? (report.projects || []).slice(0, opts.maxProjects) : (report.projects || []);
+  const filterGroups = projects.map((p) => {
     const cfg = p.attributionSearch;
     const filters = cfg.tokens.map((token) => ({ propertyName: "hs_task_subject", operator: "CONTAINS_TOKEN", value: token }));
     if (cfg.ownerFiltered) filters.push({ propertyName: "hubspot_owner_id", operator: "IN", values: report.ownerIds });
@@ -564,7 +570,9 @@ async function outcomes(url, env) {
     // See stats() above for why this uses searchTasksForAttribution rather than searchTasks —
     // completed tasks from reps outside the fixed owner list (e.g. Yoana Chung) need to show up
     // in the outcomes/disposition breakdown too, not just Asya/Chey/Active-Lead's owners.
-    const { results } = await searchTasksForAttribution(API, H, report);
+    // maxProjects: 5 pins this to the original 5 projects (see searchTasksForAttribution) so
+    // this endpoint's behavior is untouched by later project additions until proven safe.
+    const { results } = await searchTasksForAttribution(API, H, report, { maxProjects: 5 });
     const completedTasks = results
       .map((t) => t.properties || {})
       .filter((p) => p.hs_task_status === "COMPLETED" && p.hs_task_completion_date && p.hs_createdate);
@@ -691,7 +699,8 @@ async function dealAttribution(url, env) {
     // since the question is "did this contact convert," not "did the call happen." Uses
     // searchTasksForAttribution (not searchTasks) so a contact counts regardless of which rep's
     // name is on the task — see that function's comment for why and what was tested.
-    const { results } = await searchTasksForAttribution(API, H, report);
+    // maxProjects: 5 pins this to the original 5 projects, same reasoning as outcomes() above.
+    const { results } = await searchTasksForAttribution(API, H, report, { maxProjects: 5 });
     const allTasks = results.map((t) => t.properties || {}).filter((p) => p.hs_object_id && p.hs_createdate);
 
     const taskIds = allTasks.map((p) => p.hs_object_id);
