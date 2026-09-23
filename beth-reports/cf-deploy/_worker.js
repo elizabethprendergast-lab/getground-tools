@@ -352,7 +352,20 @@ async function searchTasksForAttribution(API, H, report) {
     filters.push({ propertyName: "hs_createdate", operator: "GTE", value: String(sprintStartMs) });
     return { filters };
   });
-  return runTaskSearch(API, H, filterGroups);
+  // HubSpot's Search API hard-caps filterGroups at 5 per request ("too many filterGroups")
+  // — one group per project here, so a 6th project broke every endpoint at once (blank page,
+  // no graceful fallback client-side). Batch into groups of <=5 and merge instead of assuming
+  // the project count stays under the cap forever.
+  const MAX_FILTER_GROUPS = 5;
+  let total = 0;
+  const results = [];
+  for (let i = 0; i < filterGroups.length; i += MAX_FILTER_GROUPS) {
+    const batch = filterGroups.slice(i, i + MAX_FILTER_GROUPS);
+    const r = await runTaskSearch(API, H, batch);
+    total += r.total;
+    results.push(...r.results);
+  }
+  return { total, results };
 }
 
 // Live owner-name lookup, used so the per-rep breakdown shows whoever actually owns a task
