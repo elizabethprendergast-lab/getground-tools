@@ -112,6 +112,21 @@ const REPORTS = {
         // clean without an owner filter.
         attributionSearch: { tokens: ["old", "partner", "leads"], ownerFiltered: false },
       },
+      {
+        key: "ba-closed-won-reengage",
+        label: "Experiment — BA closed won deal reengage",
+        match: (s) => s.includes("Experiment | BA closed won deal reengage"),
+        // Real subject: "#N | Call | Experiment | BA closed won deal reengage". First wave:
+        // old BuyAssociation leads with a Closed Won deal who bought 2+ properties via BA -
+        // each gets an email plus this call task. Task creation/assignment mechanism not yet
+        // confirmed to be owner-tied, so this starts owner-agnostic like the other experiments.
+        namePattern: "Call | Experiment | BA closed won deal reengage",
+        searchTerm: "Call | Experiment | BA closed won deal reengage",
+        context: "First wave of old BuyAssociation leads with a Closed Won deal, starting with those who bought 2+ properties via BA - re-engagement experiment (email + call).",
+        // Verified against real data before shipping: "BA" AND "closed" AND "won" returns 0
+        // existing tasks (brand-new naming convention) - clean without an owner filter.
+        attributionSearch: { tokens: ["BA", "closed", "won"], ownerFiltered: false },
+      },
     ],
   },
 };
