@@ -272,6 +272,7 @@ export default {
     if (url.pathname === "/api/stats") return stats(url, env);
     if (url.pathname === "/api/outcomes") return outcomes(url, env);
     if (url.pathname === "/api/deals") return dealAttribution(url, env);
+    if (url.pathname === "/api/referrals") return referrals(url, env);
     // Per-campaign pages are query-string routed (/?campaign=key) rather than path-routed
     // (/campaign/key) — tried path-routing first, but it needs a server-side rewrite to the
     // SPA shell for a path with no matching static file, and that rewrite hit an asset-server
@@ -558,6 +559,52 @@ function contactLabel(props) {
   return name || props.email || "(unnamed contact)";
 }
 
+// ---- Non-call outreach (WhatsApp / email / note) ----------------------------------------
+// Reps also work these tasks by WhatsApp, email, or by just leaving a note — none of which is
+// a Call object, so without this a task worked that way was mislabelled "(no matching call
+// found)". WhatsApp/SMS/LinkedIn live on the "communications" object (hs_communication_channel_type).
+// These channels are async (a note/WhatsApp is logged around when the task is closed, not
+// during a live call), so they use a wider window than the live-call anchor above.
+const ASYNC_WINDOW_BEFORE_MS = 3 * 60 * 60 * 1000; // completion - 3h
+const ASYNC_WINDOW_AFTER_MS = 3 * 60 * 60 * 1000;  // completion + 3h
+
+function stripHtml(s) {
+  return (s || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/\s+/g, " ").trim();
+}
+
+// Light keyword classifier for free-text rep notes. Wording varies by rep, so this only
+// catches a few high-signal outcomes; anything it doesn't recognise returns null and the raw
+// note is surfaced in the UI instead of being forced into a bucket. First hit wins — order
+// matters (e.g. "already paying" before the generic contacted fallback).
+function classifyNote(text) {
+  const t = (text || "").toLowerCase();
+  if (!t) return null;
+  if (/\bmigrat/.test(t)) return "Migrated / migrating";
+  if (/already pay|paying already|active subscription|active core|already on a? ?plan/.test(t)) return "Already paying";
+  if (/dissolv|offboard|struck off|no longer a director|closed the compan/.test(t)) return "Company dissolved / offboarded";
+  if (/not interest|uninterested|not a fit|declin/.test(t)) return "Not interested";
+  if (/no answer|voicemail|didn'?t pick|no response|left a message/.test(t)) return "No answer";
+  return null; // unknown wording — keep the raw note, don't guess a bucket
+}
+
+// Nearest activity (of whatever is in `acts`) on any of the task's contacts, within
+// [anchor-before, anchor+after]. `filterFn` optionally restricts by type (e.g. WhatsApp only).
+function nearestActivity(contactsForTask, contactToActs, acts, anchorMs, before, after, filterFn) {
+  let best = null, bestDelta = Infinity;
+  for (const cid of contactsForTask) {
+    for (const id of contactToActs[cid] || []) {
+      const a = acts[id];
+      if (!a || !a.hs_timestamp) continue;
+      if (filterFn && !filterFn(a)) continue;
+      const ts = Date.parse(a.hs_timestamp);
+      if (ts < anchorMs - before || ts > anchorMs + after) continue;
+      const d = Math.abs(ts - anchorMs);
+      if (d < bestDelta) { best = a; bestDelta = d; }
+    }
+  }
+  return best;
+}
+
 async function outcomes(url, env) {
   const [reportKey, report] = getReport(url);
   if (!report) return json({ error: `unknown report '${reportKey}'` }, 404);
@@ -590,6 +637,24 @@ async function outcomes(url, env) {
     const calls = await batchRead(API, H, "calls", callIds, ["hs_timestamp", "hs_call_disposition", "hs_call_direction", "hubspot_owner_id"]);
     const contacts = await batchRead(API, H, "contacts", contactIds, ["firstname", "lastname", "email"]);
 
+    // Non-call outreach, so a task worked by WhatsApp/email/note isn't shown as "no call found".
+    // Needs the private-app token to have crm.objects.communications.read (+ notes/emails read).
+    // Wrapped so a missing scope degrades to call-only rather than 502-ing the whole endpoint.
+    async function fetchActivity(toType, props) {
+      try {
+        const assoc = await batchAssociations(API, H, "contacts", toType, contactIds);
+        const ids = [...new Set(Object.values(assoc).flat())];
+        const objs = await batchRead(API, H, toType, ids, props);
+        return [assoc, objs];
+      } catch (e) {
+        console.log(`outcomes: ${toType} fetch skipped (${e}) — check token scope`);
+        return [{}, {}];
+      }
+    }
+    const [contactToComms, comms] = await fetchActivity("communications", ["hs_timestamp", "hs_communication_channel_type"]);
+    const [contactToEmails, emails] = await fetchActivity("emails", ["hs_timestamp", "hs_email_direction"]);
+    const [contactToNotes, notes] = await fetchActivity("notes", ["hs_timestamp", "hs_note_body", "hubspot_owner_id"]);
+
     // project key -> { totalCompleted, matched, byOutcome: { outcome: { count, category, contacts:[{id,name,taskId}] } } }
     const buckets = {};
     for (const p of completedTasks) {
@@ -621,23 +686,46 @@ async function outcomes(url, env) {
         }
       }
 
-      let outcome, category;
+      let outcome, category, noteText = null;
       if (best) {
         b.matched++;
         const label = best.hs_call_disposition ? dispLabel[best.hs_call_disposition] : null;
         outcome = label || "(no disposition set)";
         category = categoriseDisposition(label);
       } else {
-        outcome = "(no matching call found)";
-        category = "unmatched";
+        // No matching call — was the task worked another way? Prefer a note (richest, in the
+        // rep's own words), then WhatsApp, then email. Only if none of these exists is it
+        // genuinely untouched. `reached` counts any-channel contact (vs matched = call only).
+        const note = nearestActivity(contactsForTask, contactToNotes, notes, anchorMs, ASYNC_WINDOW_BEFORE_MS, ASYNC_WINDOW_AFTER_MS);
+        const whatsapp = nearestActivity(contactsForTask, contactToComms, comms, anchorMs, ASYNC_WINDOW_BEFORE_MS, ASYNC_WINDOW_AFTER_MS,
+          (a) => (a.hs_communication_channel_type || "").toUpperCase() === "WHATS_APP");
+        const email = nearestActivity(contactsForTask, contactToEmails, emails, anchorMs, ASYNC_WINDOW_BEFORE_MS, ASYNC_WINDOW_AFTER_MS);
+        if (note) {
+          noteText = stripHtml(note.hs_note_body);
+          outcome = classifyNote(noteText) || "Contacted — note logged";
+          category = "reached_other";
+          b.reached = (b.reached || 0) + 1;
+        } else if (whatsapp) {
+          outcome = "Contacted via WhatsApp";
+          category = "reached_other";
+          b.reached = (b.reached || 0) + 1;
+        } else if (email) {
+          outcome = "Contacted via email";
+          category = "reached_other";
+          b.reached = (b.reached || 0) + 1;
+        } else {
+          outcome = "(no outreach found)";
+          category = "unmatched";
+        }
       }
 
       const o = (b.byOutcome[outcome] ||= { count: 0, category, contacts: [] });
       o.count++;
       // Attach contact identities for the hover-to-see-contacts UI. A task can have more than
       // one associated contact; list them all rather than guessing which one the call belongs to.
+      // `note` carries the rep's note text (when that's what drove the outcome) so the UI can show it.
       for (const cid of contactsForTask) {
-        o.contacts.push({ id: cid, name: contactLabel(contacts[cid]), taskId: p.hs_object_id });
+        o.contacts.push({ id: cid, name: contactLabel(contacts[cid]), taskId: p.hs_object_id, note: noteText });
       }
     }
 
@@ -647,10 +735,10 @@ async function outcomes(url, env) {
 
     const projects = (report.projects || []).map((cfg) => {
       const b = buckets[cfg.key] || { totalCompleted: 0, matched: 0, byOutcome: {} };
-      return { key: cfg.key, label: cfg.label, totalCompleted: b.totalCompleted, totalMatchedToCall: b.matched, dispositions: toRows(b) };
+      return { key: cfg.key, label: cfg.label, totalCompleted: b.totalCompleted, totalMatchedToCall: b.matched, totalReached: (b.matched || 0) + (b.reached || 0), dispositions: toRows(b) };
     });
     const otherB = buckets.other || { totalCompleted: 0, matched: 0, byOutcome: {} };
-    const other = { totalCompleted: otherB.totalCompleted, totalMatchedToCall: otherB.matched, dispositions: toRows(otherB) };
+    const other = { totalCompleted: otherB.totalCompleted, totalMatchedToCall: otherB.matched, totalReached: (otherB.matched || 0) + (otherB.reached || 0), dispositions: toRows(otherB) };
 
     return json({
       generatedAt: new Date().toISOString(),
@@ -659,7 +747,7 @@ async function outcomes(url, env) {
       portalId: PORTAL_ID,
       projects,
       other,
-      method: "Each completed task is matched to the nearest OUTBOUND call on the same contact, within -2h/+15min of the task's completion time, preferring same-owner calls (this account has no direct task<->call association, and no task is bulk/admin-completed here — verified against real data — so the doc's general-SDR completion anchor applies to all projects, per hubspot_task_call_matching_logic.md §3).",
+      method: "Each completed task is first matched to the nearest OUTBOUND call on the same contact, within -2h/+15min of completion, preferring same-owner calls (no direct task<->call association exists in this account). If no call matches, the task is reclassified by the next non-call outreach on the contact within -3h/+3h of completion, in priority order: a rep note (classified from its text where recognisable, otherwise shown verbatim), then a WhatsApp message, then an email. Only tasks with none of these show as '(no outreach found)'. totalReached counts contact by any channel; totalMatchedToCall counts calls only.",
     }, 200);
   } catch (e) {
     return json({ error: String(e) }, 502);
@@ -789,6 +877,155 @@ async function dealAttribution(url, env) {
       projects,
       other,
       method: "Every contact ever associated with a task in this sequence (any task status) is checked for a Closed Won deal in the \"Plans\" HubSpot pipeline that closed ON OR AFTER the date they were first enrolled in that sequence (their earliest task's creation date there) — a deal that closed before they were ever put into the sequence doesn't count. Bucketed by plan type (plans___product_type: Core/Complete) and whether it was flagged an upsell (p_p___upsell). A contact can appear in more than one bucket if they closed more than one qualifying deal (e.g. closed Core shortly after enrolling, then upsold to Complete later) — both are real outcomes. SEPARATELY, contacts with no qualifying deal are checked against the \"Packs and Plans confirmed\" behavioral event (is_migration=true) — migrations never create a Plans deal, per the team, so they'd otherwise be invisible here. This event carries a real timestamp, so — same as deals — only an event that fired ON OR AFTER enrollment counts. Migration rows show whether MRR has actually started (hs_active_contracts_mrr) since these customers are usually still on trial.",
+    }, 200);
+  } catch (e) {
+    return json({ error: String(e) }, 502);
+  }
+}
+
+// ---- Referral funnel (live, from BigQuery) ----------------------------------------------
+// Ports the Count referral canvas logic so the dashboard shows the funnel without going through
+// Count. Reads the same warehouse tables (prod_module_core.plan_referrals / referral_codes,
+// dbt_prod_hubspot_v2.*, mixpanel_production.mp_master_event).
+// Needs two Cloudflare secrets for a READ-ONLY BigQuery service account:
+//   GCP_SA_EMAIL        — the service account email
+//   GCP_SA_PRIVATE_KEY  — its PEM private key (literal \n or real newlines both handled)
+// The SA needs roles/bigquery.dataViewer on the datasets + roles/bigquery.jobUser on the project.
+const BQ_PROJECT = "terranova-prod-module-core-v2";
+// HubSpot content_id whose email audience defines the per-campaign funnel. Currently the
+// referral email campaign the Count dashboard uses; change to the raf_250_0926 campaign's
+// content_id once it's identified (the audience/attribution logic below stays the same).
+const REFERRAL_CAMPAIGN_CONTENT_ID = "421597093062";
+
+function b64url(bytes) {
+  let bin = "";
+  const arr = new Uint8Array(bytes);
+  for (let i = 0; i < arr.length; i++) bin += String.fromCharCode(arr[i]);
+  return btoa(bin).replace(/=+$/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+function pemToPkcs8(pem) {
+  const norm = (pem || "").replace(/\\n/g, "\n");
+  const body = norm.replace(/-----BEGIN [^-]+-----/, "").replace(/-----END [^-]+-----/, "").replace(/\s+/g, "");
+  const bin = atob(body);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf.buffer;
+}
+
+let _gcpToken = null; // { token, exp } cached across requests in a warm worker
+async function gcpAccessToken(env) {
+  const now = Math.floor(Date.now() / 1000);
+  if (_gcpToken && _gcpToken.exp - 60 > now) return _gcpToken.token;
+  const claim = {
+    iss: env.GCP_SA_EMAIL,
+    scope: "https://www.googleapis.com/auth/bigquery.readonly",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now, exp: now + 3600,
+  };
+  const unsigned = `${b64url(new TextEncoder().encode(JSON.stringify({ alg: "RS256", typ: "JWT" })))}.${b64url(new TextEncoder().encode(JSON.stringify(claim)))}`;
+  const key = await crypto.subtle.importKey("pkcs8", pemToPkcs8(env.GCP_SA_PRIVATE_KEY), { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign({ name: "RSASSA-PKCS1-v1_5" }, key, new TextEncoder().encode(unsigned));
+  const jwt = `${unsigned}.${b64url(sig)}`;
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+  });
+  const j = await res.json();
+  if (!j.access_token) throw new Error("GCP token error: " + JSON.stringify(j));
+  _gcpToken = { token: j.access_token, exp: now + (j.expires_in || 3600) };
+  return _gcpToken.token;
+}
+
+async function bqQuery(env, sql) {
+  const token = await gcpAccessToken(env);
+  const res = await fetch(`https://bigquery.googleapis.com/bigquery/v2/projects/${BQ_PROJECT}/queries`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ query: sql, useLegacySql: false, timeoutMs: 55000 }),
+  });
+  const j = await res.json();
+  if (j.error) throw new Error("BQ error: " + JSON.stringify(j.error));
+  const fields = (j.schema && j.schema.fields) || [];
+  return (j.rows || []).map((r) => {
+    const o = {};
+    r.f.forEach((cell, i) => { o[fields[i].name] = cell.v; });
+    return o;
+  });
+}
+
+const PROGRAMME_SQL = `
+WITH t AS (
+  SELECT
+    COUNT(DISTINCT CASE WHEN event_name='button_clicked' AND JSON_VALUE(properties,'$.button_id')='referrals_copy_link' THEN distinct_id END) AS copied,
+    COUNT(DISTINCT CASE WHEN event_name='page_viewed' AND JSON_VALUE(properties,'$.page_url') LIKE '%/onboarding/create-account?referral=%' THEN distinct_id END) AS landed
+  FROM \`${BQ_PROJECT}.mixpanel_production.mp_master_event\`
+  WHERE event_name IN ('button_clicked','page_viewed')
+),
+r AS (
+  SELECT COUNT(*) AS redeemed,
+         COUNTIF(plan_purchase_id IS NOT NULL) AS plans_bought,
+         COUNTIF(applied_at IS NOT NULL) AS reward_paid
+  FROM \`${BQ_PROJECT}.prod_module_core.plan_referrals\`
+)
+SELECT t.copied, t.landed, r.redeemed, r.plans_bought, r.reward_paid FROM t, r`;
+
+function campaignFunnelSql(contentId) {
+  return `
+WITH campaigns AS (
+  SELECT id FROM \`${BQ_PROJECT}.dbt_prod_hubspot_v2.campaigns\` WHERE content_id IN (${contentId})
+),
+events AS (
+  SELECT hee.recipient, hee.type, hc.gg_user_id
+  FROM \`${BQ_PROJECT}.dbt_prod_hubspot_v2.email_events\` hee
+  JOIN campaigns c ON hee.email_campaign_id = c.id
+  LEFT JOIN \`${BQ_PROJECT}.dbt_prod.hubspot_contacts\` hc ON LOWER(hee.recipient)=LOWER(hc.contact_email)
+  WHERE hee.type IN ('SENT','OPEN','CLICK') AND hee.filtered_event IS NOT TRUE
+),
+clicker_users AS (SELECT DISTINCT CAST(gg_user_id AS INT64) AS user_id FROM events WHERE type='CLICK' AND gg_user_id IS NOT NULL),
+copy_link AS (
+  SELECT DISTINCT CAST(user_id AS INT64) AS user_id
+  FROM \`${BQ_PROJECT}.mixpanel_production.mp_master_event\`
+  WHERE event_name='button_clicked' AND JSON_VALUE(properties,'$.button_id')='referrals_copy_link' AND user_id IS NOT NULL
+),
+target_users AS (SELECT ec.user_id FROM clicker_users ec INNER JOIN copy_link cl ON ec.user_id=cl.user_id),
+user_codes AS (
+  SELECT rc.id AS referral_code_id, rc.code
+  FROM \`${BQ_PROJECT}.prod_module_core.referral_codes\` rc
+  WHERE rc.user_id IN (SELECT user_id FROM target_users)
+)
+SELECT 1 AS step, 'Sent' AS stage, (SELECT COUNT(DISTINCT recipient) FROM events WHERE type='SENT') AS users
+UNION ALL SELECT 2, 'Opened',  (SELECT COUNT(DISTINCT recipient) FROM events WHERE type='OPEN')
+UNION ALL SELECT 3, 'Clicked', (SELECT COUNT(DISTINCT recipient) FROM events WHERE type='CLICK')
+UNION ALL SELECT 4, 'Code created', (SELECT COUNT(DISTINCT rc.user_id) FROM \`${BQ_PROJECT}.prod_module_core.referral_codes\` rc WHERE rc.user_id IN (SELECT user_id FROM clicker_users))
+UNION ALL SELECT 5, 'Copied link', (SELECT COUNT(DISTINCT user_id) FROM target_users)
+UNION ALL SELECT 6, 'Referee landed', (SELECT COUNT(DISTINCT distinct_id) FROM \`${BQ_PROJECT}.mixpanel_production.mp_master_event\` WHERE event_name='page_viewed' AND REGEXP_EXTRACT(JSON_VALUE(properties,'$.page_url'), r'[?&]referral=([^&]+)') IN (SELECT code FROM user_codes))
+UNION ALL SELECT 7, 'Referee applied code', (SELECT COUNT(DISTINCT referee_id) FROM \`${BQ_PROJECT}.prod_module_core.plan_referrals\` WHERE referral_code_id IN (SELECT referral_code_id FROM user_codes))
+ORDER BY step`;
+}
+
+async function referrals(url, env) {
+  if (!env.GCP_SA_EMAIL || !env.GCP_SA_PRIVATE_KEY) {
+    return json({ error: "BigQuery service account not configured (set GCP_SA_EMAIL + GCP_SA_PRIVATE_KEY)" }, 501);
+  }
+  try {
+    const [prog, camp] = await Promise.all([
+      bqQuery(env, PROGRAMME_SQL),
+      bqQuery(env, campaignFunnelSql(REFERRAL_CAMPAIGN_CONTENT_ID)),
+    ]);
+    const p = prog[0] || {};
+    const n = (v) => Number(v || 0);
+    return json({
+      generatedAt: new Date().toISOString(),
+      campaignContentId: REFERRAL_CAMPAIGN_CONTENT_ID,
+      campaign: camp.map((r) => ({ stage: r.stage, users: n(r.users) })),
+      programme: [
+        { stage: "Links copied (referrers)", users: n(p.copied) },
+        { stage: "Referees landed", users: n(p.landed) },
+        { stage: "Redeemed (code applied)", users: n(p.redeemed) },
+        { stage: "Plans bought", users: n(p.plans_bought) },
+        { stage: "Reward paid", users: n(p.reward_paid) },
+      ],
+      method: "Ported from the Count referral canvas: programme totals from prod_module_core.plan_referrals + mixpanel page_viewed/button_clicked; per-campaign funnel from the HubSpot email audience (content_id) through code-created → copied → referee landed/applied.",
     }, 200);
   } catch (e) {
     return json({ error: String(e) }, 502);

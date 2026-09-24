@@ -171,6 +171,7 @@
   #contact-popover .ph-title { font-size: 11px; color: var(--text-muted); margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.03em; }
   #contact-popover a { display: block; padding: 4px 0; color: var(--series-1); text-decoration: none; }
   #contact-popover a:hover { text-decoration: underline; }
+  #contact-popover .ph-note { color: var(--text-muted); font-style: italic; }
   footer { text-align: center; font-size: 12px; color: var(--text-muted); padding: 20px 0 40px; }
 </style>
 </head>
@@ -186,6 +187,32 @@
 <script>
 const SERIES = ["var(--series-1)","var(--series-2)","var(--series-3)","var(--series-4)","var(--series-5)","var(--series-6)","var(--series-7)","var(--series-8)"];
 const REPORT_KEY = "mrr-nov-sprint";
+
+// Referral programme snapshot. NOT live — these come from the Count / BigQuery referral model
+// (plan_referrals, referral_codes, mixpanel page_viewed) and are refreshed here periodically.
+// To update: re-run the Count cells and paste the new numbers + asOf date, then redeploy.
+// (A live wire-up would need the worker to reach BigQuery/Count — a credential + scope task.)
+const REFERRALS = {
+  asOf: "2026-09-24",
+  campaign: {
+    label: "raf_250_0926 · sequence 867429602",
+    // Landing traffic from Mixpanel (page_viewed, utm_campaign = raf_250_0926). The copy-link →
+    // referred → plans-bought steps for THIS campaign live in BigQuery keyed by referral code
+    // (not the UTM) and aren't wired up yet — see the programme totals below for the whole scheme.
+    note: "Landing-page traffic only (Mixpanel, utm_campaign). Per-campaign copy-link & conversion need BigQuery/Count access — not yet wired.",
+    steps: [
+      { stage: "Landing page views", users: 95 },
+      { stage: "Unique visitors", users: 7 },
+    ],
+  },
+  programme: [
+    { stage: "Links copied (referrers)", users: 49 },
+    { stage: "Referees landed", users: 51 },
+    { stage: "Redeemed (code applied)", users: 24 },
+    { stage: "Plans bought", users: 4 },
+    { stage: "Reward paid", users: 4 },
+  ],
+};
 
 function fmtDate(iso) {
   if (!iso) return "";
@@ -318,7 +345,7 @@ function showContactPopover(anchorEl, contacts, portalId) {
   const seen = new Set();
   for (const c of contacts) { if (!seen.has(c.id)) { seen.add(c.id); unique.push(c); } }
   pop.innerHTML = `<p class="ph-title">${unique.length} contact${unique.length === 1 ? "" : "s"}</p>` +
-    unique.slice(0, 40).map(c => `<a href="https://app-eu1.hubspot.com/contacts/${portalId}/record/0-1/${c.id}" target="_blank" rel="noopener">${esc(c.name)}</a>`).join("");
+    unique.slice(0, 40).map(c => `<a href="https://app-eu1.hubspot.com/contacts/${portalId}/record/0-1/${c.id}" target="_blank" rel="noopener">${esc(c.name)}${c.note ? `<span class="ph-note"> — ${esc(c.note)}</span>` : ""}</a>`).join("");
   const rect = anchorEl.getBoundingClientRect();
   pop.style.display = "block";
   const top = Math.min(rect.bottom + 6, window.innerHeight - pop.offsetHeight - 12);
@@ -443,6 +470,41 @@ function campaignPageHtml(proj, sprintStart, hubspot) {
     <footer id="footer-line"></footer>`;
 }
 
+function funnelRowsHtml(steps) {
+  const max = Math.max(1, ...steps.map((s) => s.users));
+  return steps.map((s, i) => `
+    <div class="outcome-bar-row">
+      <span class="name" title="${esc(s.stage)}">${esc(s.stage)}</span>
+      <div class="track"><div class="fill" style="width:${Math.max(2, Math.round(100 * s.users / max))}%; background:${SERIES[i % SERIES.length]}"></div></div>
+      <span class="count">${s.users.toLocaleString()}</span>
+    </div>`).join("");
+}
+
+function referralCardHtml() {
+  const live = cache.referrals && !cache.referrals.error ? cache.referrals : null;
+  const campaignSteps = live ? live.campaign : REFERRALS.campaign.steps;
+  const programme = live ? live.programme : REFERRALS.programme;
+  const statusLine = live
+    ? `Live from BigQuery · updated ${fmtDateTime(live.generatedAt)}`
+    : `Snapshot as of ${fmtDate(REFERRALS.asOf)} — not live yet (BigQuery service account not configured).`;
+  const campaignHeading = live
+    ? `Campaign funnel · HubSpot campaign ${esc(live.campaignContentId || "")}`
+    : esc(REFERRALS.campaign.label);
+  const note = live
+    ? "Per-campaign funnel is keyed by the configured HubSpot campaign id — repoint it to the raf_250_0926 campaign in the worker to scope it there."
+    : REFERRALS.campaign.note;
+  return `
+    <section class="card">
+      <h2>Referral programme</h2>
+      <p class="sub">${esc(statusLine)}</p>
+      <p class="sub" style="margin-top:4px; margin-bottom:6px">${campaignHeading}</p>
+      ${note ? `<p class="context-line">${esc(note)}</p>` : ""}
+      ${funnelRowsHtml(campaignSteps)}
+      <p class="sub" style="margin-top:18px; margin-bottom:6px">Whole referral programme — all-time (all campaigns)</p>
+      ${funnelRowsHtml(programme)}
+    </section>`;
+}
+
 function landingHtml(stats) {
   const projects = sortedByPriority(stats.projects || []);
   return `
@@ -465,6 +527,7 @@ function landingHtml(stats) {
         </a>
       `).join("")}
     </div>
+    ${referralCardHtml()}
     <footer id="footer-line"></footer>`;
 }
 
@@ -483,15 +546,16 @@ function currentCampaignKey() {
 // re-render of data already in hand, not a reason to hit HubSpot again (stats + outcomes are
 // each a chain of live search/association/batch-read calls — slow). Only "Update" and the
 // very first load force a re-fetch.
-let cache = { stats: null, outcomes: null, deals: null };
+let cache = { stats: null, outcomes: null, deals: null, referrals: null };
 
 async function fetchData() {
-  const [statsRes, outcomesRes, dealsRes] = await Promise.all([
+  const [statsRes, outcomesRes, dealsRes, referralsRes] = await Promise.all([
     fetch(`/api/stats?report=${REPORT_KEY}`).then(r => r.json()),
     fetch(`/api/outcomes?report=${REPORT_KEY}`).then(r => r.json()).catch(() => null),
     fetch(`/api/deals?report=${REPORT_KEY}`).then(r => r.json()).catch(() => null),
+    fetch(`/api/referrals`).then(r => r.json()).catch(() => null),
   ]);
-  cache = { stats: statsRes, outcomes: outcomesRes, deals: dealsRes };
+  cache = { stats: statsRes, outcomes: outcomesRes, deals: dealsRes, referrals: referralsRes };
 }
 
 function render() {
