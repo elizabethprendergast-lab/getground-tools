@@ -187,6 +187,7 @@
 <script>
 const SERIES = ["var(--series-1)","var(--series-2)","var(--series-3)","var(--series-4)","var(--series-5)","var(--series-6)","var(--series-7)","var(--series-8)"];
 const REPORT_KEY = "mrr-nov-sprint";
+const REFERRAL_TAB_KEY = "referral-programme"; // pseudo-campaign key for the Referral programme tab
 
 // Referral programme snapshot. NOT live — these come from the Count / BigQuery referral model
 // (plan_referrals, referral_codes, mixpanel page_viewed) and are refreshed here periodically.
@@ -526,6 +527,20 @@ function landingHtml(stats) {
           </div>
         </a>
       `).join("")}
+      <a class="landing-card" href="/?campaign=${REFERRAL_TAB_KEY}">
+        <div class="landing-card-head"><h3>Referral programme</h3></div>
+        <p>Copy-link &amp; referral conversions across the whole programme.</p>
+        <div class="landing-stats"><span>view funnel →</span></div>
+      </a>
+    </div>
+    <footer id="footer-line"></footer>`;
+}
+
+function referralPageHtml() {
+  return `
+    <div class="meta-row">
+      <p id="meta-line">Loading…</p>
+      <button id="update-btn">Update</button>
     </div>
     ${referralCardHtml()}
     <footer id="footer-line"></footer>`;
@@ -535,7 +550,8 @@ function renderNav(stats, activeKey) {
   const nav = document.getElementById("campaign-nav");
   const projects = sortedByPriority(stats.projects || []);
   const allLink = `<a href="/" class="${!activeKey ? "active" : ""}">All campaigns</a>`;
-  nav.innerHTML = allLink + projects.map((p) => `<a href="/?campaign=${p.key}" class="${p.key === activeKey ? "active" : ""}">${esc(p.label)}${priorityPillHtml(dominantPriority(p))}</a>`).join("");
+  const referralLink = `<a href="/?campaign=${REFERRAL_TAB_KEY}" class="${activeKey === REFERRAL_TAB_KEY ? "active" : ""}">Referral programme</a>`;
+  nav.innerHTML = allLink + projects.map((p) => `<a href="/?campaign=${p.key}" class="${p.key === activeKey ? "active" : ""}">${esc(p.label)}${priorityPillHtml(dominantPriority(p))}</a>`).join("") + referralLink;
 }
 
 function currentCampaignKey() {
@@ -568,6 +584,8 @@ function render() {
 
   if (!key) {
     main.innerHTML = landingHtml(statsRes);
+  } else if (key === REFERRAL_TAB_KEY) {
+    main.innerHTML = referralPageHtml();
   } else {
     const proj = (statsRes.projects || []).find(p => p.key === key);
     if (!proj) {
@@ -584,12 +602,13 @@ function render() {
     wireDealHovers(proj.label, portalId);
   }
 
-  document.getElementById("meta-line").textContent =
-    `${statsRes.name || "MRR Nov Sprint"} · live, updated ${fmtDateTime(statsRes.generatedAt)}`;
+  document.getElementById("meta-line").textContent = key === REFERRAL_TAB_KEY
+    ? "Referral programme"
+    : `${statsRes.name || "MRR Nov Sprint"} · live, updated ${fmtDateTime(statsRes.generatedAt)}`;
   const other = statsRes.other || { total: 0 };
   const footer = document.getElementById("footer-line");
   if (footer) {
-    footer.textContent = other.total
+    footer.textContent = (key !== REFERRAL_TAB_KEY && other.total)
       ? `${other.total} matching task${other.total === 1 ? "" : "s"} didn't fit any known project's title pattern and aren't shown.`
       : "";
   }
