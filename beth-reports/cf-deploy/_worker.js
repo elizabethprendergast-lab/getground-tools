@@ -127,6 +127,23 @@ const REPORTS = {
         // existing tasks (brand-new naming convention) - clean without an owner filter.
         attributionSearch: { tokens: ["BA", "closed", "won"], ownerFiltered: false },
       },
+      {
+        key: "upsell-complete",
+        label: "Upsell — Complete plan upsell",
+        match: (s) => s.includes("Call | Upsell | Complete upsell"),
+        // Real subject: "#1 |  Call | Upsell | Complete upsell - <suffix>" (suffix varies:
+        // "positive in last campaign", then later "batch 1", "batch 2", …). Match the fixed
+        // middle phrase so every batch is captured regardless of suffix or call number.
+        namePattern: "Call | Upsell | Complete upsell",
+        searchTerm: "Call | Upsell | Complete upsell",
+        context: "Core-plan customers called to upsell to Complete — starting with those who were positive in a previous campaign, then further batches.",
+        // Verified against real data (2026-09-28): "Upsell" AND "Complete" alone collides with the
+        // older "#2 Call Task | Complete Plan Upsell | Reengagement" campaign (1,000+ tasks) and
+        // free-text "complete plan upsell" tasks — so exclude "Plan" and "Reengagement". That combo
+        // returns 17 tasks: 16 real campaign tasks + 1 stray free-text ("Do you need Lettings?
+        // Upsell Complete") that classifyProject drops into "other" — clean without an owner filter.
+        attributionSearch: { tokens: ["Upsell", "Complete"], notTokens: ["Plan", "Reengagement"], ownerFiltered: false },
+      },
     ],
   },
 };
@@ -355,6 +372,10 @@ async function searchTasksForAttribution(API, H, report, opts = {}) {
   const filterGroups = projects.map((p) => {
     const cfg = p.attributionSearch;
     const filters = cfg.tokens.map((token) => ({ propertyName: "hs_task_subject", operator: "CONTAINS_TOKEN", value: token }));
+    // Optional exclusions (NOT_CONTAINS_TOKEN) for when the positive tokens collide with another
+    // campaign — e.g. "Upsell"+"Complete" also matches the older "Complete Plan Upsell" tasks,
+    // so that project excludes "Plan"/"Reengagement".
+    (cfg.notTokens || []).forEach((token) => filters.push({ propertyName: "hs_task_subject", operator: "NOT_CONTAINS_TOKEN", value: token }));
     if (cfg.ownerFiltered) filters.push({ propertyName: "hubspot_owner_id", operator: "IN", values: report.ownerIds });
     filters.push({ propertyName: "hs_createdate", operator: "GTE", value: String(sprintStartMs) });
     return { filters };
@@ -617,9 +638,10 @@ async function outcomes(url, env) {
     // See stats() above for why this uses searchTasksForAttribution rather than searchTasks —
     // completed tasks from reps outside the fixed owner list (e.g. Yoana Chung) need to show up
     // in the outcomes/disposition breakdown too, not just Asya/Chey/Active-Lead's owners.
-    // maxProjects: 5 pins this to the original 5 projects (see searchTasksForAttribution) so
-    // this endpoint's behavior is untouched by later project additions until proven safe.
-    const { results } = await searchTasksForAttribution(API, H, report, { maxProjects: 5 });
+    // Covers all projects (batched by searchTasksForAttribution, the same batched search stats()
+    // has been running across all projects in production) — so every campaign, not just the
+    // first 5, gets its outcome breakdown.
+    const { results } = await searchTasksForAttribution(API, H, report);
     const completedTasks = results
       .map((t) => t.properties || {})
       .filter((p) => p.hs_task_status === "COMPLETED" && p.hs_task_completion_date && p.hs_createdate);
@@ -787,8 +809,8 @@ async function dealAttribution(url, env) {
     // since the question is "did this contact convert," not "did the call happen." Uses
     // searchTasksForAttribution (not searchTasks) so a contact counts regardless of which rep's
     // name is on the task — see that function's comment for why and what was tested.
-    // maxProjects: 5 pins this to the original 5 projects, same reasoning as outcomes() above.
-    const { results } = await searchTasksForAttribution(API, H, report, { maxProjects: 5 });
+    // Covers all projects (batched), same as outcomes() above — every campaign gets deal attribution.
+    const { results } = await searchTasksForAttribution(API, H, report);
     const allTasks = results.map((t) => t.properties || {}).filter((p) => p.hs_object_id && p.hs_createdate);
 
     const taskIds = allTasks.map((p) => p.hs_object_id);
