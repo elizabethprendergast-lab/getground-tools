@@ -638,10 +638,13 @@ async function outcomes(url, env) {
     // See stats() above for why this uses searchTasksForAttribution rather than searchTasks —
     // completed tasks from reps outside the fixed owner list (e.g. Yoana Chung) need to show up
     // in the outcomes/disposition breakdown too, not just Asya/Chey/Active-Lead's owners.
-    // Covers all projects (batched by searchTasksForAttribution, the same batched search stats()
-    // has been running across all projects in production) — so every campaign, not just the
-    // first 5, gets its outcome breakdown.
-    const { results } = await searchTasksForAttribution(API, H, report);
+    // Pinned to the first 5 projects (maxProjects: 5). outcomes() does heavy per-task work —
+    // contact + call + WhatsApp + email + note association reads for every completed task — so
+    // spanning all projects exceeded Cloudflare's per-request subrequest/CPU limit and blanked
+    // EVERY campaign's outcomes. Keep it capped until outcomes is refactored to compute a single
+    // campaign per request (see /api/outcomes?campaign=…). Projects beyond the 5th show
+    // completion stats only for now.
+    const { results } = await searchTasksForAttribution(API, H, report, { maxProjects: 5 });
     const completedTasks = results
       .map((t) => t.properties || {})
       .filter((p) => p.hs_task_status === "COMPLETED" && p.hs_task_completion_date && p.hs_createdate);
@@ -809,8 +812,10 @@ async function dealAttribution(url, env) {
     // since the question is "did this contact convert," not "did the call happen." Uses
     // searchTasksForAttribution (not searchTasks) so a contact counts regardless of which rep's
     // name is on the task — see that function's comment for why and what was tested.
-    // Covers all projects (batched), same as outcomes() above — every campaign gets deal attribution.
-    const { results } = await searchTasksForAttribution(API, H, report);
+    // Pinned to the first 5 projects (maxProjects: 5), same load reason as outcomes() above —
+    // deal attribution's per-task association reads blow Cloudflare's per-request limit across all
+    // projects. Projects beyond the 5th show completion stats only until this is made per-campaign.
+    const { results } = await searchTasksForAttribution(API, H, report, { maxProjects: 5 });
     const allTasks = results.map((t) => t.properties || {}).filter((p) => p.hs_object_id && p.hs_createdate);
 
     const taskIds = allTasks.map((p) => p.hs_object_id);
