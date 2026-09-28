@@ -130,19 +130,39 @@ const REPORTS = {
       {
         key: "upsell-complete",
         label: "Upsell — Complete plan upsell",
-        match: (s) => s.includes("Call | Upsell | Complete upsell"),
-        // Real subject: "#1 |  Call | Upsell | Complete upsell - <suffix>" (suffix varies:
-        // "positive in last campaign", then later "batch 1", "batch 2", …). Match the fixed
-        // middle phrase so every batch is captured regardless of suffix or call number.
-        namePattern: "Call | Upsell | Complete upsell",
-        searchTerm: "Call | Upsell | Complete upsell",
-        context: "Core-plan customers called to upsell to Complete — starting with those who were positive in a previous campaign, then further batches.",
-        // Verified against real data (2026-09-28): "Upsell" AND "Complete" alone collides with the
-        // older "#2 Call Task | Complete Plan Upsell | Reengagement" campaign (1,000+ tasks) and
-        // free-text "complete plan upsell" tasks — so exclude "Plan" and "Reengagement". That combo
-        // returns 17 tasks: 16 real campaign tasks + 1 stray free-text ("Do you need Lettings?
-        // Upsell Complete") that classifyProject drops into "other" — clean without an owner filter.
-        attributionSearch: { tokens: ["Upsell", "Complete"], notTokens: ["Plan", "Reengagement"], ownerFiltered: false },
+        // Two naming conventions land here: the original "Complete upsell - <suffix>" batches
+        // and, from 2026-09-28, "Complete plan mrr - core users" / "- free users". Matched as
+        // two explicit fixed phrases (not a shared prefix) so a future unrelated "Complete ..."
+        // task doesn't silently start counting here too.
+        match: (s) => s.includes("Call | Upsell | Complete upsell") || s.includes("Call | Upsell | Complete plan mrr"),
+        // Real subjects: "#1 |  Call | Upsell | Complete upsell - <suffix>" (suffix varies:
+        // "positive in last campaign", then later "batch 1", "batch 2", …) and "#1 | Call |
+        // Upsell | Complete plan mrr - core users" / "- free users". Match the fixed middle
+        // phrase so every batch is captured regardless of suffix or call number.
+        namePattern: "Call | Upsell | Complete upsell / Call | Upsell | Complete plan mrr",
+        searchTerm: "Call | Upsell | Complete",
+        context: "Core-plan customers called to upsell to Complete — starting with those who were positive in a previous campaign, then further batches (including the MRR-targeted core-users/free-users batches).",
+        // Originally verified against real data (2026-09-28): "Upsell" AND "Complete" alone
+        // collided with the older "#2 Call Task | Complete Plan Upsell | Reengagement" campaign
+        // (1,000+ tasks) and free-text "complete plan upsell" tasks, so that first version
+        // excluded "Plan" and "Reengagement" (17 tasks back: 16 real + 1 stray, "other"-bucketed).
+        //
+        // UPDATE (2026-09-28): all real tasks for this project (the original 16, renamed, plus
+        // the new core-users/free-users batches) now share "Complete plan mrr" in the subject —
+        // so require "mrr" as a positive AND token instead of trying to exclude the older
+        // campaign by word. This is more direct than the notTokens approach it replaces: CONTAINS
+        // _TOKEN has no phrase matching (confirmed elsewhere in this file — a multi-word filter
+        // value is treated as an OR of its words, not a phrase, so "complete plan mrr" as a
+        // single value would broaden the search, not narrow it) — but the file's usual pattern
+        // of one word per filter, ANDed, works fine here: "mrr" is distinctive enough that the
+        // older Reengagement campaign (no "mrr" in its title) should fall out on its own, without
+        // depending on excluding "Plan" (which the new tasks legitimately contain) or guessing at
+        // every stray free-text collision. Kept "Reengagement" as a second, redundant guard.
+        // NOT independently re-verified against live HubSpot data (couldn't reach the API to test
+        // this when writing it) — before relying on this campaign's numbers, check the
+        // "other"/unmatched count on the dashboard for a jump, or re-run the token combination
+        // against the real Tasks Search API the way the other projects above were verified.
+        attributionSearch: { tokens: ["Upsell", "Complete", "mrr"], notTokens: ["Reengagement"], ownerFiltered: false },
       },
     ],
   },
