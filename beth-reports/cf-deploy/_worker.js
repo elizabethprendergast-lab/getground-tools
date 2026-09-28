@@ -627,24 +627,38 @@ function nearestActivity(contactsForTask, contactToActs, acts, anchorMs, before,
 }
 
 async function outcomes(url, env) {
-  const [reportKey, report] = getReport(url);
-  if (!report) return json({ error: `unknown report '${reportKey}'` }, 404);
+  const [reportKey, reportConfig] = getReport(url);
+  if (!reportConfig) return json({ error: `unknown report '${reportKey}'` }, 404);
   if (!env.HUBSPOT_TOKEN) return json({ error: "HUBSPOT_TOKEN secret not set" }, 500);
   const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
   const API = "https://api.hubapi.com";
   const PORTAL_ID = "25516403";
 
+  // See stats() above for why this uses searchTasksForAttribution rather than searchTasks —
+  // completed tasks from reps outside the fixed owner list (e.g. Yoana Chung) need to show up
+  // in the outcomes/disposition breakdown too, not just Asya/Chey/Active-Lead's owners.
+  // outcomes() does heavy per-task work — contact + call + WhatsApp + email + note association
+  // reads for every completed task — so spanning every project in one request exceeded
+  // Cloudflare's per-request subrequest/CPU limit and blanked EVERY campaign's outcomes.
+  // Without ?campaign=, stay pinned to the first 5 projects (maxProjects: 5) as before —
+  // projects beyond the 5th show completion stats only. With ?campaign=<project key>, scope
+  // the whole request to that one project instead: a single project's per-task work is well
+  // under the limit, so it needs neither the cap nor a slot among the first 5, which is what
+  // lets a campaign like ba-closed-won-reengage (6th in the list) get real outcomes data.
+  const campaignKey = url.searchParams.get("campaign");
+  let report = reportConfig;
+  let searchOpts = { maxProjects: 5 };
+  let computedKeys = new Set((reportConfig.projects || []).slice(0, 5).map((p) => p.key));
+  if (campaignKey) {
+    const proj = (reportConfig.projects || []).find((p) => p.key === campaignKey);
+    if (!proj) return json({ error: `unknown campaign '${campaignKey}'` }, 404);
+    report = { ...reportConfig, projects: [proj] };
+    searchOpts = {};
+    computedKeys = new Set([proj.key]);
+  }
+
   try {
-    // See stats() above for why this uses searchTasksForAttribution rather than searchTasks —
-    // completed tasks from reps outside the fixed owner list (e.g. Yoana Chung) need to show up
-    // in the outcomes/disposition breakdown too, not just Asya/Chey/Active-Lead's owners.
-    // Pinned to the first 5 projects (maxProjects: 5). outcomes() does heavy per-task work —
-    // contact + call + WhatsApp + email + note association reads for every completed task — so
-    // spanning all projects exceeded Cloudflare's per-request subrequest/CPU limit and blanked
-    // EVERY campaign's outcomes. Keep it capped until outcomes is refactored to compute a single
-    // campaign per request (see /api/outcomes?campaign=…). Projects beyond the 5th show
-    // completion stats only for now.
-    const { results } = await searchTasksForAttribution(API, H, report, { maxProjects: 5 });
+    const { results } = await searchTasksForAttribution(API, H, report, searchOpts);
     const completedTasks = results
       .map((t) => t.properties || {})
       .filter((p) => p.hs_task_status === "COMPLETED" && p.hs_task_completion_date && p.hs_createdate);
@@ -760,7 +774,10 @@ async function outcomes(url, env) {
 
     const projects = (report.projects || []).map((cfg) => {
       const b = buckets[cfg.key] || { totalCompleted: 0, matched: 0, byOutcome: {} };
-      return { key: cfg.key, label: cfg.label, totalCompleted: b.totalCompleted, totalMatchedToCall: b.matched, totalReached: (b.matched || 0) + (b.reached || 0), dispositions: toRows(b) };
+      // `computed: false` marks a project that fell outside this request's search (only possible
+      // without ?campaign=, i.e. beyond the maxProjects:5 cap) — its zeros are "not fetched yet",
+      // not a real "no data", so the client knows to fetch it scoped rather than trust them.
+      return { key: cfg.key, label: cfg.label, computed: computedKeys.has(cfg.key), totalCompleted: b.totalCompleted, totalMatchedToCall: b.matched, totalReached: (b.matched || 0) + (b.reached || 0), dispositions: toRows(b) };
     });
     const otherB = buckets.other || { totalCompleted: 0, matched: 0, byOutcome: {} };
     const other = { totalCompleted: otherB.totalCompleted, totalMatchedToCall: otherB.matched, totalReached: (otherB.matched || 0) + (otherB.reached || 0), dispositions: toRows(otherB) };
@@ -800,22 +817,36 @@ const PLANS_PIPELINE_ID = "1882997999";
 const PLANS_CLOSED_WON_STAGE_ID = "2561311959";
 
 async function dealAttribution(url, env) {
-  const [reportKey, report] = getReport(url);
-  if (!report) return json({ error: `unknown report '${reportKey}'` }, 404);
+  const [reportKey, reportConfig] = getReport(url);
+  if (!reportConfig) return json({ error: `unknown report '${reportKey}'` }, 404);
   if (!env.HUBSPOT_TOKEN) return json({ error: "HUBSPOT_TOKEN secret not set" }, 500);
   const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
   const API = "https://api.hubapi.com";
   const PORTAL_ID = "25516403";
+
+  // Same scoping as outcomes() above: without ?campaign=, stay pinned to the first 5 projects
+  // (maxProjects: 5) — deal attribution's per-task association reads blow Cloudflare's
+  // per-request limit across all projects, so projects beyond the 5th show completion stats
+  // only. With ?campaign=<project key>, scope the whole request to that one project, which
+  // needs neither the cap nor a slot among the first 5.
+  const campaignKey = url.searchParams.get("campaign");
+  let report = reportConfig;
+  let searchOpts = { maxProjects: 5 };
+  let computedKeys = new Set((reportConfig.projects || []).slice(0, 5).map((p) => p.key));
+  if (campaignKey) {
+    const proj = (reportConfig.projects || []).find((p) => p.key === campaignKey);
+    if (!proj) return json({ error: `unknown campaign '${campaignKey}'` }, 404);
+    report = { ...reportConfig, projects: [proj] };
+    searchOpts = {};
+    computedKeys = new Set([proj.key]);
+  }
 
   try {
     // Every contact ever put into a sequence, any task status — not just completed tasks —
     // since the question is "did this contact convert," not "did the call happen." Uses
     // searchTasksForAttribution (not searchTasks) so a contact counts regardless of which rep's
     // name is on the task — see that function's comment for why and what was tested.
-    // Pinned to the first 5 projects (maxProjects: 5), same load reason as outcomes() above —
-    // deal attribution's per-task association reads blow Cloudflare's per-request limit across all
-    // projects. Projects beyond the 5th show completion stats only until this is made per-campaign.
-    const { results } = await searchTasksForAttribution(API, H, report, { maxProjects: 5 });
+    const { results } = await searchTasksForAttribution(API, H, report, searchOpts);
     const allTasks = results.map((t) => t.properties || {}).filter((p) => p.hs_object_id && p.hs_createdate);
 
     const taskIds = allTasks.map((p) => p.hs_object_id);
@@ -893,7 +924,8 @@ async function dealAttribution(url, env) {
 
     const projects = (report.projects || []).map((cfg) => {
       const contactMap = projectContacts[cfg.key] || new Map();
-      return { key: cfg.key, label: cfg.label, ...buildProject(contactMap) };
+      // See outcomes() for what `computed: false` means (project outside this request's search).
+      return { key: cfg.key, label: cfg.label, computed: computedKeys.has(cfg.key), ...buildProject(contactMap) };
     });
     const other = buildProject(projectContacts.other || new Map());
 
