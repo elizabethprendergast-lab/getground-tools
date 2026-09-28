@@ -195,15 +195,40 @@ const REFERRAL_TAB_KEY = "referral-programme"; // pseudo-campaign key for the Re
 // (A live wire-up would need the worker to reach BigQuery/Count — a credential + scope task.)
 const REFERRALS = {
   asOf: "2026-09-24",
+  // Campaign reach by exact UTM, from Mixpanel (page_viewed, utm_campaign=...).
+  // This is the only cut keyed to the UTM; the funnel below is keyed by referral code.
+  // To refresh: re-run the Mixpanel utm_campaign breakdown and paste the numbers + asOf.
+  reach: {
+    asOf: "2026-09-28",
+    campaigns: [
+      {
+        utm: "raf_250_0926",
+        label: "one-time outreach · 2 emails",
+        rows: [
+          { stage: "Unique visitors", users: 11 },
+          { stage: "Page views", users: 122 },
+        ],
+        split: "By email: email01 8 · email02 4 · get-link 1 (email02 still rolling out)",
+      },
+      {
+        utm: "raf_0926",
+        label: "always-on · review-triggered",
+        rows: [
+          { stage: "Unique visitors", users: 31 },
+          { stage: "Page views", users: 106 },
+        ],
+      },
+    ],
+  },
   campaign: {
-    label: "raf_250_0926 · sequence 867429602",
-    // Landing traffic from Mixpanel (page_viewed, utm_campaign = raf_250_0926). The copy-link →
-    // referred → plans-bought steps for THIS campaign live in BigQuery keyed by referral code
-    // (not the UTM) and aren't wired up yet — see the programme totals below for the whole scheme.
-    note: "Landing-page traffic only (Mixpanel, utm_campaign). Per-campaign copy-link & conversion need BigQuery/Count access — not yet wired.",
+    label: "Referral email campaign",
     steps: [
-      { stage: "Landing page views", users: 95 },
-      { stage: "Unique visitors", users: 7 },
+      { stage: "Sent", users: 6916 },
+      { stage: "Opened", users: 1506 },
+      { stage: "Clicked", users: 26 },
+      { stage: "Code created", users: 14 },
+      { stage: "Referee landed", users: 6 },
+      { stage: "Referee applied code", users: 0 },
     ],
   },
   programme: [
@@ -485,21 +510,27 @@ function referralCardHtml() {
   const live = cache.referrals && !cache.referrals.error ? cache.referrals : null;
   const campaignSteps = live ? live.campaign : REFERRALS.campaign.steps;
   const programme = live ? live.programme : REFERRALS.programme;
+  const reach = REFERRALS.reach;
   const statusLine = live
-    ? `Live from BigQuery · updated ${fmtDateTime(live.generatedAt)}`
-    : `Snapshot as of ${fmtDate(REFERRALS.asOf)} — not live yet (BigQuery service account not configured).`;
+    ? `Funnel live from BigQuery · updated ${fmtDateTime(live.generatedAt)}`
+    : `Funnel snapshot as of ${fmtDate(REFERRALS.asOf)} — not live yet (BigQuery service account not configured).`;
   const campaignHeading = live
     ? `Campaign funnel · HubSpot campaign ${esc(live.campaignContentId || "")}`
     : esc(REFERRALS.campaign.label);
-  const note = live
-    ? "Per-campaign funnel is keyed by the configured HubSpot campaign id — repoint it to the raf_250_0926 campaign in the worker to scope it there."
-    : REFERRALS.campaign.note;
+  const note = "Reach is keyed to the exact UTM (Mixpanel); the funnel below is keyed by referral code (BigQuery), so the two are counted differently.";
+  const reachHtml = reach.campaigns.map((c) => `
+      <p class="context-line" style="margin-top:10px; margin-bottom:4px"><code>utm_campaign=${esc(c.utm)}</code> — ${esc(c.label)}</p>
+      ${funnelRowsHtml(c.rows)}
+      ${c.split ? `<p class="sub" style="font-size:11px; margin-top:2px">${esc(c.split)}</p>` : ""}
+  `).join("");
   return `
     <section class="card">
       <h2>Referral programme</h2>
       <p class="sub">${esc(statusLine)}</p>
-      <p class="sub" style="margin-top:4px; margin-bottom:6px">${campaignHeading}</p>
-      ${note ? `<p class="context-line">${esc(note)}</p>` : ""}
+      <p class="sub" style="margin-top:8px; margin-bottom:2px">Campaign reach · Mixpanel, as of ${fmtDate(reach.asOf)}</p>
+      ${reachHtml}
+      <p class="context-line" style="margin-top:10px">${esc(note)}</p>
+      <p class="sub" style="margin-top:14px; margin-bottom:6px">${campaignHeading}</p>
       ${funnelRowsHtml(campaignSteps)}
       <p class="sub" style="margin-top:18px; margin-bottom:6px">Whole referral programme — all-time (all campaigns)</p>
       ${funnelRowsHtml(programme)}
