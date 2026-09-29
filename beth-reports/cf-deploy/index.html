@@ -199,7 +199,7 @@ const REFERRALS = {
   // This is the only cut keyed to the UTM; the funnel below is keyed by referral code.
   // To refresh: re-run the Mixpanel utm_campaign breakdown and paste the numbers + asOf.
   reach: {
-    asOf: "2026-09-28",
+    asOf: "2026-09-29",
     campaigns: [
       {
         utm: "raf_250_0926",
@@ -209,14 +209,25 @@ const REFERRALS = {
           { stage: "Page views", users: 122 },
         ],
         split: "By email: email01 8 · email02 4 · get-link 1 (email02 still rolling out)",
+        // GG user IDs for the identified visitors — paste into Count's referred-subs table
+        // (referrer_user_id) to manually check if any of these people's referrals converted.
+        // 3 of the 11 unique visitors had no identifiable GG user ID at page-view time.
+        userIds: [27955, 16466, 11573, 34973, 223864, 239900, 240383, 28551],
+        userIdsNote: "8 of 11 unique visitors identified; 3 unidentified.",
       },
       {
         utm: "raf_0926",
         label: "always-on · review-triggered",
         rows: [
-          { stage: "Unique visitors", users: 31 },
-          { stage: "Page views", users: 106 },
+          { stage: "Unique visitors", users: 38 },
+          { stage: "Page views", users: 118 },
         ],
+        split: "By source: email 5 · ads (Meta, paid social) 33",
+        // Only the email sub-channel has identifiable GG user IDs at page-view time — every
+        // one of the 33 Meta/paid-social ad clicks (2026-09-29 check) was unauthenticated at
+        // that point, so there's nothing to cross-check in Count for the ads channel yet.
+        userIds: [146562, 223864, 220277],
+        userIdsNote: "Email only: 3 of 5 unique visitors identified. Ads (Meta/paid-social): 0 of 33 identified — all unauthenticated at page-view time, so these can't be cross-checked in Count.",
       },
     ],
   },
@@ -518,10 +529,18 @@ function referralCardHtml() {
     ? `Campaign funnel · HubSpot campaign ${esc(live.campaignContentId || "")}`
     : esc(REFERRALS.campaign.label);
   const note = "Reach is keyed to the exact UTM (Mixpanel); the funnel below is keyed by referral code (BigQuery), so the two are counted differently.";
+  // GG user IDs listed here are for manually cross-checking against Count's referred-subs
+  // table (referrer_user_id) — this dashboard doesn't do that join itself; see userIdsNote
+  // on each campaign for how many visitors even have an identifiable ID to check.
   const reachHtml = reach.campaigns.map((c) => `
       <p class="context-line" style="margin-top:10px; margin-bottom:4px"><code>utm_campaign=${esc(c.utm)}</code> — ${esc(c.label)}</p>
       ${funnelRowsHtml(c.rows)}
       ${c.split ? `<p class="sub" style="font-size:11px; margin-top:2px">${esc(c.split)}</p>` : ""}
+      ${(c.userIds && c.userIds.length) ? `
+        <p class="sub" style="font-size:11px; margin-top:8px; margin-bottom:2px">GG user IDs (for manual cross-check in Count)</p>
+        <p class="context-line" style="font-size:12px; font-family: ui-monospace, 'SF Mono', Menlo, monospace; margin-bottom:2px">${c.userIds.map((id) => esc(String(id))).join(", ")}</p>
+        ${c.userIdsNote ? `<p class="sub" style="font-size:11px">${esc(c.userIdsNote)}</p>` : ""}
+      ` : ""}
   `).join("");
   return `
     <section class="card">
