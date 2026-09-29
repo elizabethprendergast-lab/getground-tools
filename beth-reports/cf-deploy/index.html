@@ -220,11 +220,12 @@ const REFERRALS = {
           { stage: "Unique visitors", users: 38 },
           { stage: "Page views", users: 118 },
         ],
-        // Not shown on the page: this total blends an email sub-channel (5 visitors, 3
-        // identified) with a Meta/paid-social ads sub-channel (33 visitors, 0 identified —
-        // unauthenticated at page-view time), which is why the ID coverage below is thin.
+        split: "By source: email 5 · ads (Meta, paid social) 33",
+        // Only the email sub-channel has identifiable GG user IDs at page-view time — every
+        // one of the 33 Meta/paid-social ad clicks (2026-09-29 check) was unauthenticated at
+        // that point, so there's nothing to cross-check in Count for the ads channel yet.
         userIds: [146562, 223864, 220277],
-        userIdsNote: "3 of 38 unique visitors identified; 35 unidentified.",
+        userIdsNote: "Email only: 3 of 5 identified. Ads (Meta/paid-social): 0 of 33 identified — unauthenticated at page-view time, so not cross-checkable in Count yet.",
       },
     ],
   },
