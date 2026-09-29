@@ -214,18 +214,26 @@ const REFERRALS = {
         userIdsNote: "8 of 11 unique visitors identified; 3 unidentified.",
       },
       {
-        utm: "raf_0926",
-        label: "always-on · review-triggered",
+        utm: "raf_0926&utm_source=email",
+        label: "always-on · review-triggered — email",
         rows: [
-          { stage: "Unique visitors", users: 38 },
-          { stage: "Page views", users: 118 },
+          { stage: "Unique visitors", users: 5 },
+          { stage: "Page views", users: 20 },
         ],
-        split: "By source: email 5 · ads (Meta, paid social) 33",
-        // Only the email sub-channel has identifiable GG user IDs at page-view time — every
-        // one of the 33 Meta/paid-social ad clicks (2026-09-29 check) was unauthenticated at
-        // that point, so there's nothing to cross-check in Count for the ads channel yet.
         userIds: [146562, 223864, 220277],
-        userIdsNote: "Email only: 3 of 5 identified. Ads (Meta/paid-social): 0 of 33 identified — unauthenticated at page-view time, so not cross-checkable in Count yet.",
+        userIdsNote: "3 of 5 unique visitors identified; 2 unidentified.",
+      },
+      {
+        utm: "raf_0926&utm_source=meta&utm_medium=paid_social",
+        label: "always-on · review-triggered — ads (Meta, paid social)",
+        rows: [
+          { stage: "Unique visitors", users: 33 },
+          { stage: "Page views", users: 104 },
+        ],
+        // Every one of these ad-click pageviews (2026-09-29 check) was unauthenticated at
+        // page-view time, so there's no GG user ID to list or cross-check in Count yet.
+        userIds: [],
+        userIdsNote: "0 of 33 unique visitors identified — unauthenticated at page-view time, so not cross-checkable in Count yet.",
       },
     ],
   },
@@ -534,6 +542,7 @@ function referralCardHtml() {
       <p class="context-line" style="margin-top:10px; margin-bottom:4px"><code>utm_campaign=${esc(c.utm)}</code> — ${esc(c.label)}</p>
       ${reachRowsHtml(i, c.rows, c.userIds)}
       ${c.split ? `<p class="sub" style="font-size:11px; margin-top:2px">${esc(c.split)}</p>` : ""}
+      ${c.userIdsNote ? `<p class="sub" style="font-size:11px; margin-top:2px">${esc(c.userIdsNote)}</p>` : ""}
   `).join("");
   return `
     <section class="card">
