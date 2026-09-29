@@ -82,6 +82,12 @@ safe to search without an owner filter.
 - `GET /api/referrals` — referral funnel from BigQuery (programme-wide copy-link →
   landed → redeemed → plans bought → reward paid, plus a per-campaign email funnel).
   Ported from the Count referral canvas; needs the GCP service-account secrets above.
+  Also returns `campaigns[]` — a live funnel per raf_* UTM campaign (`raf_250_0926`,
+  `raf_0926`; see `UTM_CAMPAIGNS` in `_worker.js`), keyed off Mixpanel's `utm_campaign`
+  property on `page_viewed` events rather than HubSpot content_id, since these are UTM-only
+  sends with no marketing campaign object. Uses only the already-granted `mixpanel_production`
+  and `prod_module_core` datasets — no extra IAM grant needed. Each campaign's funnel degrades
+  independently to `available:false` on failure rather than 502-ing the whole endpoint.
 - Everything except `/api/referrals` is live HubSpot API calls per request;
   `/api/referrals` is live BigQuery
 - Soft password gate (`SITE_PASSWORD` secret) — fails open if unset

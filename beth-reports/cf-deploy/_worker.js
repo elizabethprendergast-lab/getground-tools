@@ -1082,14 +1082,96 @@ UNION ALL SELECT 7, 'Referee applied code', (SELECT COUNT(DISTINCT referee_id) F
 ORDER BY step`;
 }
 
+// UTM-campaign funnels for the two raf_* sends (raf_0926 = always-on, triggered off good
+// feedback; raf_250_0926 = one-off blast, 2 emails) — what happens AFTER the reach numbers
+// already shown (those come from a manually-pasted Mixpanel snapshot, REFERRALS.reach in
+// index.html; this is the live, BigQuery half: reach → code → copy → landed → redeemed).
+//
+// Confirmed live in Mixpanel (2026-09-28, via the Mixpanel MCP connector, project "New
+// Production" 3987900): both values are real `utm_campaign` properties on `page_viewed`
+// events — NOT on Snowplow (`mkt_campaign`), which was the wrong system entirely (a different,
+// unrelated UTM breakdown built for the /referral page specifically finds nothing here — see
+// git history). The tagged link lands on `/portfolio?refer=open&utm_campaign=...` (or an
+// unauthenticated redirect through `/` first), which auto-opens the same in-app referral-share
+// modal as the `referrals_CTA_portfolio` button — hence keying off `user_id`, then joining into
+// the same referral_codes/plan_referrals tables the rest of this file already uses.
+//
+// Both datasets here (mixpanel_production, prod_module_core) are already granted to the
+// service account — no new BigQuery IAM grant needed for this one, unlike a Snowplow-based
+// version would have required.
+const UTM_CAMPAIGNS = [
+  { key: "raf_250_0926", label: "One-time outreach · 2 emails" },
+  { key: "raf_0926", label: "Always-on · review-triggered" },
+];
+
+function utmCampaignFunnelSql(utmCampaign) {
+  return `
+WITH reached_users AS (
+  SELECT DISTINCT CAST(user_id AS INT64) AS user_id
+  FROM \`${BQ_PROJECT}.mixpanel_production.mp_master_event\`
+  WHERE event_name = 'page_viewed'
+    AND JSON_VALUE(properties, '$.utm_campaign') = '${utmCampaign}'
+    AND user_id IS NOT NULL
+),
+user_codes AS (
+  SELECT rc.id AS referral_code_id, rc.code
+  FROM \`${BQ_PROJECT}.prod_module_core.referral_codes\` rc
+  WHERE rc.user_id IN (SELECT user_id FROM reached_users)
+),
+copied AS (
+  SELECT DISTINCT CAST(user_id AS INT64) AS user_id
+  FROM \`${BQ_PROJECT}.mixpanel_production.mp_master_event\`
+  WHERE event_name = 'button_clicked'
+    AND JSON_VALUE(properties, '$.button_id') = 'referrals_copy_link'
+    AND user_id IS NOT NULL
+    AND CAST(user_id AS INT64) IN (SELECT user_id FROM reached_users)
+),
+landed AS (
+  SELECT COUNT(DISTINCT distinct_id) AS cnt
+  FROM \`${BQ_PROJECT}.mixpanel_production.mp_master_event\`
+  WHERE event_name = 'page_viewed'
+    AND REGEXP_EXTRACT(JSON_VALUE(properties, '$.page_url'), r'[?&]referral=([^&]+)') IN (SELECT code FROM user_codes)
+),
+outcomes AS (
+  SELECT
+    COUNT(*) AS redeemed,
+    COUNTIF(plan_purchase_id IS NOT NULL) AS plans_bought,
+    COUNTIF(applied_at IS NOT NULL) AS reward_paid
+  FROM \`${BQ_PROJECT}.prod_module_core.plan_referrals\`
+  WHERE referral_code_id IN (SELECT referral_code_id FROM user_codes)
+)
+SELECT 1 AS step, 'Reached (UTM)' AS stage, (SELECT COUNT(*) FROM reached_users) AS users
+UNION ALL SELECT 2, 'Has referral code', (SELECT COUNT(*) FROM user_codes)
+UNION ALL SELECT 3, 'Copied link', (SELECT COUNT(*) FROM copied)
+UNION ALL SELECT 4, 'Referee landed', (SELECT cnt FROM landed)
+UNION ALL SELECT 5, 'Redeemed', (SELECT redeemed FROM outcomes)
+UNION ALL SELECT 6, 'Plans bought', (SELECT plans_bought FROM outcomes)
+UNION ALL SELECT 7, 'Reward paid', (SELECT reward_paid FROM outcomes)
+ORDER BY step`;
+}
+
+// Isolated per campaign so a problem with one (or with this query shape generally, being the
+// newest and least battle-tested here) degrades to "unavailable" instead of 502-ing the whole
+// /api/referrals response and losing the programme/campaign sections that already work.
+async function utmCampaignFunnel(env, cfg) {
+  try {
+    const rows = await bqQuery(env, utmCampaignFunnelSql(cfg.key));
+    const n = (v) => Number(v || 0);
+    return { key: cfg.key, label: cfg.label, available: true, funnel: rows.map((r) => ({ stage: r.stage, users: n(r.users) })) };
+  } catch (e) {
+    return { key: cfg.key, label: cfg.label, available: false, error: String(e), funnel: [] };
+  }
+}
+
 async function referrals(url, env) {
   if (!env.GCP_SA_EMAIL || !env.GCP_SA_PRIVATE_KEY) {
     return json({ error: "BigQuery service account not configured (set GCP_SA_EMAIL + GCP_SA_PRIVATE_KEY)" }, 501);
   }
   try {
-    const [prog, camp] = await Promise.all([
+    const [prog, camp, campaigns] = await Promise.all([
       bqQuery(env, PROGRAMME_SQL),
       bqQuery(env, campaignFunnelSql(REFERRAL_CAMPAIGN_CONTENT_ID)),
+      Promise.all(UTM_CAMPAIGNS.map((cfg) => utmCampaignFunnel(env, cfg))),
     ]);
     const p = prog[0] || {};
     const n = (v) => Number(v || 0);
@@ -1097,6 +1179,7 @@ async function referrals(url, env) {
       generatedAt: new Date().toISOString(),
       campaignContentId: REFERRAL_CAMPAIGN_CONTENT_ID,
       campaign: camp.map((r) => ({ stage: r.stage, users: n(r.users) })),
+      campaigns,
       programme: [
         { stage: "Links copied (referrers)", users: n(p.copied) },
         { stage: "Referees landed", users: n(p.landed) },
@@ -1104,7 +1187,7 @@ async function referrals(url, env) {
         { stage: "Plans bought", users: n(p.plans_bought) },
         { stage: "Reward paid", users: n(p.reward_paid) },
       ],
-      method: "Ported from the Count referral canvas: programme totals from prod_module_core.plan_referrals + mixpanel page_viewed/button_clicked; per-campaign funnel from the HubSpot email audience (content_id) through code-created → copied → referee landed/applied.",
+      method: "Ported from the Count referral canvas: programme totals from prod_module_core.plan_referrals + mixpanel page_viewed/button_clicked; per-campaign funnel from the HubSpot email audience (content_id) through code-created → copied → referee landed/applied; per-UTM-campaign funnels (campaigns[]) from Mixpanel's utm_campaign property on page_viewed through the same code/copy/landed/redeemed chain.",
     }, 200);
   } catch (e) {
     return json({ error: String(e) }, 502);
