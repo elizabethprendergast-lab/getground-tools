@@ -518,22 +518,11 @@ function referralCardHtml() {
     ? `Campaign funnel · HubSpot campaign ${esc(live.campaignContentId || "")}`
     : esc(REFERRALS.campaign.label);
   const note = "Reach is keyed to the exact UTM (Mixpanel); the funnel below is keyed by referral code (BigQuery), so the two are counted differently.";
-  // Live per-UTM-campaign funnel — what happened after the reach snapshot above: same UTM,
-  // traced through referral_codes/plan_referrals (BigQuery). Only present once the worker's
-  // been redeployed with campaigns[] support; falls back to reach-only otherwise.
-  const liveCampaignFunnels = Object.fromEntries((live && live.campaigns || []).map((c) => [c.key, c]));
-  const reachHtml = reach.campaigns.map((c) => {
-    const liveFunnel = liveCampaignFunnels[c.utm];
-    const afterHtml = !liveFunnel ? "" : !liveFunnel.available
-      ? `<p class="sub" style="font-size:11px; margin-top:8px">What happened after: unavailable right now (${esc(liveFunnel.error || "query failed")}).</p>`
-      : `<p class="sub" style="font-size:11px; margin-top:8px; margin-bottom:2px">What happened after (BigQuery, live)</p>${funnelRowsHtml(liveFunnel.funnel)}`;
-    return `
+  const reachHtml = reach.campaigns.map((c) => `
       <p class="context-line" style="margin-top:10px; margin-bottom:4px"><code>utm_campaign=${esc(c.utm)}</code> — ${esc(c.label)}</p>
       ${funnelRowsHtml(c.rows)}
       ${c.split ? `<p class="sub" style="font-size:11px; margin-top:2px">${esc(c.split)}</p>` : ""}
-      ${afterHtml}
-  `;
-  }).join("");
+  `).join("");
   return `
     <section class="card">
       <h2>Referral programme</h2>
