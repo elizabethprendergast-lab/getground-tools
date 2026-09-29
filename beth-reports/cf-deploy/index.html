@@ -189,15 +189,13 @@ const SERIES = ["var(--series-1)","var(--series-2)","var(--series-3)","var(--ser
 const REPORT_KEY = "mrr-nov-sprint";
 const REFERRAL_TAB_KEY = "referral-programme"; // pseudo-campaign key for the Referral programme tab
 
-// Referral programme snapshot. NOT live — these come from the Count / BigQuery referral model
-// (plan_referrals, referral_codes, mixpanel page_viewed) and are refreshed here periodically.
-// To update: re-run the Count cells and paste the new numbers + asOf date, then redeploy.
-// (A live wire-up would need the worker to reach BigQuery/Count — a credential + scope task.)
+// Referral programme snapshot — campaign reach by exact UTM, from Mixpanel (page_viewed,
+// utm_campaign=...). NOT live: a manually refreshed snapshot, refreshed here periodically.
+// (A live wire-up would need the worker to reach BigQuery — a credential + scope task; see
+// git history for the downstream-funnel version this replaced, reverted in favour of manually
+// cross-checking each campaign's GG user IDs against Count's referred-subs table instead.)
+// To refresh: re-run the Mixpanel utm_campaign breakdown and paste the numbers + asOf.
 const REFERRALS = {
-  asOf: "2026-09-24",
-  // Campaign reach by exact UTM, from Mixpanel (page_viewed, utm_campaign=...).
-  // This is the only cut keyed to the UTM; the funnel below is keyed by referral code.
-  // To refresh: re-run the Mixpanel utm_campaign breakdown and paste the numbers + asOf.
   reach: {
     asOf: "2026-09-29",
     campaigns: [
@@ -222,33 +220,14 @@ const REFERRALS = {
           { stage: "Unique visitors", users: 38 },
           { stage: "Page views", users: 118 },
         ],
-        split: "By source: email 5 · ads (Meta, paid social) 33",
-        // Only the email sub-channel has identifiable GG user IDs at page-view time — every
-        // one of the 33 Meta/paid-social ad clicks (2026-09-29 check) was unauthenticated at
-        // that point, so there's nothing to cross-check in Count for the ads channel yet.
+        // Not shown on the page: this total blends an email sub-channel (5 visitors, 3
+        // identified) with a Meta/paid-social ads sub-channel (33 visitors, 0 identified —
+        // unauthenticated at page-view time), which is why the ID coverage below is thin.
         userIds: [146562, 223864, 220277],
-        userIdsNote: "Email only: 3 of 5 unique visitors identified. Ads (Meta/paid-social): 0 of 33 identified — all unauthenticated at page-view time, so these can't be cross-checked in Count.",
+        userIdsNote: "3 of 38 unique visitors identified; 35 unidentified.",
       },
     ],
   },
-  campaign: {
-    label: "Referral email campaign",
-    steps: [
-      { stage: "Sent", users: 6916 },
-      { stage: "Opened", users: 1506 },
-      { stage: "Clicked", users: 26 },
-      { stage: "Code created", users: 14 },
-      { stage: "Referee landed", users: 6 },
-      { stage: "Referee applied code", users: 0 },
-    ],
-  },
-  programme: [
-    { stage: "Links copied (referrers)", users: 49 },
-    { stage: "Referees landed", users: 51 },
-    { stage: "Redeemed (code applied)", users: 24 },
-    { stage: "Plans bought", users: 4 },
-    { stage: "Reward paid", users: 4 },
-  ],
 };
 
 function fmtDate(iso) {
@@ -394,6 +373,21 @@ function scheduleHidePopover() {
   popoverHideTimer = setTimeout(() => { document.getElementById("contact-popover").style.display = "none"; }, 250);
 }
 
+// Plain GG user IDs (not HubSpot contacts, so no record link — just listed for pasting into
+// Count's referred-subs table to manually cross-check by hand).
+function showUserIdPopover(anchorEl, ids, note) {
+  clearTimeout(popoverHideTimer);
+  const pop = document.getElementById("contact-popover");
+  pop.innerHTML = `<p class="ph-title">${ids.length} GG user ID${ids.length === 1 ? "" : "s"}</p>` +
+    ids.map((id) => `<span style="display:block; padding:2px 0; font-family: ui-monospace, 'SF Mono', Menlo, monospace;">${esc(String(id))}</span>`).join("") +
+    (note ? `<p class="ph-note" style="margin-top:6px">${esc(note)}</p>` : "");
+  const rect = anchorEl.getBoundingClientRect();
+  pop.style.display = "block";
+  const top = Math.min(rect.bottom + 6, window.innerHeight - pop.offsetHeight - 12);
+  pop.style.top = Math.max(8, top) + "px";
+  pop.style.left = Math.min(rect.left, window.innerWidth - 280) + "px";
+}
+
 function outcomeCardHtml(label, o, portalId, loading) {
   const rows = (o && o.dispositions) || [];
   if (!rows.length) {
@@ -507,52 +501,44 @@ function campaignPageHtml(proj, sprintStart, hubspot) {
     <footer id="footer-line"></footer>`;
 }
 
-function funnelRowsHtml(steps) {
+// The reach section's row renderer — the "Unique visitors" row becomes hoverable when this
+// campaign has identified GG user IDs — see showUserIdPopover/wireReachHovers.
+function reachRowsHtml(idx, steps, userIds) {
   const max = Math.max(1, ...steps.map((s) => s.users));
-  return steps.map((s, i) => `
+  const hoverable = !!(userIds && userIds.length);
+  return steps.map((s, i) => {
+    const attrs = (hoverable && s.stage === "Unique visitors")
+      ? ` data-reach-idx="${idx}" style="cursor:help; border-bottom:1px dotted var(--text-muted)"` : "";
+    return `
     <div class="outcome-bar-row">
-      <span class="name" title="${esc(s.stage)}">${esc(s.stage)}</span>
+      <span class="name" title="${esc(s.stage)}"${attrs}>${esc(s.stage)}</span>
       <div class="track"><div class="fill" style="width:${Math.max(2, Math.round(100 * s.users / max))}%; background:${SERIES[i % SERIES.length]}"></div></div>
-      <span class="count">${s.users.toLocaleString()}</span>
-    </div>`).join("");
+      <span class="count"${attrs}>${s.users.toLocaleString()}</span>
+    </div>`;
+  }).join("");
+}
+
+function wireReachHovers(campaigns) {
+  document.querySelectorAll("[data-reach-idx]").forEach((el) => {
+    const c = campaigns[Number(el.getAttribute("data-reach-idx"))];
+    if (!c || !c.userIds || !c.userIds.length) return;
+    el.addEventListener("mouseenter", () => showUserIdPopover(el, c.userIds, c.userIdsNote));
+    el.addEventListener("mouseleave", scheduleHidePopover);
+  });
 }
 
 function referralCardHtml() {
-  const live = cache.referrals && !cache.referrals.error ? cache.referrals : null;
-  const campaignSteps = live ? live.campaign : REFERRALS.campaign.steps;
-  const programme = live ? live.programme : REFERRALS.programme;
   const reach = REFERRALS.reach;
-  const statusLine = live
-    ? `Funnel live from BigQuery · updated ${fmtDateTime(live.generatedAt)}`
-    : `Funnel snapshot as of ${fmtDate(REFERRALS.asOf)} — not live yet (BigQuery service account not configured).`;
-  const campaignHeading = live
-    ? `Campaign funnel · HubSpot campaign ${esc(live.campaignContentId || "")}`
-    : esc(REFERRALS.campaign.label);
-  const note = "Reach is keyed to the exact UTM (Mixpanel); the funnel below is keyed by referral code (BigQuery), so the two are counted differently.";
-  // GG user IDs listed here are for manually cross-checking against Count's referred-subs
-  // table (referrer_user_id) — this dashboard doesn't do that join itself; see userIdsNote
-  // on each campaign for how many visitors even have an identifiable ID to check.
-  const reachHtml = reach.campaigns.map((c) => `
+  const reachHtml = reach.campaigns.map((c, i) => `
       <p class="context-line" style="margin-top:10px; margin-bottom:4px"><code>utm_campaign=${esc(c.utm)}</code> — ${esc(c.label)}</p>
-      ${funnelRowsHtml(c.rows)}
+      ${reachRowsHtml(i, c.rows, c.userIds)}
       ${c.split ? `<p class="sub" style="font-size:11px; margin-top:2px">${esc(c.split)}</p>` : ""}
-      ${(c.userIds && c.userIds.length) ? `
-        <p class="sub" style="font-size:11px; margin-top:8px; margin-bottom:2px">GG user IDs (for manual cross-check in Count)</p>
-        <p class="context-line" style="font-size:12px; font-family: ui-monospace, 'SF Mono', Menlo, monospace; margin-bottom:2px">${c.userIds.map((id) => esc(String(id))).join(", ")}</p>
-        ${c.userIdsNote ? `<p class="sub" style="font-size:11px">${esc(c.userIdsNote)}</p>` : ""}
-      ` : ""}
   `).join("");
   return `
     <section class="card">
       <h2>Referral programme</h2>
-      <p class="sub">${esc(statusLine)}</p>
-      <p class="sub" style="margin-top:8px; margin-bottom:2px">Campaign reach · Mixpanel, as of ${fmtDate(reach.asOf)}</p>
+      <p class="sub">Campaign reach · Mixpanel, as of ${fmtDate(reach.asOf)}. Hover "Unique visitors" for the GG user IDs behind it (manual cross-check in Count).</p>
       ${reachHtml}
-      <p class="context-line" style="margin-top:10px">${esc(note)}</p>
-      <p class="sub" style="margin-top:14px; margin-bottom:6px">${campaignHeading}</p>
-      ${funnelRowsHtml(campaignSteps)}
-      <p class="sub" style="margin-top:18px; margin-bottom:6px">Whole referral programme — all-time (all campaigns)</p>
-      ${funnelRowsHtml(programme)}
     </section>`;
 }
 
@@ -677,6 +663,7 @@ function render() {
     main.innerHTML = landingHtml(statsRes);
   } else if (key === REFERRAL_TAB_KEY) {
     main.innerHTML = referralPageHtml();
+    wireReachHovers(REFERRALS.reach.campaigns);
   } else {
     const proj = (statsRes.projects || []).find(p => p.key === key);
     if (!proj) {
