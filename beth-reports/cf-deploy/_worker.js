@@ -163,6 +163,11 @@ const REPORTS = {
         // "other"/unmatched count on the dashboard for a jump, or re-run the token combination
         // against the real Tasks Search API the way the other projects above were verified.
         attributionSearch: { tokens: ["Upsell", "Complete", "mrr"], notTokens: ["Reengagement"], ownerFiltered: false },
+        // This queue runs alongside the complete_0926 email, and reps often tick the task off
+        // before/after the actual call (or a colleague covers it), so the live -2h/+15min
+        // completion anchor mis-attributed 7 of the first 34 done tasks vs a manual audit.
+        // See outcomeForEnrollmentTask() for the enrollment-window rules used instead.
+        outcomeMatching: "enrollment",
       },
     ],
   },
@@ -609,6 +614,74 @@ function contactLabel(props) {
 const ASYNC_WINDOW_BEFORE_MS = 3 * 60 * 60 * 1000; // completion - 3h
 const ASYNC_WINDOW_AFTER_MS = 3 * 60 * 60 * 1000;  // completion + 3h
 
+// ---- Enrollment-window outcomes (projects with outcomeMatching: "enrollment") ------------
+// For queues worked alongside an email campaign, where the completion anchor above doesn't
+// hold. Verified against a manual audit of the first 34 done Upsell-Complete tasks (30 Sep):
+// every one landed in the audited bucket. Precedence, first hit wins:
+//   1. Closed won — same rule as the Deals card (Closed Won Plans deal, closed on/after the
+//      contact's enrollment), so the two cards never disagree.
+//   2. Meeting booked — a meeting on the contact created on/after the task was created. Split
+//      by hs_meeting_source: MEETINGS_PUBLIC means the contact booked it themselves via the
+//      booking link (e.g. from the email — Julia Moulton, Alex O'Neill), so the call gets no
+//      credit even if one was logged later (Carlos's reschedule call for Julia; Asya's
+//      confirmation call for Alex). Anything else was created by a rep.
+//   3. Call — the LATEST outbound or direction-less call (manually logged calls have no
+//      hs_call_direction — Tareq Abuasbeh's positive call) between task creation and
+//      completion + 48h. Calls by the task owner win if there are any; otherwise any rep's call
+//      counts, since colleagues cover each other's tasks (Alex McCarthy, Maggie Leung). Inbound
+//      calls are excluded — they're usually about something else (Gurpreet Bharaj's unrelated
+//      inbound callback must not override Chey's no-answer).
+//   4. Otherwise fall through to the note/WhatsApp/email reclassification used everywhere.
+const ENROLLMENT_CALL_AFTER_MS = 48 * 60 * 60 * 1000; // completion + 48h
+
+function outcomeForEnrollmentTask(p, ctx) {
+  const { contactsForTask, enrolledMs, contactToCalls, calls, contactToMeetings, meetings, contactToDeals, deals, isClosedPlansDeal, dispLabel } = ctx;
+  const createdMs = Date.parse(p.hs_createdate);
+
+  for (const cid of contactsForTask) {
+    const won = (contactToDeals[cid] || []).map((id) => deals[id])
+      .filter((d) => isClosedPlansDeal(d) && Date.parse(d.closedate) >= (enrolledMs[cid] ?? createdMs));
+    if (won.length) {
+      const d = won[0];
+      return { outcome: `Closed won — ${d.plans___product_type || "plan"} ${d.p_p___upsell === "true" ? "upsell" : "new"}`, category: "converted" };
+    }
+  }
+
+  let meeting = null;
+  for (const cid of contactsForTask) {
+    for (const id of contactToMeetings[cid] || []) {
+      const m = meetings[id];
+      if (!m || !m.hs_createdate || Date.parse(m.hs_createdate) < createdMs) continue;
+      if (!meeting || m.hs_meeting_source === "MEETINGS_PUBLIC") meeting = m; // self-booked wins: the call didn't cause it
+    }
+  }
+  if (meeting) {
+    return meeting.hs_meeting_source === "MEETINGS_PUBLIC"
+      ? { outcome: "Meeting booked — from email", category: "meeting" }
+      : { outcome: "Meeting booked — by rep", category: "meeting" };
+  }
+
+  const hi = Date.parse(p.hs_task_completion_date) + ENROLLMENT_CALL_AFTER_MS;
+  const candidates = [];
+  for (const cid of contactsForTask) {
+    for (const id of contactToCalls[cid] || []) {
+      const c = calls[id];
+      if (!c || !c.hs_timestamp) continue;
+      const dir = (c.hs_call_direction || "").toUpperCase();
+      if (dir && dir !== "OUTBOUND") continue;
+      const ts = Date.parse(c.hs_timestamp);
+      if (ts < createdMs || ts > hi) continue;
+      candidates.push({ c, ts });
+    }
+  }
+  const own = candidates.filter(({ c }) => c.hubspot_owner_id && c.hubspot_owner_id === p.hubspot_owner_id);
+  const pool = own.length ? own : candidates;
+  if (!pool.length) return null;
+  const best = pool.reduce((a, b) => (b.ts > a.ts ? b : a)).c;
+  const label = best.hs_call_disposition ? dispLabel[best.hs_call_disposition] : null;
+  return { outcome: label || "(no disposition set)", category: categoriseDisposition(label), call: true };
+}
+
 function stripHtml(s) {
   return (s || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/\s+/g, " ").trim();
 }
@@ -714,6 +787,29 @@ async function outcomes(url, env) {
     const [contactToEmails, emails] = await fetchActivity("emails", ["hs_timestamp", "hs_email_direction"]);
     const [contactToNotes, notes] = await fetchActivity("notes", ["hs_timestamp", "hs_note_body", "hubspot_owner_id"]);
 
+    // Meetings + deals are only needed for enrollment-matched projects (see
+    // outcomeForEnrollmentTask), so skip the extra reads when none is in this request.
+    const enrollmentKeys = new Set((report.projects || []).filter((p) => p.outcomeMatching === "enrollment").map((p) => p.key));
+    let enrollCtx = null;
+    if (enrollmentKeys.size) {
+      const enrollContactIds = [...new Set(completedTasks
+        .filter((p) => enrollmentKeys.has(classifyProject(report, p.hs_task_subject)))
+        .flatMap((p) => taskToContacts[p.hs_object_id] || []))];
+      const contactToMeetings = await batchAssociations(API, H, "contacts", "meetings", enrollContactIds);
+      const meetings = await batchRead(API, H, "meetings", [...new Set(Object.values(contactToMeetings).flat())], ["hs_createdate", "hs_meeting_source"]);
+      const contactToDeals = await batchAssociations(API, H, "contacts", "deals", enrollContactIds);
+      const deals = await batchRead(API, H, "deals", [...new Set(Object.values(contactToDeals).flat())], ["pipeline", "dealstage", "plans___product_type", "p_p___upsell", "closedate"]);
+      // Enrollment = contact's earliest task in the project, same as the Deals card. Only done
+      // tasks are fetched here, which is the same date in practice (#1 is the first created).
+      const enrolledMs = {};
+      for (const p of completedTasks) {
+        if (!enrollmentKeys.has(classifyProject(report, p.hs_task_subject))) continue;
+        const ms = Date.parse(p.hs_createdate);
+        for (const cid of taskToContacts[p.hs_object_id] || []) if (!(enrolledMs[cid] <= ms)) enrolledMs[cid] = ms;
+      }
+      enrollCtx = { enrolledMs, contactToCalls, calls, contactToMeetings, meetings, contactToDeals, deals, isClosedPlansDeal, dispLabel };
+    }
+
     // project key -> { totalCompleted, matched, byOutcome: { outcome: { count, category, contacts:[{id,name,taskId}] } } }
     const buckets = {};
     for (const p of completedTasks) {
@@ -728,8 +824,21 @@ async function outcomes(url, env) {
       const windowHi = anchorMs + LIVE_WINDOW_AFTER_MS;
 
       const contactsForTask = taskToContacts[p.hs_object_id] || [];
+
+      const enrolled = enrollmentKeys.has(key) ? outcomeForEnrollmentTask(p, { ...enrollCtx, contactsForTask }) : null;
+      if (enrolled) {
+        if (enrolled.call) b.matched++;
+        else b.reached = (b.reached || 0) + 1;
+        const o = (b.byOutcome[enrolled.outcome] ||= { count: 0, category: enrolled.category, contacts: [] });
+        o.count++;
+        for (const cid of contactsForTask) o.contacts.push({ id: cid, name: contactLabel(contacts[cid]), taskId: p.hs_object_id, note: null });
+        continue;
+      }
+      // Enrollment-matched task with no deal/meeting/call: fall through to the note/WhatsApp/
+      // email reclassification below. Skip the live-window call search — it can only find a
+      // subset of what outcomeForEnrollmentTask already rejected.
       let best = null, bestKey = null, bestDelta = Infinity, bestOwnerMatch = false;
-      for (const cid of contactsForTask) {
+      for (const cid of enrollmentKeys.has(key) ? [] : contactsForTask) {
         for (const callId of contactToCalls[cid] || []) {
           const call = calls[callId];
           if (!call || !call.hs_timestamp) continue;
@@ -809,7 +918,7 @@ async function outcomes(url, env) {
       portalId: PORTAL_ID,
       projects,
       other,
-      method: "Each completed task is first matched to the nearest OUTBOUND call on the same contact, within -2h/+15min of completion, preferring same-owner calls (no direct task<->call association exists in this account). If no call matches, the task is reclassified by the next non-call outreach on the contact within -3h/+3h of completion, in priority order: a rep note (classified from its text where recognisable, otherwise shown verbatim), then a WhatsApp message, then an email. Only tasks with none of these show as '(no outreach found)'. totalReached counts contact by any channel; totalMatchedToCall counts calls only.",
+      method: "Each completed task is first matched to the nearest OUTBOUND call on the same contact, within -2h/+15min of completion, preferring same-owner calls (no direct task<->call association exists in this account). If no call matches, the task is reclassified by the next non-call outreach on the contact within -3h/+3h of completion, in priority order: a rep note (classified from its text where recognisable, otherwise shown verbatim), then a WhatsApp message, then an email. Only tasks with none of these show as '(no outreach found)'. totalReached counts contact by any channel; totalMatchedToCall counts calls only. EXCEPTION — the Complete plan upsell queue (run alongside the complete_0926 email) uses enrollment-window matching instead: Closed won (same rule as the Deals card) > meeting created since the task was created (split into from email — contact self-booked via the booking link — vs booked by a rep) > the latest outbound/manually-logged call between task creation and completion + 48h, preferring the task owner's calls > the note/WhatsApp/email fallback above.",
     }, 200);
   } catch (e) {
     return json({ error: String(e) }, 502);
@@ -835,6 +944,9 @@ async function outcomes(url, env) {
 // endpoint (no date check at all) counted it anyway.
 const PLANS_PIPELINE_ID = "1882997999";
 const PLANS_CLOSED_WON_STAGE_ID = "2561311959";
+// Shared with outcomes() (enrollment-matched projects) so its "Closed won" rows use exactly
+// the Deals card's rule.
+const isClosedPlansDeal = (d) => d && d.pipeline === PLANS_PIPELINE_ID && d.dealstage === PLANS_CLOSED_WON_STAGE_ID && d.closedate;
 
 async function dealAttribution(url, env) {
   const [reportKey, reportConfig] = getReport(url);
@@ -899,8 +1011,6 @@ async function dealAttribution(url, env) {
     // the old is_migration_p_p-property approach this CAN be checked against the contact's
     // enrollment date, the same causality guard as deals.
     const migrationEvents = await fetchMigrationEvents(API, H, report.sprintStart);
-
-    const isClosedPlansDeal = (d) => d && d.pipeline === PLANS_PIPELINE_ID && d.dealstage === PLANS_CLOSED_WON_STAGE_ID && d.closedate;
 
     const buildProject = (contactMap) => {
       const buckets = {};
