@@ -769,12 +769,61 @@ async function outcomes(url, env) {
     const calls = await batchRead(API, H, "calls", callIds, ["hs_timestamp", "hs_call_disposition", "hs_call_direction", "hubspot_owner_id"]);
     const contacts = await batchRead(API, H, "contacts", contactIds, ["firstname", "lastname", "email"]);
 
+    // Meetings + deals are only needed for enrollment-matched projects (see
+    // outcomeForEnrollmentTask), so skip the extra reads when none is in this request. Fetched
+    // BEFORE the note/WhatsApp/email reads so those (the expensive, fail-soft part) can only ever
+    // lose the fallback rows, never these. Wrapped the same way, so a failure here degrades to
+    // call-only matching instead of 502-ing the whole endpoint (which the UI shows as "no tasks").
+    const enrollmentKeys = new Set((report.projects || []).filter((p) => p.outcomeMatching === "enrollment").map((p) => p.key));
+    const enrolledByTask = new Map(); // task id -> outcomeForEnrollmentTask result (null = unresolved)
+    if (enrollmentKeys.size) {
+      const enrollTasks = completedTasks.filter((p) => enrollmentKeys.has(classifyProject(report, p.hs_task_subject)));
+      const enrollContactIds = [...new Set(enrollTasks.flatMap((p) => taskToContacts[p.hs_object_id] || []))];
+      let contactToMeetings = {}, meetings = {}, contactToDeals = {}, deals = {};
+      try {
+        contactToMeetings = await batchAssociations(API, H, "contacts", "meetings", enrollContactIds);
+        meetings = await batchRead(API, H, "meetings", [...new Set(Object.values(contactToMeetings).flat())], ["hs_createdate", "hs_meeting_source"]);
+        contactToDeals = await batchAssociations(API, H, "contacts", "deals", enrollContactIds);
+        deals = await batchRead(API, H, "deals", [...new Set(Object.values(contactToDeals).flat())], ["pipeline", "dealstage", "plans___product_type", "p_p___upsell", "closedate"]);
+      } catch (e) {
+        console.log(`outcomes: meetings/deals fetch skipped (${e})`);
+      }
+      // Enrollment = contact's earliest task in the project, same as the Deals card. Only done
+      // tasks are fetched here, which is the same date in practice (#1 is the first created).
+      const enrolledMs = {};
+      for (const p of enrollTasks) {
+        const ms = Date.parse(p.hs_createdate);
+        for (const cid of taskToContacts[p.hs_object_id] || []) if (!(enrolledMs[cid] <= ms)) enrolledMs[cid] = ms;
+      }
+      const ctx = { enrolledMs, contactToCalls, calls, contactToMeetings, meetings, contactToDeals, deals, isClosedPlansDeal, dispLabel };
+      for (const p of enrollTasks) {
+        enrolledByTask.set(p.hs_object_id, outcomeForEnrollmentTask(p, { ...ctx, contactsForTask: taskToContacts[p.hs_object_id] || [] }));
+      }
+    }
+
     // Non-call outreach, so a task worked by WhatsApp/email/note isn't shown as "no call found".
     // Needs the private-app token to have crm.objects.communications.read (+ notes/emails read).
     // Wrapped so a missing scope degrades to call-only rather than 502-ing the whole endpoint.
+    //
+    // Subrequest budget: Cloudflare caps a Worker invocation at 50 outbound requests, and
+    // batchRead costs one per 100 ids. Reading every email ever logged on every contact blew
+    // that (Upsell-Complete, 30 Sep: 34 contacts had 3,635 emails = ~37 reads on its own), which
+    // silently emptied this fallback and then 502'd the first uncaught fetch after it. So:
+    //   - only contacts whose task is still unresolved need this (enrollment-matched tasks
+    //     already settled by a deal/meeting/call are skipped), and
+    //   - only each contact's newest ACTIVITY_IDS_PER_CONTACT ids are read. HubSpot ids are
+    //     allocated in increasing order (checked on this account's calls/emails/notes), and
+    //     matching only looks within hours of a recent task completion, so older ids can't match.
+    const ACTIVITY_IDS_PER_CONTACT = 25;
+    const activityContactIds = [...new Set(completedTasks
+      .filter((p) => !enrolledByTask.get(p.hs_object_id))
+      .flatMap((p) => taskToContacts[p.hs_object_id] || []))];
     async function fetchActivity(toType, props) {
       try {
-        const assoc = await batchAssociations(API, H, "contacts", toType, contactIds);
+        const assoc = await batchAssociations(API, H, "contacts", toType, activityContactIds);
+        for (const cid of Object.keys(assoc)) {
+          assoc[cid] = assoc[cid].sort((a, b) => (BigInt(b) > BigInt(a) ? 1 : -1)).slice(0, ACTIVITY_IDS_PER_CONTACT);
+        }
         const ids = [...new Set(Object.values(assoc).flat())];
         const objs = await batchRead(API, H, toType, ids, props);
         return [assoc, objs];
@@ -786,29 +835,6 @@ async function outcomes(url, env) {
     const [contactToComms, comms] = await fetchActivity("communications", ["hs_timestamp", "hs_communication_channel_type"]);
     const [contactToEmails, emails] = await fetchActivity("emails", ["hs_timestamp", "hs_email_direction"]);
     const [contactToNotes, notes] = await fetchActivity("notes", ["hs_timestamp", "hs_note_body", "hubspot_owner_id"]);
-
-    // Meetings + deals are only needed for enrollment-matched projects (see
-    // outcomeForEnrollmentTask), so skip the extra reads when none is in this request.
-    const enrollmentKeys = new Set((report.projects || []).filter((p) => p.outcomeMatching === "enrollment").map((p) => p.key));
-    let enrollCtx = null;
-    if (enrollmentKeys.size) {
-      const enrollContactIds = [...new Set(completedTasks
-        .filter((p) => enrollmentKeys.has(classifyProject(report, p.hs_task_subject)))
-        .flatMap((p) => taskToContacts[p.hs_object_id] || []))];
-      const contactToMeetings = await batchAssociations(API, H, "contacts", "meetings", enrollContactIds);
-      const meetings = await batchRead(API, H, "meetings", [...new Set(Object.values(contactToMeetings).flat())], ["hs_createdate", "hs_meeting_source"]);
-      const contactToDeals = await batchAssociations(API, H, "contacts", "deals", enrollContactIds);
-      const deals = await batchRead(API, H, "deals", [...new Set(Object.values(contactToDeals).flat())], ["pipeline", "dealstage", "plans___product_type", "p_p___upsell", "closedate"]);
-      // Enrollment = contact's earliest task in the project, same as the Deals card. Only done
-      // tasks are fetched here, which is the same date in practice (#1 is the first created).
-      const enrolledMs = {};
-      for (const p of completedTasks) {
-        if (!enrollmentKeys.has(classifyProject(report, p.hs_task_subject))) continue;
-        const ms = Date.parse(p.hs_createdate);
-        for (const cid of taskToContacts[p.hs_object_id] || []) if (!(enrolledMs[cid] <= ms)) enrolledMs[cid] = ms;
-      }
-      enrollCtx = { enrolledMs, contactToCalls, calls, contactToMeetings, meetings, contactToDeals, deals, isClosedPlansDeal, dispLabel };
-    }
 
     // project key -> { totalCompleted, matched, byOutcome: { outcome: { count, category, contacts:[{id,name,taskId}] } } }
     const buckets = {};
@@ -825,7 +851,7 @@ async function outcomes(url, env) {
 
       const contactsForTask = taskToContacts[p.hs_object_id] || [];
 
-      const enrolled = enrollmentKeys.has(key) ? outcomeForEnrollmentTask(p, { ...enrollCtx, contactsForTask }) : null;
+      const enrolled = enrolledByTask.get(p.hs_object_id) || null;
       if (enrolled) {
         if (enrolled.call) b.matched++;
         else b.reached = (b.reached || 0) + 1;
