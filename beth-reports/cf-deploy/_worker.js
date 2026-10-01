@@ -169,6 +169,23 @@ const REPORTS = {
         // See outcomeForEnrollmentTask() for the enrollment-window rules used instead.
         outcomeMatching: "enrollment",
       },
+      {
+        key: "reengage-ltd-freemium",
+        label: "Reengage — LTD freemium",
+        // Real subjects: "#1 |  Call | Reengage | LTD freemium mrr" and "#2 | Call | Reengage |
+        // LTD freemium mrr (Nurture)" — match the fixed phrase so later call numbers/suffixes
+        // land here too. Doesn't collide with "LTD missed leads" (matched on its full phrase).
+        match: (s) => s.includes("Call | Reengage | LTD freemium mrr"),
+        namePattern: "Call | Reengage | LTD freemium mrr",
+        searchTerm: "Call | Reengage | LTD freemium mrr",
+        context: "LTD customers on the free plan, called to move them onto a paid plan — run alongside an email that lets them book a meeting directly.",
+        // Verified against real data (2026-10-01): "freemium" alone returns 83 tasks portal-wide
+        // (no date filter), every one of them this campaign (82 × #1, 1 × #2 Nurture). "LTD" is
+        // a redundant second guard.
+        attributionSearch: { tokens: ["LTD", "freemium"], ownerFiltered: false },
+        // Email can book a meeting directly, same as Upsell-Complete — see outcomeForEnrollmentTask.
+        outcomeMatching: "enrollment",
+      },
     ],
   },
 };
