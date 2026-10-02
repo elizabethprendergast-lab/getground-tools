@@ -16,6 +16,12 @@ const REPORTS = {
     // owner filter and the pre-seeded rep list) — this is just button-link data for whoever
     // shows up dynamically in the reps breakdown (see fetchOwnerNames/stats in code below).
     ownerViews: { "76256251": "160475825", "1297173186": "160475731", "29178925": "160648025" }, // Asya, Chey, Yoana Chung
+    // The only reps whose calls/meetings/notes count as campaign outcomes for projects with
+    // campaignRepsOnly: true (see outcomeForEnrollmentTask). The property, mortgage and
+    // Investment Consultant teams work many of the same contacts in parallel, and their calls
+    // were being credited to these queues (2 Oct audit: 6 of 52 done BA/LTD tasks, e.g. David
+    // Paradis's positive call on a Chey BA task). Activity by anyone else is ignored, not shown.
+    campaignRepIds: ["76256251", "1297173186", "29178925"], // Asya, Chey, Yoana
     hubspotSubdomain: "app-eu1.hubspot.com",
     // "Created at is after 02/09/2026 (BST)" in the reference HubSpot report — HubSpot's
     // "is after [date]" is exclusive of that date, so this is 3 Sep 00:00 BST = 2 Sep 23:00 UTC.
@@ -93,6 +99,14 @@ const REPORTS = {
         // unrelated meeting-followup tasks — the third token is needed) — clean without an
         // owner filter.
         attributionSearch: { tokens: ["Reengage", "LTD", "missed"], ownerFiltered: false },
+        // Enrollment-window rules (see outcomeForEnrollmentTask), restricted to campaignRepIds —
+        // these leads overlap heavily with live property/mortgage pipelines.
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        // Call tasks only — no campaign email. A contact self-booking (e.g. Sunny Idahosa, via
+        // the follow-up email Asya sent after speaking to her) is the rep's doing, so every
+        // meeting here counts as "by rep" — see outcomeForEnrollmentTask.
+        noCampaignEmail: true,
       },
       {
         key: "reengage-nonpaying",
@@ -126,6 +140,10 @@ const REPORTS = {
         // Verified against real data before shipping: "BA" AND "closed" AND "won" returns 0
         // existing tasks (brand-new naming convention) - clean without an owner filter.
         attributionSearch: { tokens: ["BA", "closed", "won"], ownerFiltered: false },
+        // Email + call, so enrollment-window rules apply; restricted to campaignRepIds since
+        // David Paradis (Investment Consultants) works this BA base in parallel.
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
       },
       {
         key: "upsell-complete",
@@ -649,10 +667,15 @@ const ASYNC_WINDOW_AFTER_MS = 3 * 60 * 60 * 1000;  // completion + 3h
 //      calls are excluded — they're usually about something else (Gurpreet Bharaj's unrelated
 //      inbound callback must not override Chey's no-answer).
 //   4. Otherwise fall through to the note/WhatsApp/email reclassification used everywhere.
+// Projects with campaignRepsOnly: true additionally ignore any meeting, call (and, in the
+// fallback, note/WhatsApp/email) not owned by one of the report's campaignRepIds — so another
+// team's work on the same contact never lands in the queue's outcomes. Closed won is unchanged.
+// Projects with noCampaignEmail: true have no email for a contact to book from, so a self-booked
+// meeting (booking link sent by the rep after a call) is labelled "by rep" too.
 const ENROLLMENT_CALL_AFTER_MS = 48 * 60 * 60 * 1000; // completion + 48h
 
 function outcomeForEnrollmentTask(p, ctx) {
-  const { contactsForTask, enrolledMs, contactToCalls, calls, contactToMeetings, meetings, contactToDeals, deals, isClosedPlansDeal, dispLabel } = ctx;
+  const { contactsForTask, enrolledMs, contactToCalls, calls, contactToMeetings, meetings, contactToDeals, deals, isClosedPlansDeal, dispLabel, repOk, noCampaignEmail } = ctx;
   const createdMs = Date.parse(p.hs_createdate);
 
   for (const cid of contactsForTask) {
@@ -669,11 +692,12 @@ function outcomeForEnrollmentTask(p, ctx) {
     for (const id of contactToMeetings[cid] || []) {
       const m = meetings[id];
       if (!m || !m.hs_createdate || Date.parse(m.hs_createdate) < createdMs) continue;
+      if (!repOk(m)) continue;
       if (!meeting || m.hs_meeting_source === "MEETINGS_PUBLIC") meeting = m; // self-booked wins: the call didn't cause it
     }
   }
   if (meeting) {
-    return meeting.hs_meeting_source === "MEETINGS_PUBLIC"
+    return meeting.hs_meeting_source === "MEETINGS_PUBLIC" && !noCampaignEmail
       ? { outcome: "Meeting booked — from email", category: "meeting" }
       : { outcome: "Meeting booked — by rep", category: "meeting" };
   }
@@ -686,6 +710,7 @@ function outcomeForEnrollmentTask(p, ctx) {
       if (!c || !c.hs_timestamp) continue;
       const dir = (c.hs_call_direction || "").toUpperCase();
       if (dir && dir !== "OUTBOUND") continue;
+      if (!repOk(c)) continue;
       const ts = Date.parse(c.hs_timestamp);
       if (ts < createdMs || ts > hi) continue;
       candidates.push({ c, ts });
@@ -791,6 +816,11 @@ async function outcomes(url, env) {
     // BEFORE the note/WhatsApp/email reads so those (the expensive, fail-soft part) can only ever
     // lose the fallback rows, never these. Wrapped the same way, so a failure here degrades to
     // call-only matching instead of 502-ing the whole endpoint (which the UI shows as "no tasks").
+    // Per-project owner gate for campaignRepsOnly projects (see outcomeForEnrollmentTask);
+    // a pass-through everywhere else.
+    const campaignReps = new Set(report.campaignRepIds || []);
+    const repsOnlyKeys = new Set((report.projects || []).filter((p) => p.campaignRepsOnly).map((p) => p.key));
+    const repFilterFor = (key) => (repsOnlyKeys.has(key) ? (a) => campaignReps.has(a.hubspot_owner_id) : () => true);
     const enrollmentKeys = new Set((report.projects || []).filter((p) => p.outcomeMatching === "enrollment").map((p) => p.key));
     const enrolledByTask = new Map(); // task id -> outcomeForEnrollmentTask result (null = unresolved)
     if (enrollmentKeys.size) {
@@ -799,7 +829,7 @@ async function outcomes(url, env) {
       let contactToMeetings = {}, meetings = {}, contactToDeals = {}, deals = {};
       try {
         contactToMeetings = await batchAssociations(API, H, "contacts", "meetings", enrollContactIds);
-        meetings = await batchRead(API, H, "meetings", [...new Set(Object.values(contactToMeetings).flat())], ["hs_createdate", "hs_meeting_source"]);
+        meetings = await batchRead(API, H, "meetings", [...new Set(Object.values(contactToMeetings).flat())], ["hs_createdate", "hs_meeting_source", "hubspot_owner_id"]);
         contactToDeals = await batchAssociations(API, H, "contacts", "deals", enrollContactIds);
         deals = await batchRead(API, H, "deals", [...new Set(Object.values(contactToDeals).flat())], ["pipeline", "dealstage", "plans___product_type", "p_p___upsell", "closedate"]);
       } catch (e) {
@@ -814,7 +844,9 @@ async function outcomes(url, env) {
       }
       const ctx = { enrolledMs, contactToCalls, calls, contactToMeetings, meetings, contactToDeals, deals, isClosedPlansDeal, dispLabel };
       for (const p of enrollTasks) {
-        enrolledByTask.set(p.hs_object_id, outcomeForEnrollmentTask(p, { ...ctx, contactsForTask: taskToContacts[p.hs_object_id] || [] }));
+        const key = classifyProject(report, p.hs_task_subject);
+        const noCampaignEmail = !!(report.projects || []).find((c) => c.key === key)?.noCampaignEmail;
+        enrolledByTask.set(p.hs_object_id, outcomeForEnrollmentTask(p, { ...ctx, repOk: repFilterFor(key), noCampaignEmail, contactsForTask: taskToContacts[p.hs_object_id] || [] }));
       }
     }
 
@@ -849,8 +881,8 @@ async function outcomes(url, env) {
         return [{}, {}];
       }
     }
-    const [contactToComms, comms] = await fetchActivity("communications", ["hs_timestamp", "hs_communication_channel_type"]);
-    const [contactToEmails, emails] = await fetchActivity("emails", ["hs_timestamp", "hs_email_direction"]);
+    const [contactToComms, comms] = await fetchActivity("communications", ["hs_timestamp", "hs_communication_channel_type", "hubspot_owner_id"]);
+    const [contactToEmails, emails] = await fetchActivity("emails", ["hs_timestamp", "hs_email_direction", "hubspot_owner_id"]);
     const [contactToNotes, notes] = await fetchActivity("notes", ["hs_timestamp", "hs_note_body", "hubspot_owner_id"]);
 
     // project key -> { totalCompleted, matched, byOutcome: { outcome: { count, category, contacts:[{id,name,taskId}] } } }
@@ -907,10 +939,11 @@ async function outcomes(url, env) {
         // No matching call — was the task worked another way? Prefer a note (richest, in the
         // rep's own words), then WhatsApp, then email. Only if none of these exists is it
         // genuinely untouched. `reached` counts any-channel contact (vs matched = call only).
-        const note = nearestActivity(contactsForTask, contactToNotes, notes, anchorMs, ASYNC_WINDOW_BEFORE_MS, ASYNC_WINDOW_AFTER_MS);
+        const repOk = repFilterFor(key);
+        const note = nearestActivity(contactsForTask, contactToNotes, notes, anchorMs, ASYNC_WINDOW_BEFORE_MS, ASYNC_WINDOW_AFTER_MS, repOk);
         const whatsapp = nearestActivity(contactsForTask, contactToComms, comms, anchorMs, ASYNC_WINDOW_BEFORE_MS, ASYNC_WINDOW_AFTER_MS,
-          (a) => (a.hs_communication_channel_type || "").toUpperCase() === "WHATS_APP");
-        const email = nearestActivity(contactsForTask, contactToEmails, emails, anchorMs, ASYNC_WINDOW_BEFORE_MS, ASYNC_WINDOW_AFTER_MS);
+          (a) => repOk(a) && (a.hs_communication_channel_type || "").toUpperCase() === "WHATS_APP");
+        const email = nearestActivity(contactsForTask, contactToEmails, emails, anchorMs, ASYNC_WINDOW_BEFORE_MS, ASYNC_WINDOW_AFTER_MS, repOk);
         if (note) {
           noteText = stripHtml(note.hs_note_body);
           outcome = classifyNote(noteText) || "Contacted — note logged";
@@ -961,7 +994,7 @@ async function outcomes(url, env) {
       portalId: PORTAL_ID,
       projects,
       other,
-      method: "Each completed task is first matched to the nearest OUTBOUND call on the same contact, within -2h/+15min of completion, preferring same-owner calls (no direct task<->call association exists in this account). If no call matches, the task is reclassified by the next non-call outreach on the contact within -3h/+3h of completion, in priority order: a rep note (classified from its text where recognisable, otherwise shown verbatim), then a WhatsApp message, then an email. Only tasks with none of these show as '(no outreach found)'. totalReached counts contact by any channel; totalMatchedToCall counts calls only. EXCEPTION — the Complete plan upsell queue (run alongside the complete_0926 email) uses enrollment-window matching instead: Closed won (same rule as the Deals card) > meeting created since the task was created (split into from email — contact self-booked via the booking link — vs booked by a rep) > the latest outbound/manually-logged call between task creation and completion + 48h, preferring the task owner's calls > the note/WhatsApp/email fallback above.",
+      method: "Each completed task is first matched to the nearest OUTBOUND call on the same contact, within -2h/+15min of completion, preferring same-owner calls (no direct task<->call association exists in this account). If no call matches, the task is reclassified by the next non-call outreach on the contact within -3h/+3h of completion, in priority order: a rep note (classified from its text where recognisable, otherwise shown verbatim), then a WhatsApp message, then an email. Only tasks with none of these show as '(no outreach found)'. totalReached counts contact by any channel; totalMatchedToCall counts calls only. EXCEPTION — the Complete plan upsell, LTD freemium, LTD missed leads and BA closed won queues use enrollment-window matching instead: Closed won (same rule as the Deals card) > meeting created since the task was created (split into from email — contact self-booked via the booking link — vs booked by a rep) > the latest outbound/manually-logged call between task creation and completion + 48h, preferring the task owner's calls > the note/WhatsApp/email fallback above. For LTD missed leads and BA closed won, only meetings/calls/notes by the campaign reps (Asya, Chey, Yoana) count — other teams' activity on the same contacts is ignored. LTD missed leads has no campaign email, so all its meetings count as booked by rep.",
     }, 200);
   } catch (e) {
     return json({ error: String(e) }, 502);
