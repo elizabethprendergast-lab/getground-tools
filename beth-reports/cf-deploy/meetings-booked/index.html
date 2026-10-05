@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Meetings Booked</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --page-plane: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --gridline: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --critical: #d03b3b;
+    --series-1: #2a78d6;
+    --bar-hover: #1c5fae;
+    --accent-soft: rgba(42,120,214,0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --page-plane: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --gridline: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255,255,255,0.10);
+      --critical: #e66767;
+      --series-1: #3987e5;
+      --bar-hover: #6aa6ee;
+      --accent-soft: rgba(57,135,229,0.14);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page-plane); color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 20px clamp(16px, 4vw, 40px); display: flex; align-items: baseline; gap: 14px;
+    flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  header a { font-size: 13px; color: var(--text-secondary); }
+  main { min-width: 0; max-width: 1100px; margin: 0 auto; padding: 20px clamp(16px, 4vw, 40px) 64px; }
+
+  /* Filters: one row above everything they control. */
+  .filters { position: sticky; top: 0; z-index: 5; background: var(--page-plane);
+    padding: 12px 0; margin-bottom: 8px; border-bottom: 1px solid var(--border);
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  .filters label { min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
+  .filters input, .filters select, .filters button {
+    font: inherit; font-size: 13px; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); }
+  .filters .search { flex: 1 1 220px; }
+  .filters input[type=date] { max-width: 150px; }
+  .filters .search input { width: 100%; }
+  .filters select { max-width: min(240px, calc(100vw - 32px)); }
+  .presets { display: flex; gap: 4px; }
+  .presets button { cursor: pointer; padding: 7px 9px; }
+  .presets button.active { background: var(--accent-soft); border-color: var(--series-1); font-weight: 600; }
+  button.ghost { cursor: pointer; }
+  .active-filters { font-size: 12px; color: var(--text-secondary); min-height: 18px; margin: 6px 0 14px; }
+  .active-filters .chip { display: inline-flex; gap: 6px; align-items: center; padding: 2px 8px;
+    border-radius: 999px; background: var(--accent-soft); margin-right: 6px; }
+  .active-filters .chip button { border: none; background: none; cursor: pointer; color: inherit; padding: 0; font-size: 13px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .tile .v { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tile .l { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  section.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px clamp(16px, 3vw, 28px); margin-bottom: 20px; }
+  section.card h2 { font-size: 16px; margin: 0 0 4px; font-weight: 600; }
+  section.card .sub { font-size: 13px; color: var(--text-muted); margin: 0 0 16px; }
+
+  /* Horizontal bar chart: link names are long, so they sit on the category axis unrotated. */
+  .chart { display: grid; grid-template-columns: minmax(90px, 34%) minmax(0, 1fr); row-gap: 4px; column-gap: 12px; }
+  .chart .lab { font-size: 12px; color: var(--text-secondary); text-align: right; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; align-self: center; cursor: pointer; }
+  .chart .track { min-width: 0; padding-right: 44px; position: relative; height: 22px; cursor: pointer; border-left: 1px solid var(--baseline);
+    display: flex; align-items: center; }
+  .chart .bar { flex: none; height: 14px; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 2px; }
+  .chart .row-hit:hover .bar, .chart .track:hover .bar { background: var(--bar-hover); }
+  .chart .num { font-size: 12px; color: var(--text-secondary); margin-left: 6px; font-variant-numeric: tabular-nums; }
+  .chart .selected .bar { background: var(--bar-hover); }
+  .chart-more { margin-top: 10px; }
+  .chart-more button { font: inherit; font-size: 12px; cursor: pointer; border: 1px solid var(--border);
+    background: var(--surface-1); color: var(--text-secondary); border-radius: 8px; padding: 5px 10px; }
+  .tooltip { position: fixed; z-index: 20; pointer-events: none; max-width: 320px; font-size: 12px;
+    background: var(--surface-1); color: var(--text-primary); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.15); display: none; line-height: 1.5; }
+  .tooltip b { font-weight: 600; }
+  .tooltip .t-title { font-weight: 600; margin-bottom: 4px; word-break: break-word; }
+  .tooltip .t-muted { color: var(--text-muted); }
+  .tooltip .t-hint { color: var(--text-muted); margin-top: 6px; font-style: italic; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td.nowrap { white-space: nowrap; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--gridline); vertical-align: top; }
+  th { font-size: 12px; color: var(--text-muted); font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; }
+  th.sorted::after { content: " ▾"; }
+  th.sorted.asc::after { content: " ▴"; }
+  td { color: var(--text-primary); }
+  td.muted { color: var(--text-muted); }
+  td a { color: var(--series-1); text-decoration: none; }
+  td a:hover { text-decoration: underline; }
+  td .email { display: block; color: var(--text-muted); font-size: 12px; }
+  .pill { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-secondary); white-space: nowrap; }
+  .table-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px;
+    font-size: 12px; color: var(--text-muted); flex-wrap: wrap; }
+  .status { font-size: 13px; color: var(--text-secondary); padding: 30px 0; text-align: center; }
+  .status.error { color: var(--critical); }
+  .empty { font-size: 13px; color: var(--text-muted); padding: 20px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Meetings Booked</h1>
+  <a href="/">← Beth Reports</a>
+</header>
+<main>
+  <div class="filters">
+    <label>From <input type="date" id="from" /></label>
+    <label>To <input type="date" id="to" /></label>
+    <div class="presets" role="group" aria-label="Quick date ranges">
+      <button data-days="7">7d</button><button data-days="30">30d</button><button data-days="90">90d</button><button data-days="365">1y</button>
+    </div>
+    <label class="search">Search
+      <input type="search" id="q" placeholder="GetGrounder, contact, email, link, UTM, outcome…" autocomplete="off" />
+    </label>
+    <label>Meeting link <select id="f-link"><option value="">All links</option></select></label>
+    <label>GetGrounder <select id="f-owner"><option value="">Everyone</option></select></label>
+    <button class="ghost" id="reset">Reset</button>
+  </div>
+  <div class="active-filters" id="active-filters"></div>
+
+  <div id="status" class="status">Loading meetings from HubSpot…</div>
+
+  <div id="content" hidden>
+    <div class="tiles">
+      <div class="tile"><div class="v" id="t-meetings">–</div><div class="l">Meetings booked</div></div>
+      <div class="tile"><div class="v" id="t-contacts">–</div><div class="l">Unique contacts</div></div>
+      <div class="tile"><div class="v" id="t-links">–</div><div class="l">Meeting links used</div></div>
+      <div class="tile"><div class="v" id="t-utm">–</div><div class="l">Bookings with UTMs</div></div>
+    </div>
+
+    <section class="card">
+      <h2>Meetings booked by meeting link</h2>
+      <p class="sub">Hover a bar for details, click to filter the page to that link.</p>
+      <div class="chart" id="chart" role="list"></div>
+      <div class="chart-more" id="chart-more"></div>
+    </section>
+
+    <section class="card">
+      <h2>All bookings</h2>
+      <p class="sub">Click a contact to open them in HubSpot. Click a column heading to sort.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th data-sort="booked" class="sorted">Booked</th>
+            <th data-sort="start">Meeting date</th>
+            <th data-sort="link">Meeting link</th>
+            <th data-sort="owner">GetGrounder</th>
+            <th data-sort="contact">Contact</th>
+            <th data-sort="outcome">Outcome</th>
+            <th data-sort="utmSource">UTM source</th>
+            <th data-sort="utmMedium">UTM medium</th>
+            <th data-sort="utmCampaign">UTM campaign</th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="table-foot">
+        <span id="row-count"></span>
+        <span><button class="ghost" id="more-rows" hidden>Show more</button> <button class="ghost" id="csv">Download CSV</button></span>
+      </div>
+    </section>
+  </div>
+</main>
+<div class="tooltip" id="tip" role="tooltip"></div>
+
+<script>
+const PORTAL = "25516403";
+const HS = "https://app-eu1.hubspot.com/contacts/" + PORTAL + "/record/0-1/";
+const CHART_TOP = 20, PAGE_ROWS = 200;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtDate = (iso, time) => iso ? new Date(iso).toLocaleString("en-GB", time
+  ? { day: "2-digit", month: "short", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }
+  : { day: "2-digit", month: "short", year: "numeric", timeZone: "Europe/London" }) : "";
+const OUTCOME_LABEL = (o) => o ? o.charAt(0) + o.slice(1).toLowerCase().replace(/_/g, " ") : "—";
+const ymd = (d) => d.toISOString().slice(0, 10);
+
+let all = [];            // rows for the loaded date range
+let loadedRange = "";
+let shownRows = PAGE_ROWS, chartAll = false;
+let sortKey = "booked", sortAsc = false;
+
+// URL holds the state so a filtered view can be shared as a link.
+const state = Object.fromEntries(new URLSearchParams(location.search));
+function syncUrl() {
+  const p = new URLSearchParams();
+  for (const k of ["from", "to", "q", "link", "owner"]) if (state[k]) p.set(k, state[k]);
+  history.replaceState(null, "", location.pathname + (p.toString() ? "?" + p : ""));
+}
+
+function initDates() {
+  const today = new Date();
+  if (!state.to) state.to = ymd(today);
+  if (!state.from) { const d = new Date(today); d.setDate(d.getDate() - 90); state.from = ymd(d); }
+  $("from").value = state.from; $("to").value = state.to;
+  $("q").value = state.q || "";
+}
+
+async function load() {
+  const range = state.from + "|" + state.to;
+  if (range === loadedRange) return render();
+  $("status").hidden = false; $("status").className = "status"; $("status").textContent = "Loading meetings from HubSpot…";
+  $("content").hidden = true;
+  const rows = []; let after = null, total = null;
+  try {
+    do {
+      const p = new URLSearchParams({ from: state.from, to: state.to });
+      if (after) p.set("after", after);
+      const r = await fetch("/api/meetings?" + p);
+      const j = await r.json();
+      if (!r.ok || j.error) throw new Error(j.error || r.statusText);
+      rows.push(...j.rows); after = j.next; total = j.total;
+      $("status").textContent = `Loading meetings from HubSpot… ${rows.length} of ${total}`;
+    } while (after);
+  } catch (e) {
+    $("status").className = "status error";
+    $("status").textContent = "Couldn't load meetings: " + e.message;
+    return;
+  }
+  all = rows.map((r) => ({ ...r, contact: r.contacts.map((c) => c.name).join(", "),
+    _hay: [r.link, r.owner, r.outcome, r.utmSource, r.utmMedium, r.utmCampaign,
+      ...r.contacts.flatMap((c) => [c.name, c.email])].join(" ").toLowerCase() }));
+  loadedRange = range;
+  $("status").hidden = true; $("content").hidden = false;
+  fillSelect("f-link", all.map((r) => r.link), "All links", state.link);
+  fillSelect("f-owner", all.map((r) => r.owner), "Everyone", state.owner);
+  render();
+}
+
+function fillSelect(id, values, allLabel, current) {
+  const counts = {};
+  values.forEach((v) => counts[v] = (counts[v] || 0) + 1);
+  const opts = Object.keys(counts).sort((a, b) => a.localeCompare(b));
+  if (current && !counts[current]) opts.unshift(current);
+  $(id).innerHTML = `<option value="">${allLabel}</option>` + opts.map((v) =>
+    `<option value="${esc(v)}"${v === current ? " selected" : ""}>${esc(v)} (${counts[v] || 0})</option>`).join("");
+}
+
+function filtered() {
+  const terms = (state.q || "").toLowerCase().split(/\s+/).filter(Boolean);
+  return all.filter((r) => (!state.link || r.link === state.link)
+    && (!state.owner || r.owner === state.owner)
+    && terms.every((t) => r._hay.includes(t)));
+}
+
+function render() {
+  syncUrl();
+  const rows = filtered();
+  renderChips();
+  $("t-meetings").textContent = rows.length.toLocaleString();
+  $("t-contacts").textContent = new Set(rows.flatMap((r) => r.contacts.map((c) => c.id))).size.toLocaleString();
+  $("t-links").textContent = new Set(rows.map((r) => r.link)).size;
+  const withUtm = rows.filter((r) => r.utmSource || r.utmMedium || r.utmCampaign).length;
+  $("t-utm").textContent = rows.length ? Math.round(100 * withUtm / rows.length) + "%" : "–";
+  renderChart(rows);
+  renderTable(rows);
+}
+
+function renderChips() {
+  const chips = [];
+  if (state.q) chips.push(["q", `Search: “${state.q}”`]);
+  if (state.link) chips.push(["link", `Link: ${state.link}`]);
+  if (state.owner) chips.push(["owner", `GetGrounder: ${state.owner}`]);
+  $("active-filters").innerHTML = chips.length
+    ? "Filtered by " + chips.map(([k, l]) => `<span class="chip">${esc(l)}<button data-clear="${k}" aria-label="Remove filter">×</button></span>`).join("")
+    : "";
+}
+
+function groupByLink(rows) {
+  const g = {};
+  for (const r of rows) (g[r.link] ||= []).push(r);
+  return Object.entries(g).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+}
+
+function topN(arr, n) {
+  const c = {};
+  arr.filter(Boolean).forEach((v) => c[v] = (c[v] || 0) + 1);
+  return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, n);
+}
+
+let chartGroups = [];
+function renderChart(rows) {
+  chartGroups = groupByLink(rows);
+  if (!chartGroups.length) { $("chart").innerHTML = `<div class="empty">No meetings match these filters.</div>`; $("chart-more").innerHTML = ""; return; }
+  const show = chartAll ? chartGroups : chartGroups.slice(0, CHART_TOP);
+  const max = chartGroups[0][1].length;
+  $("chart").innerHTML = show.map(([link, rs], i) => {
+    const pct = Math.max(0.5, 100 * rs.length / max);
+    const sel = state.link === link ? " selected" : "";
+    return `<div class="lab" data-i="${i}" title="${esc(link)}">${esc(link)}</div>
+      <div class="track${sel}" data-i="${i}" role="listitem" aria-label="${esc(link)}: ${rs.length} meetings">
+        <div class="bar" style="width:${pct}%"></div><span class="num">${rs.length}</span></div>`;
+  }).join("");
+  const hidden = chartGroups.length - show.length;
+  $("chart-more").innerHTML = chartGroups.length > CHART_TOP
+    ? `<button id="chart-toggle">${chartAll ? "Show top " + CHART_TOP : `Show all ${chartGroups.length} links (+${hidden} more)`}</button>` : "";
+}
+
+function tooltipHtml([link, rs]) {
+  const owners = topN(rs.map((r) => r.owner), 4).map(([n, c]) => `${esc(n)} (${c})`).join(", ");
+  const utm = rs.filter((r) => r.utmSource || r.utmMedium || r.utmCampaign).length;
+  const camps = topN(rs.map((r) => r.utmCampaign), 3).map(([n, c]) => `${esc(n)} (${c})`).join(", ");
+  const outcomes = topN(rs.map((r) => OUTCOME_LABEL(r.outcome)), 4).map(([n, c]) => `${esc(n)} ${c}`).join(" · ");
+  const last = rs.reduce((a, r) => r.booked > a ? r.booked : a, "");
+  return `<div class="t-title">${esc(link)}</div>
+    <div><b>${rs.length}</b> meetings · ${new Set(rs.flatMap((r) => r.contacts.map((c) => c.id))).size} contacts</div>
+    <div><span class="t-muted">GetGrounders:</span> ${owners}</div>
+    <div><span class="t-muted">With UTMs:</span> ${utm} (${Math.round(100 * utm / rs.length)}%)${camps ? `<br><span class="t-muted">Top campaigns:</span> ${camps}` : ""}</div>
+    <div><span class="t-muted">Outcomes:</span> ${outcomes}</div>
+    <div><span class="t-muted">Last booked:</span> ${fmtDate(last, true)}</div>
+    <div class="t-hint">${state.link === link ? "Click to clear this filter" : "Click to filter to this link"}</div>`;
+}
+
+function rowHtml(r) {
+  const contacts = r.contacts.length
+    ? r.contacts.map((c) => `<a href="${HS}${encodeURIComponent(c.id)}" target="_blank" rel="noopener">${esc(c.name)}</a>${c.email ? `<span class="email">${esc(c.email)}</span>` : ""}`).join("")
+    : `<span class="muted">No contact</span>`;
+  const cell = (v) => v ? `<td>${esc(v)}</td>` : `<td class="muted">—</td>`;
+  return `<tr><td class="nowrap">${fmtDate(r.booked, true)}</td><td class="nowrap">${fmtDate(r.start, true)}</td><td>${esc(r.link)}</td>
+    <td>${esc(r.owner)}</td><td>${contacts}</td><td><span class="pill">${esc(OUTCOME_LABEL(r.outcome))}</span></td>
+    ${cell(r.utmSource)}${cell(r.utmMedium)}${cell(r.utmCampaign)}</tr>`;
+}
+
+let tableRows = [];
+function renderTable(rows) {
+  tableRows = [...rows].sort((a, b) => {
+    const x = a[sortKey] || "", y = b[sortKey] || "";
+    return (x < y ? -1 : x > y ? 1 : 0) * (sortAsc ? 1 : -1);
+  });
+  document.querySelectorAll("th[data-sort]").forEach((th) => {
+    th.classList.toggle("sorted", th.dataset.sort === sortKey);
+    th.classList.toggle("asc", th.dataset.sort === sortKey && sortAsc);
+  });
+  $("rows").innerHTML = tableRows.length
+    ? tableRows.slice(0, shownRows).map(rowHtml).join("")
+    : `<tr><td colspan="9" class="empty">No meetings match these filters.</td></tr>`;
+  $("row-count").textContent = `Showing ${Math.min(shownRows, tableRows.length).toLocaleString()} of ${tableRows.length.toLocaleString()} bookings`;
+  $("more-rows").hidden = shownRows >= tableRows.length;
+}
+
+function downloadCsv() {
+  const head = ["Booked", "Meeting date", "Meeting link", "GetGrounder", "Contact", "Email", "HubSpot URL", "Outcome", "UTM source", "UTM medium", "UTM campaign"];
+  const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [head.map(q).join(",")];
+  for (const r of tableRows) {
+    const cs = r.contacts.length ? r.contacts : [{ name: "", email: "", id: "" }];
+    for (const c of cs) lines.push([r.booked, r.start, r.link, r.owner, c.name, c.email, c.id ? HS + c.id : "",
+      OUTCOME_LABEL(r.outcome), r.utmSource, r.utmMedium, r.utmCampaign].map(q).join(","));
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
+  a.download = `meetings-booked_${state.from}_to_${state.to}.csv`;
+  a.click();
+}
+
+// ---- events ----
+const tip = $("tip");
+function placeTip(e) {
+  const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if (x + w > innerWidth - 8) x = e.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = e.clientY - h - pad;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+$("chart").addEventListener("mousemove", (e) => {
+  const el = e.target.closest("[data-i]");
+  if (!el) { tip.style.display = "none"; return; }
+  tip.innerHTML = tooltipHtml(chartGroups[+el.dataset.i]);
+  tip.style.display = "block"; placeTip(e);
+});
+$("chart").addEventListener("mouseleave", () => tip.style.display = "none");
+$("chart").addEventListener("click", (e) => {
+  const el = e.target.closest("[data-i]");
+  if (!el) return;
+  const link = chartGroups[+el.dataset.i][0];
+  state.link = state.link === link ? "" : link;
+  $("f-link").value = state.link;
+  tip.style.display = "none"; shownRows = PAGE_ROWS; render();
+});
+$("chart-more").addEventListener("click", (e) => { if (e.target.id === "chart-toggle") { chartAll = !chartAll; renderChart(filtered()); } });
+
+let qTimer;
+$("q").addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(() => { state.q = $("q").value.trim(); shownRows = PAGE_ROWS; render(); }, 150); });
+$("f-link").addEventListener("change", () => { state.link = $("f-link").value; shownRows = PAGE_ROWS; render(); });
+$("f-owner").addEventListener("change", () => { state.owner = $("f-owner").value; shownRows = PAGE_ROWS; render(); });
+for (const id of ["from", "to"]) $(id).addEventListener("change", () => {
+  if (!$("from").value || !$("to").value || $("from").value > $("to").value) return;
+  state.from = $("from").value; state.to = $("to").value;
+  document.querySelectorAll(".presets button").forEach((b) => b.classList.remove("active"));
+  load();
+});
+document.querySelectorAll(".presets button").forEach((b) => b.addEventListener("click", () => {
+  const to = new Date(), from = new Date(); from.setDate(from.getDate() - +b.dataset.days);
+  state.from = ymd(from); state.to = ymd(to); $("from").value = state.from; $("to").value = state.to;
+  document.querySelectorAll(".presets button").forEach((x) => x.classList.toggle("active", x === b));
+  load();
+}));
+$("active-filters").addEventListener("click", (e) => {
+  const k = e.target.dataset.clear; if (!k) return;
+  state[k] = ""; if (k === "q") $("q").value = ""; if (k === "link") $("f-link").value = ""; if (k === "owner") $("f-owner").value = "";
+  render();
+});
+$("reset").addEventListener("click", () => {
+  state.q = state.link = state.owner = ""; $("q").value = ""; $("f-link").value = ""; $("f-owner").value = "";
+  shownRows = PAGE_ROWS; render();
+});
+document.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("click", () => {
+  if (sortKey === th.dataset.sort) sortAsc = !sortAsc; else { sortKey = th.dataset.sort; sortAsc = false; }
+  renderTable(filtered());
+}));
+$("more-rows").addEventListener("click", () => { shownRows += PAGE_ROWS; renderTable(filtered()); });
+$("csv").addEventListener("click", downloadCsv);
+
+initDates();
+if (!new URLSearchParams(location.search).get("from")) document.querySelector('.presets button[data-days="90"]').classList.add("active");
+load();
+</script>
+</body>
+</html>

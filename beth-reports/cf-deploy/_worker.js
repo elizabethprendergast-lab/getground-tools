@@ -354,6 +354,7 @@ export default {
     if (url.pathname === "/api/outcomes") return outcomes(url, env);
     if (url.pathname === "/api/deals") return dealAttribution(url, env);
     if (url.pathname === "/api/referrals") return referrals(url, env);
+    if (url.pathname === "/api/meetings") return meetingsBooked(url, env);
     // Per-campaign pages are query-string routed (/?campaign=key) rather than path-routed
     // (/campaign/key) — tried path-routing first, but it needs a server-side rewrite to the
     // SPA shell for a path with no matching static file, and that rewrite hit an asset-server
@@ -1304,4 +1305,144 @@ async function referrals(url, env) {
 
 function json(o, s) {
   return new Response(JSON.stringify(o), { status: s, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Meetings Booked report (/meetings-booked/) — every meeting booked through a HubSpot meeting
+// link (hs_meeting_source = MEETINGS_PUBLIC), with the link, the GetGrounder, the contact and the
+// UTMs captured on the booking (utm_*_of_meeting meeting properties, added to the portal Jun 2026).
+//
+// Paged on purpose: the client calls this repeatedly with ?after=<cursor> until `next` is null.
+// Each call is ~5 HubSpot subrequests (1 search page of 200 + 2 assoc batches + 2 contact
+// batches, owners cached per isolate), so no single request can hit the Workers subrequest cap
+// regardless of date range — the same failure mode fixed for /api/outcomes in 3935a90.
+//
+// Link slug: this token has no scheduler scope, so meeting-link IDs can't be looked up live.
+// MEETING_LINK_SLUGS was built 5 Oct 2026 by matching each booking to the contact's
+// "Meetings Link: <slug>" form submission (1,306/1,307 matched, no ID mapped to two slugs).
+// For links created after that, fall back to the contact's recent_conversion_event_name when its
+// timestamp is within 10 min of the booking — then to "Link #<id>" so nothing is dropped.
+// Search API caps any one query at 10k results (~2 years of bookings at current volume).
+const MEETING_LINK_SLUGS = {
+  "16906496": "florence-chan",
+  "17459534": "scott-dixon",
+  "17834907": "ecarpenter",
+  "17948915": "chey",
+  "18252443": "luke-worrell",
+  "18315607": "talha-abbasi",
+  "18526925": "luke-worrell/quick-chat-with-luke",
+  "19015255": "tristan-webel",
+  "19042292": "alis-ilgaz",
+  "19260980": "jayden-burns/introduction-to-getground",
+  "19261577": "jhigueras/mortgages",
+  "19261604": "jhigueras/sm-property-strategy-session",
+  "19261610": "jhigueras/intro-to-getground",
+  "19264499": "jhigueras/account-managers",
+  "19558770": "florence-chan/smallfishba",
+  "19880012": "asya-wu",
+  "20171235": "ryan-welby",
+  "20295615": "yoana-chung",
+  "20295786": "yoana-chung/yoana-external-meeting-link",
+  "20297517": "tristan-webel/tristan-external",
+  "20297574": "ryan-welby/ryan-internal",
+  "20969297": "deepinder",
+  "21065298": "carlos-lam",
+  "21065422": "carlos-lam/carlos-investment-consultants",
+  "21128572": "carlos-lam/carlos-yoana",
+  "21273179": "iglesias-ang",
+  "21279056": "iglesias-ang/iglesias-investment-consultants",
+  "22113907": "danica-villegas",
+  "22272929": "henry-shaw",
+  "22573679": "jhigueras/sm-sdr-intro",
+  "22598364": "esther-grant/certification-calls",
+  "23074395": "billy-hunt",
+  "23078722": "billy-hunt/billy-investment-consultants",
+  "23114844": "yoana-chung/quick-chat",
+  "23405258": "srobson/15-minute-client-call",
+  "23453598": "carlos-lam/carlos-platform-referral",
+  "23453609": "billy-hunt/billy-platform-referral",
+  "23453613": "iglesias-ang/iglesias-platform-referral",
+  "23453673": "carlos-lam/carlos-property-referral",
+  "23453677": "billy-hunt/billy-property-referral",
+  "23453682": "iglesias-ang/iglesias-property-referral",
+  "23531545": "elizabeth-prendergast/plan-ics",
+  "23558613": "khalid-soueidan/property-platform-referral",
+  "23558620": "khalid-soueidan/platform-property-referral"
+};
+const MEETING_PROPS = ["hs_createdate", "hs_meeting_start_time", "hs_meeting_outcome", "hubspot_owner_id",
+  "hs_meeting_created_from_link_id", "utm_source_of_meeting", "utm_medium_of_meeting", "utm_campaign_of_meeting"];
+const MEETING_CONTACT_PROPS = ["firstname", "lastname", "email", "recent_conversion_event_name", "recent_conversion_date"];
+let ownerNameCache = null, ownerNameCacheAt = 0;
+
+async function meetingsBooked(url, env) {
+  try {
+    const API = "https://api.hubapi.com";
+    const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
+    const from = url.searchParams.get("from"), to = url.searchParams.get("to");
+    const after = url.searchParams.get("after");
+    if (!from || !to) return json({ error: "from and to (YYYY-MM-DD) are required" }, 400);
+    // UK dates: treat the range as whole days in Europe/London (BST offset is close enough at
+    // day granularity — see the "is after" boundary gotcha documented for MRR Nov Sprint).
+    const fromMs = Date.parse(`${from}T00:00:00+01:00`);
+    const toMs = Date.parse(`${to}T23:59:59.999+01:00`);
+    const body = {
+      filterGroups: [{ filters: [
+        { propertyName: "hs_meeting_source", operator: "EQ", value: "MEETINGS_PUBLIC" },
+        { propertyName: "hs_createdate", operator: "BETWEEN", value: String(fromMs), highValue: String(toMs) },
+      ] }],
+      properties: MEETING_PROPS,
+      sorts: [{ propertyName: "hs_createdate", direction: "DESCENDING" }],
+      limit: 200,
+    };
+    if (after) body.after = after;
+    const search = await hsFetch(`${API}/crm/v3/objects/meetings/search`, { method: "POST", headers: H, body: JSON.stringify(body) });
+    const meetings = search.results || [];
+
+    if (!ownerNameCache || Date.now() - ownerNameCacheAt > 3600e3) {
+      ownerNameCache = await fetchOwnerNames(API, H);
+      ownerNameCacheAt = Date.now();
+    }
+    const m2c = await batchAssociations(API, H, "meetings", "contacts", meetings.map((m) => m.id));
+    const contactIds = [...new Set(Object.values(m2c).flat())];
+    const contacts = await batchRead(API, H, "contacts", contactIds, MEETING_CONTACT_PROPS);
+
+    const rows = meetings.map((m) => {
+      const p = m.properties || {};
+      const bookedMs = Date.parse(p.hs_createdate);
+      const cids = m2c[m.id] || [];
+      const linkId = p.hs_meeting_created_from_link_id || null;
+      let slug = linkId ? MEETING_LINK_SLUGS[linkId] : null;
+      if (!slug) {
+        for (const cid of cids) {
+          const c = contacts[cid] || {};
+          const ev = c.recent_conversion_event_name || "";
+          if (ev.startsWith("Meetings Link: ") && Math.abs(Date.parse(c.recent_conversion_date) - bookedMs) < 10 * 60e3) {
+            slug = ev.slice("Meetings Link: ".length); break;
+          }
+        }
+      }
+      if (!slug) slug = linkId ? `Link #${linkId}` : "(no link recorded)";
+      const people = cids.map((cid) => {
+        const c = contacts[cid] || {};
+        return { id: cid, name: [c.firstname, c.lastname].filter(Boolean).join(" ").trim() || c.email || `Contact ${cid}`, email: c.email || "" };
+      });
+      return {
+        id: m.id,
+        booked: p.hs_createdate,
+        start: p.hs_meeting_start_time || null,
+        outcome: p.hs_meeting_outcome || null,
+        link: slug,
+        linkId,
+        owner: ownerNameCache[p.hubspot_owner_id] || (p.hubspot_owner_id ? `Owner ${p.hubspot_owner_id}` : "(unassigned)"),
+        contacts: people,
+        utmSource: p.utm_source_of_meeting || null,
+        utmMedium: p.utm_medium_of_meeting || null,
+        utmCampaign: p.utm_campaign_of_meeting || null,
+      };
+    });
+    const next = search.paging && search.paging.next && search.paging.next.after;
+    return json({ total: search.total ?? rows.length, rows, next: next || null }, 200);
+  } catch (e) {
+    return json({ error: String(e) }, 502);
+  }
 }

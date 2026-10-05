@@ -82,6 +82,11 @@ safe to search without an owner filter.
 - `GET /api/referrals` — referral funnel from BigQuery (programme-wide copy-link →
   landed → redeemed → plans bought → reward paid, plus a per-campaign email funnel).
   Ported from the Count referral canvas; needs the GCP service-account secrets above.
+- `GET /api/meetings?from=YYYY-MM-DD&to=YYYY-MM-DD[&after=cursor]` — meetings booked via
+  HubSpot meeting links (one page of 200 per call; the client follows `next`), powering the
+  standalone page at `/meetings-booked/` (`cf-deploy/meetings-booked/index.html`). Link IDs map
+  to slugs via `MEETING_LINK_SLUGS` in `_worker.js` (token has no scheduler scope) — new links
+  fall back to the contact's recent conversion name, then `Link #<id>`; add new IDs to the map.
 - Everything except `/api/referrals` is live HubSpot API calls per request;
   `/api/referrals` is live BigQuery
 - Soft password gate (`SITE_PASSWORD` secret) — fails open if unset
