@@ -16,6 +16,7 @@
     --baseline: #c3c2b7;
     --border: rgba(11,11,11,0.10);
     --critical: #d03b3b;
+    --serious: #ec835a;
     --series-1: #2a78d6;
     --bar-hover: #1c5fae;
     --accent-soft: rgba(42,120,214,0.10);
@@ -34,6 +35,7 @@
       --baseline: #383835;
       --border: rgba(255,255,255,0.10);
       --critical: #e66767;
+      --serious: #ec835a;
       --series-1: #3987e5;
       --bar-hover: #6aa6ee;
       --accent-soft: rgba(57,135,229,0.14);
@@ -130,6 +132,7 @@
   td a { color: var(--series-1); text-decoration: none; }
   td a:hover { text-decoration: underline; }
   td .email { display: block; color: var(--text-muted); font-size: 12px; }
+  .pill.overdue { border-color: var(--serious); color: var(--text-primary); }
   .pill { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-secondary); white-space: nowrap; }
   .table-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px;
     font-size: 12px; color: var(--text-muted); flex-wrap: wrap; }
@@ -166,6 +169,7 @@
       <div class="tile"><div class="v" id="t-contacts">–</div><div class="l">Unique contacts</div></div>
       <div class="tile"><div class="v" id="t-links">–</div><div class="l">Meeting links used</div></div>
       <div class="tile"><div class="v" id="t-utm">–</div><div class="l">Bookings with UTMs</div></div>
+      <div class="tile" id="t-overdue-tile" title="Click to show only these" style="cursor:pointer"><div class="v" id="t-overdue">–</div><div class="l">Past meetings with no outcome logged</div></div>
     </div>
 
     <section class="card">
@@ -218,6 +222,17 @@ const fmtDate = (iso, time) => iso ? new Date(iso).toLocaleString("en-GB", time
   ? { day: "2-digit", month: "short", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }
   : { day: "2-digit", month: "short", year: "numeric", timeZone: "Europe/London" }) : "";
 const OUTCOME_LABEL = (o) => o ? o.charAt(0) + o.slice(1).toLowerCase().replace(/_/g, " ") : "—";
+// HubSpot leaves a booked meeting as SCHEDULED until someone logs an outcome, so a "Scheduled"
+// meeting whose start time has passed is really "happened (or not) but nobody updated it".
+const SCHED_PAST = "Scheduled – date passed (no outcome)", SCHED_FUTURE = "Scheduled – upcoming";
+const isOverdue = (r) => (!r.outcome || r.outcome === "SCHEDULED") && r.start && Date.parse(r.start) < Date.now();
+const outcomeOf = (r) => {
+  if (!r.outcome || r.outcome === "SCHEDULED") {
+    if (!r.start) return r.outcome ? "Scheduled" : "—";
+    return Date.parse(r.start) < Date.now() ? SCHED_PAST : SCHED_FUTURE;
+  }
+  return OUTCOME_LABEL(r.outcome);
+};
 const ymd = (d) => d.toISOString().slice(0, 10);
 
 // Every way the chart can slice a booking. `filter` is also the URL/state key used when a bar
@@ -225,7 +240,7 @@ const ymd = (d) => d.toISOString().slice(0, 10);
 const DIMS = {
   link:        { label: "Meeting link", inTitle: "meeting link", plural: "links",       get: (r) => r.link },
   owner:       { label: "GetGrounder",  plural: "GetGrounders", get: (r) => r.owner },
-  outcome:     { label: "Outcome",      inTitle: "outcome", plural: "outcomes",    get: (r) => OUTCOME_LABEL(r.outcome) },
+  outcome:     { label: "Outcome",      inTitle: "outcome", plural: "outcomes",    get: (r) => outcomeOf(r) },
   utmCampaign: { label: "UTM campaign", plural: "campaigns",   get: (r) => r.utmCampaign || "(no UTM campaign)" },
   utmSource:   { label: "UTM source",   plural: "sources",     get: (r) => r.utmSource || "(no UTM source)" },
   utmMedium:   { label: "UTM medium",   plural: "mediums",     get: (r) => r.utmMedium || "(no UTM medium)" },
@@ -280,7 +295,7 @@ async function load() {
     return;
   }
   all = rows.map((r) => ({ ...r, contact: r.contacts.map((c) => c.name).join(", "),
-    _hay: [r.link, r.owner, r.outcome, r.utmSource, r.utmMedium, r.utmCampaign,
+    _hay: [r.link, r.owner, outcomeOf(r), r.utmSource, r.utmMedium, r.utmCampaign,
       ...r.contacts.flatMap((c) => [c.name, c.email])].join(" ").toLowerCase() }));
   loadedRange = range;
   $("status").hidden = true; $("content").hidden = false;
@@ -324,6 +339,9 @@ function render() {
   $("t-links").textContent = new Set(rows.map((r) => r.link)).size;
   const withUtm = rows.filter((r) => r.utmSource || r.utmMedium || r.utmCampaign).length;
   $("t-utm").textContent = rows.length ? Math.round(100 * withUtm / rows.length) + "%" : "–";
+  const past = rows.filter((r) => r.start && Date.parse(r.start) < Date.now()).length;
+  const overdue = rows.filter(isOverdue).length;
+  $("t-overdue").textContent = past ? `${overdue.toLocaleString()} (${Math.round(100 * overdue / past)}%)` : "–";
   renderChart(rows);
   renderTable(rows);
 }
@@ -427,7 +445,7 @@ function tooltipHtml([val, rs], seg) {
   const utm = rs.filter((r) => r.utmSource || r.utmMedium || r.utmCampaign).length;
   lines.push(`<div><span class="t-muted">With UTMs:</span> ${utm} (${Math.round(100 * utm / rs.length)}%)</div>`);
   if (by !== "utmCampaign") { const camps = topN(rs.map((r) => r.utmCampaign), 3).map(([n, c]) => `${esc(n)} (${c})`).join(", "); if (camps) lines.push(`<div><span class="t-muted">Top campaigns:</span> ${camps}</div>`); }
-  if (by !== "outcome") lines.push(`<div><span class="t-muted">Outcomes:</span> ${topN(rs.map((r) => OUTCOME_LABEL(r.outcome)), 4).map(([n, c]) => `${esc(n)} ${c}`).join(" · ")}</div>`);
+  if (by !== "outcome") lines.push(`<div><span class="t-muted">Outcomes:</span> ${topN(rs.map((r) => outcomeOf(r)), 4).map(([n, c]) => `${esc(n)} ${c}`).join(" · ")}</div>`);
   const last = rs.reduce((a, r) => r.booked > a ? r.booked : a, "");
   lines.push(`<div><span class="t-muted">Last booked:</span> ${fmtDate(last, true)}</div>`);
   const hint = state[by] === val ? "Click to clear this filter" : seg && seg !== OTHER ? "Click to filter to this bar + segment" : "Click to filter to this bar";
@@ -440,7 +458,7 @@ function rowHtml(r) {
     : `<span class="muted">No contact</span>`;
   const cell = (v) => v ? `<td>${esc(v)}</td>` : `<td class="muted">—</td>`;
   return `<tr><td class="nowrap">${fmtDate(r.booked, true)}</td><td class="nowrap">${fmtDate(r.start, true)}</td><td>${esc(r.link)}</td>
-    <td>${esc(r.owner)}</td><td>${contacts}</td><td><span class="pill">${esc(OUTCOME_LABEL(r.outcome))}</span></td>
+    <td>${esc(r.owner)}</td><td>${contacts}</td><td><span class="pill${isOverdue(r) ? " overdue" : ""}">${esc(outcomeOf(r))}</span></td>
     ${cell(r.utmSource)}${cell(r.utmMedium)}${cell(r.utmCampaign)}</tr>`;
 }
 
@@ -468,7 +486,7 @@ function downloadCsv() {
   for (const r of tableRows) {
     const cs = r.contacts.length ? r.contacts : [{ name: "", email: "", id: "" }];
     for (const c of cs) lines.push([r.booked, r.start, r.link, r.owner, c.name, c.email, c.id ? HS + c.id : "",
-      OUTCOME_LABEL(r.outcome), r.utmSource, r.utmMedium, r.utmCampaign].map(q).join(","));
+      outcomeOf(r), r.utmSource, r.utmMedium, r.utmCampaign].map(q).join(","));
   }
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
@@ -549,6 +567,7 @@ document.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("
 }));
 $("more-rows").addEventListener("click", () => { shownRows += PAGE_ROWS; renderTable(filtered()); });
 $("csv").addEventListener("click", downloadCsv);
+$("t-overdue-tile").addEventListener("click", () => { setFacet("outcome", state.outcome === SCHED_PAST ? "" : SCHED_PAST); shownRows = PAGE_ROWS; render(); });
 
 initDates();
 initChartControls();
