@@ -61,8 +61,6 @@
     font: inherit; font-size: 13px; padding: 7px 10px; border-radius: 8px;
     border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); }
   .filters .search { flex: 1 1 220px; }
-  .filters .addf { display: flex; gap: 6px; flex-wrap: wrap; }
-  .filters #af-value { max-width: min(280px, calc(100vw - 32px)); }
   .filters input[type=date] { max-width: 150px; }
   .filters .search input { width: 100%; }
   .filters select { max-width: min(240px, calc(100vw - 32px)); }
@@ -158,9 +156,8 @@
       <button data-days="7">7d</button><button data-days="30">30d</button><button data-days="90">90d</button><button data-days="365">1y</button>
     </div>
     <label class="search">Search
-      <input type="search" id="q" placeholder="GetGrounder, contact, email, link, UTM… (comma = or)" autocomplete="off" />
+      <input type="search" id="q" placeholder="Type a name, link, URL, UTM… then press Enter to add" autocomplete="off" />
     </label>
-    <label>Add filter <span class="addf"><select id="af-field" aria-label="Filter field"></select><select id="af-value" aria-label="Filter value"></select></span></label>
     <button class="ghost" id="reset">Reset</button>
   </div>
   <div class="active-filters" id="active-filters"></div>
@@ -266,9 +263,12 @@ const params = new URLSearchParams(location.search);
 const state = Object.fromEntries([...params].filter(([k]) => !FACETS.includes(k)));
 // Each filterable field holds a set of values: values within a field are OR'd, fields are AND'd.
 const facets = Object.fromEntries(FACETS.map((k) => [k, new Set(params.getAll(k).filter(Boolean))]));
+// Free-text filters added with Enter (anything that isn't an exact field value). Any one may match.
+const searches = new Set(params.getAll("s").filter(Boolean));
 function syncUrl() {
   const p = new URLSearchParams();
-  for (const k of ["from", "to", "q", "by", "layer"]) if (state[k]) p.set(k, state[k]);
+  for (const k of ["from", "to", "by", "layer"]) if (state[k]) p.set(k, state[k]);
+  for (const v of searches) p.append("s", v);
   for (const k of FACETS) for (const v of facets[k]) p.append(k, v);
   history.replaceState(null, "", location.pathname + (p.toString() ? "?" + p : ""));
 }
@@ -278,7 +278,6 @@ function initDates() {
   if (!state.to) state.to = ymd(today);
   if (!state.from) { const d = new Date(today); d.setDate(d.getDate() - 90); state.from = ymd(d); }
   $("from").value = state.from; $("to").value = state.to;
-  $("q").value = state.q || "";
 }
 
 async function load() {
@@ -307,20 +306,10 @@ async function load() {
       ...r.contacts.flatMap((c) => [c.name, c.email])].join(" ").toLowerCase() }));
   loadedRange = range;
   $("status").hidden = true; $("content").hidden = false;
-  fillAddFilter();
   assignLayerColors();
   render();
 }
 
-function fillAddFilter() {
-  const field = $("af-field").value || "link";
-  $("af-field").innerHTML = FACETS.map((k) => `<option value="${k}"${k === field ? " selected" : ""}>${DIMS[k].label}</option>`).join("");
-  const counts = {};
-  all.forEach((r) => { const v = DIMS[field].get(r); counts[v] = (counts[v] || 0) + 1; });
-  const opts = Object.keys(counts).filter((v) => !facets[field].has(v)).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
-  $("af-value").innerHTML = `<option value="">Choose ${esc(DIMS[field].label.toLowerCase())}…</option>` +
-    opts.map((v) => `<option value="${esc(v)}">${esc(v)} (${counts[v]})</option>`).join("");
-}
 
 // A pasted meeting-link URL (https://meetings-eu1.hubspot.com/<slug>?uuid=…) is reduced to its
 // slug so it matches the link name; any other URL is matched on host + path without the query.
@@ -337,9 +326,29 @@ function searchTerm(t) {
 // clicking a bar the others stay visible (faded) and can be clicked to add them too.
 function filtered(except) {
   // Commas separate alternatives (any may match); words inside one alternative must all match.
-  const alts = (state.q || "").toLowerCase().split(",").map((a) => a.trim().split(/\s+/).filter(Boolean).map(searchTerm).filter(Boolean)).filter((a) => a.length);
+  // A search tag matches when all its words appear in the booking; tags are OR'd. Whatever is
+  // still being typed in the box (not yet added) narrows the view live as a preview.
+  const words = (q) => q.toLowerCase().split(/\s+/).filter(Boolean).map(searchTerm).filter(Boolean);
+  const tags = [...searches].map(words).filter((w) => w.length);
+  const typing = words(state.q || "");
   return all.filter((r) => FACETS.every((k) => k === except || !facets[k].size || facets[k].has(DIMS[k].get(r)))
-    && (!alts.length || alts.some((terms) => terms.every((t) => r._hay.includes(t)))));
+    && (!tags.length || tags.some((w) => w.every((t) => r._hay.includes(t))))
+    && typing.every((t) => r._hay.includes(t)));
+}
+
+// Enter in the search box: an exact field value (a link, incl. a pasted meeting URL, a
+// GetGrounder, outcome or UTM value) becomes that field's filter; anything else a search tag.
+// Commas add several at once.
+function addSearch(raw) {
+  for (const part of raw.split(",").map((x) => x.trim()).filter(Boolean)) {
+    const t = searchTerm(part.toLowerCase());
+    let added = false;
+    for (const k of FACETS) {
+      const hit = all.find((r) => DIMS[k].get(r).toLowerCase() === t);
+      if (hit) { facets[k].add(DIMS[k].get(hit)); added = true; break; }
+    }
+    if (!added) searches.add(part);
+  }
 }
 
 function render() {
@@ -360,7 +369,7 @@ function render() {
 
 function renderChips() {
   const chips = [];
-  if (state.q) chips.push(["q", `Search: “${state.q}”`]);
+  for (const v of searches) chips.push(["s", `Search: “${v}”`, v]);
   for (const k of FACETS) for (const v of facets[k]) chips.push([k, `${DIMS[k].label}: ${v}`, v]);
   $("active-filters").innerHTML = chips.length
     ? "Filtered by " + chips.map(([k, l, v]) => `<span class="chip">${esc(l)}<button data-clear="${k}" data-val="${esc(v ?? "")}" aria-label="Remove filter">×</button></span>`).join("")
@@ -537,13 +546,12 @@ $("chart").addEventListener("click", (e) => {
   toggleFacet(state.by, val, !removing);
   const seg = el.dataset.seg;
   if (!removing && seg && seg !== OTHER) toggleFacet(state.layer, seg, true);
-  fillAddFilter();
   tip.style.display = "none"; shownRows = PAGE_ROWS; render();
 });
 $("legend").addEventListener("click", (e) => {
   const b = e.target.closest("[data-legend]");
   if (!b || b.dataset.legend === OTHER) return;
-  toggleFacet(state.layer, b.dataset.legend); fillAddFilter();
+  toggleFacet(state.layer, b.dataset.legend);
   shownRows = PAGE_ROWS; render();
 });
 $("by").addEventListener("change", () => {
@@ -555,10 +563,11 @@ $("chart-more").addEventListener("click", (e) => { if (e.target.id === "chart-to
 
 let qTimer;
 $("q").addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(() => { state.q = $("q").value.trim(); shownRows = PAGE_ROWS; render(); }, 150); });
-$("af-field").addEventListener("change", fillAddFilter);
-$("af-value").addEventListener("change", () => {
-  const v = $("af-value").value; if (!v) return;
-  toggleFacet($("af-field").value, v, true); fillAddFilter(); shownRows = PAGE_ROWS; render();
+$("q").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  e.preventDefault(); clearTimeout(qTimer);
+  const v = $("q").value.trim(); if (!v) return;
+  addSearch(v); $("q").value = ""; state.q = ""; shownRows = PAGE_ROWS; render();
 });
 for (const id of ["from", "to"]) $(id).addEventListener("change", () => {
   if (!$("from").value || !$("to").value || $("from").value > $("to").value) return;
@@ -575,11 +584,11 @@ document.querySelectorAll(".presets button").forEach((b) => b.addEventListener("
 $("active-filters").addEventListener("click", (e) => {
   if (e.target.id === "clear-all") return $("reset").click();
   const k = e.target.dataset.clear; if (!k) return;
-  if (k === "q") { state.q = ""; $("q").value = ""; } else { toggleFacet(k, e.target.dataset.val, false); fillAddFilter(); }
+  if (k === "s") searches.delete(e.target.dataset.val); else { toggleFacet(k, e.target.dataset.val, false); }
   render();
 });
 $("reset").addEventListener("click", () => {
-  state.q = ""; $("q").value = ""; FACETS.forEach((k) => facets[k].clear()); fillAddFilter();
+  state.q = ""; $("q").value = ""; searches.clear(); FACETS.forEach((k) => facets[k].clear());
   shownRows = PAGE_ROWS; render();
 });
 document.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("click", () => {
@@ -588,7 +597,7 @@ document.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("
 }));
 $("more-rows").addEventListener("click", () => { shownRows += PAGE_ROWS; renderTable(filtered()); });
 $("csv").addEventListener("click", downloadCsv);
-$("t-overdue-tile").addEventListener("click", () => { toggleFacet("outcome", SCHED_PAST); fillAddFilter(); shownRows = PAGE_ROWS; render(); });
+$("t-overdue-tile").addEventListener("click", () => { toggleFacet("outcome", SCHED_PAST); shownRows = PAGE_ROWS; render(); });
 
 initDates();
 initChartControls();
