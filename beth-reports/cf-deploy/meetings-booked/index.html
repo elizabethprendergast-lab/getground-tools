@@ -93,7 +93,6 @@
   .chart .row-hit:hover .bar, .chart .track:hover .bar { background: var(--bar-hover); }
   .chart .num { font-size: 12px; color: var(--text-secondary); margin-left: 6px; font-variant-numeric: tabular-nums; }
   .chart .selected .bar { background: var(--bar-hover); }
-  .chart.has-selection .track:not(.selected), .chart.has-selection .lab:not(.selected) { opacity: 0.35; }
   .chart .lab.selected { color: var(--text-primary); font-weight: 600; }
   .chart-more { margin-top: 10px; }
   .chart-more button { font: inherit; font-size: 12px; cursor: pointer; border: 1px solid var(--border);
@@ -322,16 +321,14 @@ function searchTerm(t) {
   } catch { return t; }
 }
 
-// `except` leaves one field's filter out — the chart uses it for its own bar field so that after
-// clicking a bar the others stay visible (faded) and can be clicked to add them too.
-function filtered(except) {
+function filtered() {
   // Commas separate alternatives (any may match); words inside one alternative must all match.
   // A search tag matches when all its words appear in the booking; tags are OR'd. Whatever is
   // still being typed in the box (not yet added) narrows the view live as a preview.
   const words = (q) => q.toLowerCase().split(/\s+/).filter(Boolean).map(searchTerm).filter(Boolean);
   const tags = [...searches].map(words).filter((w) => w.length);
   const typing = words(state.q || "");
-  return all.filter((r) => FACETS.every((k) => k === except || !facets[k].size || facets[k].has(DIMS[k].get(r)))
+  return all.filter((r) => FACETS.every((k) => !facets[k].size || facets[k].has(DIMS[k].get(r)))
     && (!tags.length || tags.some((w) => w.every((t) => r._hay.includes(t))))
     && typing.every((t) => r._hay.includes(t)));
 }
@@ -363,7 +360,7 @@ function render() {
   const past = rows.filter((r) => r.start && Date.parse(r.start) < Date.now()).length;
   const overdue = rows.filter(isOverdue).length;
   $("t-overdue").textContent = past ? `${overdue.toLocaleString()} (${Math.round(100 * overdue / past)}%)` : "–";
-  renderChart(filtered(state.by));
+  renderChart(rows);
   renderTable(rows);
 }
 
@@ -414,8 +411,8 @@ function renderChart(rows) {
   const by = state.by, layer = state.layer;
   $("chart-title").textContent = `Meetings booked by ${DIMS[by].inTitle || DIMS[by].label}` + (layer ? `, split by ${DIMS[layer].inTitle || DIMS[layer].label}` : "");
   $("chart-sub").textContent = layer
-    ? "Hover a segment for details. Click bars, segments or legend items to add filters — click more to combine, click again to remove."
-    : "Hover a bar for details. Click bars to add filters — click more to combine, click again to remove.";
+    ? "Hover a segment for details. Click a bar, segment or legend item to filter to it; add more filters from the search box."
+    : "Hover a bar for details. Click a bar to filter to it; add more filters from the search box.";
   chartGroups = groupBy(rows, by);
   if (!chartGroups.length) { $("chart").innerHTML = `<div class="empty">No meetings match these filters.</div>`; $("chart-more").innerHTML = ""; $("legend").innerHTML = ""; return; }
 
@@ -431,7 +428,6 @@ function renderChart(rows) {
       <span class="sw" style="background:${colorOf(k)}"></span>${esc(k)} <span class="ct">${totals[k]}</span></button>`).join("");
   } else $("legend").innerHTML = "";
 
-  $("chart").classList.toggle("has-selection", facets[by].size > 0);
   // Selected bars always stay in view, even when they're outside the top N.
   const show = chartAll ? chartGroups : chartGroups.filter(([v], i) => i < CHART_TOP || facets[by].has(v));
   const max = chartGroups[0][1].length;
@@ -472,7 +468,7 @@ function tooltipHtml([val, rs], seg) {
   if (by !== "outcome") lines.push(`<div><span class="t-muted">Outcomes:</span> ${topN(rs.map((r) => outcomeOf(r)), 4).map(([n, c]) => `${esc(n)} ${c}`).join(" · ")}</div>`);
   const last = rs.reduce((a, r) => r.booked > a ? r.booked : a, "");
   lines.push(`<div><span class="t-muted">Last booked:</span> ${fmtDate(last, true)}</div>`);
-  const hint = facets[by].has(val) ? "Click to remove this filter" : seg && seg !== OTHER ? "Click to add this bar + segment as filters" : "Click to add this as a filter (click more bars to combine)";
+  const hint = facets[by].has(val) ? "Click to remove this filter" : seg && seg !== OTHER ? "Click to add this bar + segment as filters" : "Click to filter to this";
   return `<div class="t-title">${esc(val)}</div>${lines.join("")}<div class="t-hint">${hint}</div>`;
 }
 
@@ -559,7 +555,7 @@ $("by").addEventListener("change", () => {
   chartAll = false; initChartControls(); assignLayerColors(); render();
 });
 $("layer").addEventListener("change", () => { state.layer = $("layer").value; assignLayerColors(); render(); });
-$("chart-more").addEventListener("click", (e) => { if (e.target.id === "chart-toggle") { chartAll = !chartAll; renderChart(filtered(state.by)); } });
+$("chart-more").addEventListener("click", (e) => { if (e.target.id === "chart-toggle") { chartAll = !chartAll; renderChart(filtered()); } });
 
 let qTimer;
 $("q").addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(() => { state.q = $("q").value.trim(); shownRows = PAGE_ROWS; render(); }, 150); });
