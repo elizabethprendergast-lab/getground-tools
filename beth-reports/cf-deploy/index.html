@@ -58,7 +58,8 @@
   header .brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
   header h1 { font-size: 18px; margin: 0; font-weight: 600; }
   header h1 a { color: inherit; text-decoration: none; }
-  nav.campaign-nav { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav.campaign-nav { display: flex; gap: 6px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
+  @media (max-width: 700px) { nav.campaign-nav a { white-space: normal; } }
   nav.campaign-nav a {
     font-size: 13px; padding: 6px 12px; border-radius: 999px; text-decoration: none;
     color: var(--text-secondary); border: 1px solid var(--border); white-space: nowrap;
@@ -73,6 +74,36 @@
   .priority-pill.medium { color: #3a2a06; background: var(--warning); }
   .priority-pill.low { color: var(--text-secondary); background: var(--baseline); }
   .priority-pill.none { color: var(--text-muted); background: transparent; border: 1px solid var(--border); }
+  .priority-pill.closed { color: var(--text-muted); background: transparent; border: 1px solid var(--baseline); }
+  /* Closed campaigns: one "Closed (n)" dropdown in the nav instead of a pill each. */
+  nav.campaign-nav details.nav-closed { position: relative; }
+  nav.campaign-nav details.nav-closed summary {
+    list-style: none; cursor: pointer; font-size: 13px; padding: 6px 12px; border-radius: 999px;
+    color: var(--text-muted); border: 1px dashed var(--baseline); white-space: nowrap; user-select: none;
+  }
+  nav.campaign-nav details.nav-closed summary::-webkit-details-marker { display: none; }
+  nav.campaign-nav details.nav-closed summary::after { content: " ▾"; font-size: 10px; }
+  nav.campaign-nav details.nav-closed[open] summary::after { content: " ▴"; }
+  nav.campaign-nav details.nav-closed summary.active { color: var(--text-primary); border-style: solid; border-color: var(--series-1); background: var(--accent-soft); font-weight: 600; }
+  .nav-closed-menu {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 10; min-width: 240px; max-width: calc(100vw - 32px);
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 6px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12); display: flex; flex-direction: column; gap: 2px;
+  }
+  nav.campaign-nav .nav-closed-menu a { border: none; border-radius: 6px; padding: 7px 10px; white-space: normal; }
+  nav.campaign-nav .nav-closed-menu a:hover { background: var(--accent-soft); }
+  .section-heading {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--text-muted); margin: 28px 0 10px;
+  }
+  .section-heading:first-of-type { margin-top: 0; }
+  a.landing-card.closed { background: transparent; border-style: dashed; }
+  a.landing-card.closed h3 { color: var(--text-secondary); font-weight: 500; }
+  a.landing-card.closed p { display: none; }
+  .closed-banner {
+    font-size: 13px; color: var(--text-secondary); border: 1px dashed var(--baseline); border-radius: 10px;
+    padding: 10px 14px; margin-bottom: 20px;
+  }
   .scope-note { margin: 0; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
   @media (max-width: 700px) { .scope-note { white-space: normal; } }
   main { max-width: 1000px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 64px; }
@@ -265,6 +296,12 @@ function priorityRank(level) {
 }
 function sortedByPriority(projects) {
   return [...projects].sort((a, b) => priorityRank(dominantPriority(a)) - priorityRank(dominantPriority(b)));
+}
+// Campaigns flagged closed: true in _worker.js live under "Closed" — out of the main nav and
+// the main landing grid, but still fully viewable.
+const isClosed = (p) => !!p.closed;
+function closedPillHtml() {
+  return `<span class="priority-pill closed">Closed</span>`;
 }
 function priorityPillHtml(level) {
   const cls = (level || "NONE").toLowerCase();
@@ -504,6 +541,7 @@ function campaignPageHtml(proj, sprintStart, hubspot) {
       <p id="meta-line">Loading…</p>
       <button id="update-btn">Update</button>
     </div>
+    ${isClosed(proj) ? `<div class="closed-banner">This campaign is closed — kept here for reference. Any tasks still open in HubSpot are shown below.</div>` : ""}
     ${completionCardHtml(proj, sprintStart, hubspot)}
     <div id="outcomes-slot"></div>
     <div id="deals-slot"></div>
@@ -552,33 +590,44 @@ function referralCardHtml() {
     </section>`;
 }
 
-function landingHtml(stats) {
-  const projects = sortedByPriority(stats.projects || []);
+function landingCardHtml(p) {
   return `
-    <div class="meta-row">
-      <p id="meta-line">Loading…</p>
-      <button id="update-btn">Update</button>
-    </div>
-    <div class="landing-grid">
-      ${projects.map((p) => `
-        <a class="landing-card" href="/?campaign=${p.key}">
+        <a class="landing-card${isClosed(p) ? " closed" : ""}" href="/?campaign=${p.key}">
           <div class="landing-card-head">
             <h3>${esc(p.label)}</h3>
-            ${priorityPillHtml(dominantPriority(p))}
+            ${isClosed(p) ? closedPillHtml() : priorityPillHtml(dominantPriority(p))}
           </div>
           <p>${esc(p.context || "")}</p>
           <div class="landing-stats">
             <span>${p.tasks.total} total</span>
             <span>${p.tasks.notDone} left to do</span>
           </div>
-        </a>
-      `).join("")}
+        </a>`;
+}
+
+function landingHtml(stats) {
+  const projects = sortedByPriority(stats.projects || []);
+  const active = projects.filter((p) => !isClosed(p));
+  const closed = projects.filter(isClosed);
+  return `
+    <div class="meta-row">
+      <p id="meta-line">Loading…</p>
+      <button id="update-btn">Update</button>
+    </div>
+    <h2 class="section-heading">Active campaigns</h2>
+    <div class="landing-grid">
+      ${active.map(landingCardHtml).join("")}
       <a class="landing-card" href="/?campaign=${REFERRAL_TAB_KEY}">
         <div class="landing-card-head"><h3>Referral programme</h3></div>
         <p>Copy-link &amp; referral conversions across the whole programme.</p>
         <div class="landing-stats"><span>view funnel →</span></div>
       </a>
     </div>
+    ${closed.length ? `
+    <h2 class="section-heading">Closed campaigns</h2>
+    <div class="landing-grid">
+      ${closed.map(landingCardHtml).join("")}
+    </div>` : ""}
     <footer id="footer-line"></footer>`;
 }
 
@@ -597,8 +646,22 @@ function renderNav(stats, activeKey) {
   const projects = sortedByPriority(stats.projects || []);
   const allLink = `<a href="/" class="${!activeKey ? "active" : ""}">All campaigns</a>`;
   const referralLink = `<a href="/?campaign=${REFERRAL_TAB_KEY}" class="${activeKey === REFERRAL_TAB_KEY ? "active" : ""}">Referral programme</a>`;
-  nav.innerHTML = allLink + projects.map((p) => `<a href="/?campaign=${p.key}" class="${p.key === activeKey ? "active" : ""}">${esc(p.label)}${priorityPillHtml(dominantPriority(p))}</a>`).join("") + referralLink;
+  const link = (p) => `<a href="/?campaign=${p.key}" class="${p.key === activeKey ? "active" : ""}">${esc(p.label)}${isClosed(p) ? "" : priorityPillHtml(dominantPriority(p))}</a>`;
+  const closed = projects.filter(isClosed);
+  const closedActive = closed.some((p) => p.key === activeKey);
+  const closedMenu = closed.length ? `
+    <details class="nav-closed">
+      <summary class="${closedActive ? "active" : ""}">Closed (${closed.length})</summary>
+      <div class="nav-closed-menu">${closed.map(link).join("")}</div>
+    </details>` : "";
+  nav.innerHTML = allLink + projects.filter((p) => !isClosed(p)).map(link).join("") + referralLink + closedMenu;
 }
+
+// The Closed dropdown is a <details>, which doesn't close itself on an outside click.
+document.addEventListener("click", (e) => {
+  const d = document.querySelector("nav.campaign-nav details.nav-closed[open]");
+  if (d && !d.contains(e.target)) d.removeAttribute("open");
+});
 
 function currentCampaignKey() {
   return new URLSearchParams(location.search).get("campaign");
