@@ -61,6 +61,8 @@
     font: inherit; font-size: 13px; padding: 7px 10px; border-radius: 8px;
     border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); }
   .filters .search { flex: 1 1 220px; }
+  .filters .addf { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filters #af-value { max-width: min(280px, calc(100vw - 32px)); }
   .filters input[type=date] { max-width: 150px; }
   .filters .search input { width: 100%; }
   .filters select { max-width: min(240px, calc(100vw - 32px)); }
@@ -93,6 +95,8 @@
   .chart .row-hit:hover .bar, .chart .track:hover .bar { background: var(--bar-hover); }
   .chart .num { font-size: 12px; color: var(--text-secondary); margin-left: 6px; font-variant-numeric: tabular-nums; }
   .chart .selected .bar { background: var(--bar-hover); }
+  .chart.has-selection .track:not(.selected), .chart.has-selection .lab:not(.selected) { opacity: 0.35; }
+  .chart .lab.selected { color: var(--text-primary); font-weight: 600; }
   .chart-more { margin-top: 10px; }
   .chart-more button { font: inherit; font-size: 12px; cursor: pointer; border: 1px solid var(--border);
     background: var(--surface-1); color: var(--text-secondary); border-radius: 8px; padding: 5px 10px; }
@@ -154,9 +158,9 @@
       <button data-days="7">7d</button><button data-days="30">30d</button><button data-days="90">90d</button><button data-days="365">1y</button>
     </div>
     <label class="search">Search
-      <input type="search" id="q" placeholder="GetGrounder, contact, email, link, UTM, outcome…" autocomplete="off" />
+      <input type="search" id="q" placeholder="GetGrounder, contact, email, link, UTM… (comma = or)" autocomplete="off" />
     </label>
-    <label>GetGrounder <select id="f-owner"><option value="">Everyone</option></select></label>
+    <label>Add filter <span class="addf"><select id="af-field" aria-label="Filter field"></select><select id="af-value" aria-label="Filter value"></select></span></label>
     <button class="ghost" id="reset">Reset</button>
   </div>
   <div class="active-filters" id="active-filters"></div>
@@ -174,7 +178,7 @@
 
     <section class="card">
       <h2 id="chart-title">Meetings booked by meeting link</h2>
-      <p class="sub" id="chart-sub">Hover a bar for details, click to filter the page to it.</p>
+      <p class="sub" id="chart-sub"></p>
       <div class="chart-controls">
         <label>Bars show <select id="by"></select></label>
         <label>Split by <select id="layer"></select></label>
@@ -258,10 +262,14 @@ let shownRows = PAGE_ROWS, chartAll = false;
 let sortKey = "booked", sortAsc = false;
 
 // URL holds the state so a filtered view can be shared as a link.
-const state = Object.fromEntries(new URLSearchParams(location.search));
+const params = new URLSearchParams(location.search);
+const state = Object.fromEntries([...params].filter(([k]) => !FACETS.includes(k)));
+// Each filterable field holds a set of values: values within a field are OR'd, fields are AND'd.
+const facets = Object.fromEntries(FACETS.map((k) => [k, new Set(params.getAll(k).filter(Boolean))]));
 function syncUrl() {
   const p = new URLSearchParams();
-  for (const k of ["from", "to", "q", "by", "layer", ...FACETS]) if (state[k]) p.set(k, state[k]);
+  for (const k of ["from", "to", "q", "by", "layer"]) if (state[k]) p.set(k, state[k]);
+  for (const k of FACETS) for (const v of facets[k]) p.append(k, v);
   history.replaceState(null, "", location.pathname + (p.toString() ? "?" + p : ""));
 }
 
@@ -299,18 +307,19 @@ async function load() {
       ...r.contacts.flatMap((c) => [c.name, c.email])].join(" ").toLowerCase() }));
   loadedRange = range;
   $("status").hidden = true; $("content").hidden = false;
-  fillSelect("f-owner", all.map((r) => r.owner), "Everyone", state.owner);
+  fillAddFilter();
   assignLayerColors();
   render();
 }
 
-function fillSelect(id, values, allLabel, current) {
+function fillAddFilter() {
+  const field = $("af-field").value || "link";
+  $("af-field").innerHTML = FACETS.map((k) => `<option value="${k}"${k === field ? " selected" : ""}>${DIMS[k].label}</option>`).join("");
   const counts = {};
-  values.forEach((v) => counts[v] = (counts[v] || 0) + 1);
-  const opts = Object.keys(counts).sort((a, b) => a.localeCompare(b));
-  if (current && !counts[current]) opts.unshift(current);
-  $(id).innerHTML = `<option value="">${allLabel}</option>` + opts.map((v) =>
-    `<option value="${esc(v)}"${v === current ? " selected" : ""}>${esc(v)} (${counts[v] || 0})</option>`).join("");
+  all.forEach((r) => { const v = DIMS[field].get(r); counts[v] = (counts[v] || 0) + 1; });
+  const opts = Object.keys(counts).filter((v) => !facets[field].has(v)).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
+  $("af-value").innerHTML = `<option value="">Choose ${esc(DIMS[field].label.toLowerCase())}…</option>` +
+    opts.map((v) => `<option value="${esc(v)}">${esc(v)} (${counts[v]})</option>`).join("");
 }
 
 // A pasted meeting-link URL (https://meetings-eu1.hubspot.com/<slug>?uuid=…) is reduced to its
@@ -324,10 +333,13 @@ function searchTerm(t) {
   } catch { return t; }
 }
 
-function filtered() {
-  const terms = (state.q || "").toLowerCase().split(/\s+/).filter(Boolean).map(searchTerm).filter(Boolean);
-  return all.filter((r) => FACETS.every((k) => !state[k] || DIMS[k].get(r) === state[k])
-    && terms.every((t) => r._hay.includes(t)));
+// `except` leaves one field's filter out — the chart uses it for its own bar field so that after
+// clicking a bar the others stay visible (faded) and can be clicked to add them too.
+function filtered(except) {
+  // Commas separate alternatives (any may match); words inside one alternative must all match.
+  const alts = (state.q || "").toLowerCase().split(",").map((a) => a.trim().split(/\s+/).filter(Boolean).map(searchTerm).filter(Boolean)).filter((a) => a.length);
+  return all.filter((r) => FACETS.every((k) => k === except || !facets[k].size || facets[k].has(DIMS[k].get(r)))
+    && (!alts.length || alts.some((terms) => terms.every((t) => r._hay.includes(t)))));
 }
 
 function render() {
@@ -342,16 +354,17 @@ function render() {
   const past = rows.filter((r) => r.start && Date.parse(r.start) < Date.now()).length;
   const overdue = rows.filter(isOverdue).length;
   $("t-overdue").textContent = past ? `${overdue.toLocaleString()} (${Math.round(100 * overdue / past)}%)` : "–";
-  renderChart(rows);
+  renderChart(filtered(state.by));
   renderTable(rows);
 }
 
 function renderChips() {
   const chips = [];
   if (state.q) chips.push(["q", `Search: “${state.q}”`]);
-  for (const k of FACETS) if (state[k]) chips.push([k, `${DIMS[k].label}: ${state[k]}`]);
+  for (const k of FACETS) for (const v of facets[k]) chips.push([k, `${DIMS[k].label}: ${v}`, v]);
   $("active-filters").innerHTML = chips.length
-    ? "Filtered by " + chips.map(([k, l]) => `<span class="chip">${esc(l)}<button data-clear="${k}" aria-label="Remove filter">×</button></span>`).join("")
+    ? "Filtered by " + chips.map(([k, l, v]) => `<span class="chip">${esc(l)}<button data-clear="${k}" data-val="${esc(v ?? "")}" aria-label="Remove filter">×</button></span>`).join("")
+      + (chips.length > 1 ? ` <button class="ghost" id="clear-all" style="font-size:12px;padding:2px 8px">Clear all</button>` : "")
     : "";
 }
 
@@ -392,8 +405,8 @@ function renderChart(rows) {
   const by = state.by, layer = state.layer;
   $("chart-title").textContent = `Meetings booked by ${DIMS[by].inTitle || DIMS[by].label}` + (layer ? `, split by ${DIMS[layer].inTitle || DIMS[layer].label}` : "");
   $("chart-sub").textContent = layer
-    ? "Hover a segment for details. Click a bar to filter to it, a segment to filter to both, or a legend item to filter to that value."
-    : "Hover a bar for details, click to filter the page to it.";
+    ? "Hover a segment for details. Click bars, segments or legend items to add filters — click more to combine, click again to remove."
+    : "Hover a bar for details. Click bars to add filters — click more to combine, click again to remove.";
   chartGroups = groupBy(rows, by);
   if (!chartGroups.length) { $("chart").innerHTML = `<div class="empty">No meetings match these filters.</div>`; $("chart-more").innerHTML = ""; $("legend").innerHTML = ""; return; }
 
@@ -409,11 +422,13 @@ function renderChart(rows) {
       <span class="sw" style="background:${colorOf(k)}"></span>${esc(k)} <span class="ct">${totals[k]}</span></button>`).join("");
   } else $("legend").innerHTML = "";
 
-  const show = chartAll ? chartGroups : chartGroups.slice(0, CHART_TOP);
+  $("chart").classList.toggle("has-selection", facets[by].size > 0);
+  // Selected bars always stay in view, even when they're outside the top N.
+  const show = chartAll ? chartGroups : chartGroups.filter(([v], i) => i < CHART_TOP || facets[by].has(v));
   const max = chartGroups[0][1].length;
   $("chart").innerHTML = show.map(([val, rs], i) => {
     const pct = Math.max(0.5, 100 * rs.length / max);
-    const sel = state[by] === val ? " selected" : "";
+    const sel = facets[by].has(val) ? " selected" : "";
     let inner;
     if (layer) {
       const c = {};
@@ -421,7 +436,7 @@ function renderChart(rows) {
       inner = `<div class="stack" style="width:${pct}%">` + order.filter((k) => c[k]).map((k) =>
         `<div class="seg" data-i="${i}" data-seg="${esc(k)}" style="flex:${c[k]} 1 0;background:${colorOf(k)}"></div>`).join("") + `</div>`;
     } else inner = `<div class="bar" style="width:${pct}%"></div>`;
-    return `<div class="lab" data-i="${i}" title="${esc(val)}">${esc(val)}</div>
+    return `<div class="lab${sel}" data-i="${i}" title="${esc(val)}">${esc(val)}</div>
       <div class="track${sel}" data-i="${i}" role="listitem" aria-label="${esc(val)}: ${rs.length} meetings">${inner}<span class="num">${rs.length}</span></div>`;
   }).join("");
   const hidden = chartGroups.length - show.length;
@@ -448,7 +463,7 @@ function tooltipHtml([val, rs], seg) {
   if (by !== "outcome") lines.push(`<div><span class="t-muted">Outcomes:</span> ${topN(rs.map((r) => outcomeOf(r)), 4).map(([n, c]) => `${esc(n)} ${c}`).join(" · ")}</div>`);
   const last = rs.reduce((a, r) => r.booked > a ? r.booked : a, "");
   lines.push(`<div><span class="t-muted">Last booked:</span> ${fmtDate(last, true)}</div>`);
-  const hint = state[by] === val ? "Click to clear this filter" : seg && seg !== OTHER ? "Click to filter to this bar + segment" : "Click to filter to this bar";
+  const hint = facets[by].has(val) ? "Click to remove this filter" : seg && seg !== OTHER ? "Click to add this bar + segment as filters" : "Click to add this as a filter (click more bars to combine)";
   return `<div class="t-title">${esc(val)}</div>${lines.join("")}<div class="t-hint">${hint}</div>`;
 }
 
@@ -510,24 +525,25 @@ $("chart").addEventListener("mousemove", (e) => {
   tip.style.display = "block"; placeTip(e);
 });
 $("chart").addEventListener("mouseleave", () => tip.style.display = "none");
-function setFacet(k, v) {
-  state[k] = v;
-  if (k === "owner") $("f-owner").value = v;
+function toggleFacet(k, v, on) {
+  if (on === undefined) on = !facets[k].has(v);
+  if (on) facets[k].add(v); else facets[k].delete(v);
 }
 $("chart").addEventListener("click", (e) => {
   const el = e.target.closest("[data-i]");
   if (!el) return;
   const val = chartGroups[+el.dataset.i][0];
-  const clearing = state[state.by] === val;
-  setFacet(state.by, clearing ? "" : val);
+  const removing = facets[state.by].has(val);
+  toggleFacet(state.by, val, !removing);
   const seg = el.dataset.seg;
-  if (!clearing && seg && seg !== OTHER) setFacet(state.layer, seg);
+  if (!removing && seg && seg !== OTHER) toggleFacet(state.layer, seg, true);
+  fillAddFilter();
   tip.style.display = "none"; shownRows = PAGE_ROWS; render();
 });
 $("legend").addEventListener("click", (e) => {
   const b = e.target.closest("[data-legend]");
   if (!b || b.dataset.legend === OTHER) return;
-  setFacet(state.layer, state[state.layer] === b.dataset.legend ? "" : b.dataset.legend);
+  toggleFacet(state.layer, b.dataset.legend); fillAddFilter();
   shownRows = PAGE_ROWS; render();
 });
 $("by").addEventListener("change", () => {
@@ -535,11 +551,15 @@ $("by").addEventListener("change", () => {
   chartAll = false; initChartControls(); assignLayerColors(); render();
 });
 $("layer").addEventListener("change", () => { state.layer = $("layer").value; assignLayerColors(); render(); });
-$("chart-more").addEventListener("click", (e) => { if (e.target.id === "chart-toggle") { chartAll = !chartAll; renderChart(filtered()); } });
+$("chart-more").addEventListener("click", (e) => { if (e.target.id === "chart-toggle") { chartAll = !chartAll; renderChart(filtered(state.by)); } });
 
 let qTimer;
 $("q").addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(() => { state.q = $("q").value.trim(); shownRows = PAGE_ROWS; render(); }, 150); });
-$("f-owner").addEventListener("change", () => { state.owner = $("f-owner").value; shownRows = PAGE_ROWS; render(); });
+$("af-field").addEventListener("change", fillAddFilter);
+$("af-value").addEventListener("change", () => {
+  const v = $("af-value").value; if (!v) return;
+  toggleFacet($("af-field").value, v, true); fillAddFilter(); shownRows = PAGE_ROWS; render();
+});
 for (const id of ["from", "to"]) $(id).addEventListener("change", () => {
   if (!$("from").value || !$("to").value || $("from").value > $("to").value) return;
   state.from = $("from").value; state.to = $("to").value;
@@ -553,12 +573,13 @@ document.querySelectorAll(".presets button").forEach((b) => b.addEventListener("
   load();
 }));
 $("active-filters").addEventListener("click", (e) => {
+  if (e.target.id === "clear-all") return $("reset").click();
   const k = e.target.dataset.clear; if (!k) return;
-  if (k === "q") { state.q = ""; $("q").value = ""; } else setFacet(k, "");
+  if (k === "q") { state.q = ""; $("q").value = ""; } else { toggleFacet(k, e.target.dataset.val, false); fillAddFilter(); }
   render();
 });
 $("reset").addEventListener("click", () => {
-  state.q = ""; $("q").value = ""; FACETS.forEach((k) => setFacet(k, ""));
+  state.q = ""; $("q").value = ""; FACETS.forEach((k) => facets[k].clear()); fillAddFilter();
   shownRows = PAGE_ROWS; render();
 });
 document.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("click", () => {
@@ -567,7 +588,7 @@ document.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("
 }));
 $("more-rows").addEventListener("click", () => { shownRows += PAGE_ROWS; renderTable(filtered()); });
 $("csv").addEventListener("click", downloadCsv);
-$("t-overdue-tile").addEventListener("click", () => { setFacet("outcome", state.outcome === SCHED_PAST ? "" : SCHED_PAST); shownRows = PAGE_ROWS; render(); });
+$("t-overdue-tile").addEventListener("click", () => { toggleFacet("outcome", SCHED_PAST); fillAddFilter(); shownRows = PAGE_ROWS; render(); });
 
 initDates();
 initChartControls();
