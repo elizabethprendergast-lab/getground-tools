@@ -3,10 +3,19 @@ name: Supabase keep-alive
 # Pings the shared Supabase project once a day so the free tier never pauses.
 # Used by the UTM builder and email builder. If the ping fails, this run fails
 # and GitHub emails you.
+#
+# It also keeps itself switched on: GitHub pauses scheduled jobs after 60 days
+# with no repo activity, so this job re-enables itself every day and commits a
+# small heartbeat file (.github/keepalive-heartbeat.txt) on the 1st of each month.
+# Approved by Beth on 2026-10-05. To stop it, delete this file.
 on:
   schedule:
     - cron: '17 6 * * *'   # every day at 06:17 UTC
   workflow_dispatch:        # lets you run it by hand from the Actions tab
+
+permissions:
+  contents: write   # monthly heartbeat commit
+  actions: write    # re-enable this workflow
 
 jobs:
   ping:
@@ -23,3 +32,26 @@ jobs:
             echo "::error::Supabase ping failed with status $status. Check supabase.com and restore the project if it is paused."
             exit 1
           fi
+
+  stay-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-enable this workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/supabase-keepalive.yml/enable"
+
+      - name: Monthly heartbeat commit
+        run: |
+          if [ "$(date -u +%d)" != "01" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            echo "Not the 1st of the month, skipping heartbeat commit."
+            exit 0
+          fi
+          git clone --depth 1 "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" repo
+          cd repo
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > .github/keepalive-heartbeat.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/keepalive-heartbeat.txt
+          git commit -m "Keep-alive heartbeat [skip ci]"
+          git push
