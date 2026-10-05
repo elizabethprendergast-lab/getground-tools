@@ -19,6 +19,8 @@
     --series-1: #2a78d6;
     --bar-hover: #1c5fae;
     --accent-soft: rgba(42,120,214,0.10);
+    --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100; --c5: #e87ba4; --c6: #4a3aa7;
+    --c-other: #898781; --c-none: #d6d5cd;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -35,6 +37,8 @@
       --series-1: #3987e5;
       --bar-hover: #6aa6ee;
       --accent-soft: rgba(57,135,229,0.14);
+      --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #9085e9;
+      --c-other: #7a7974; --c-none: #3a3a37;
     }
   }
   * { box-sizing: border-box; }
@@ -90,6 +94,22 @@
   .chart-more { margin-top: 10px; }
   .chart-more button { font: inherit; font-size: 12px; cursor: pointer; border: 1px solid var(--border);
     background: var(--surface-1); color: var(--text-secondary); border-radius: 8px; padding: 5px 10px; }
+  .chart-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin: 0 0 14px; }
+  .chart-controls label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); min-width: 0; }
+  .chart-controls select { font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); max-width: calc(100vw - 64px); }
+  .chart .stack { display: flex; gap: 2px; height: 14px; flex: none; min-width: 2px; }
+  .chart .seg { height: 100%; min-width: 2px; }
+  .chart .seg:last-child { border-radius: 0 4px 4px 0; }
+  .chart .seg:hover { filter: brightness(0.85); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--text-secondary); margin: 0 0 12px; }
+  .legend button { font: inherit; display: inline-flex; align-items: center; gap: 6px; border: none; background: none;
+    color: inherit; padding: 2px 0; cursor: pointer; }
+  .legend button:hover { color: var(--text-primary); text-decoration: underline; }
+  .legend .sw { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+  .legend .ct { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .tooltip .t-seg { display: flex; align-items: center; gap: 6px; margin: 2px 0 6px; padding-bottom: 6px; border-bottom: 1px solid var(--gridline); }
+  .tooltip .sw { width: 10px; height: 10px; border-radius: 2px; flex: none; }
   .tooltip { position: fixed; z-index: 20; pointer-events: none; max-width: 320px; font-size: 12px;
     background: var(--surface-1); color: var(--text-primary); border: 1px solid var(--border);
     border-radius: 8px; padding: 10px 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.15); display: none; line-height: 1.5; }
@@ -133,7 +153,6 @@
     <label class="search">Search
       <input type="search" id="q" placeholder="GetGrounder, contact, email, link, UTM, outcome…" autocomplete="off" />
     </label>
-    <label>Meeting link <select id="f-link"><option value="">All links</option></select></label>
     <label>GetGrounder <select id="f-owner"><option value="">Everyone</option></select></label>
     <button class="ghost" id="reset">Reset</button>
   </div>
@@ -150,8 +169,13 @@
     </div>
 
     <section class="card">
-      <h2>Meetings booked by meeting link</h2>
-      <p class="sub">Hover a bar for details, click to filter the page to that link.</p>
+      <h2 id="chart-title">Meetings booked by meeting link</h2>
+      <p class="sub" id="chart-sub">Hover a bar for details, click to filter the page to it.</p>
+      <div class="chart-controls">
+        <label>Bars show <select id="by"></select></label>
+        <label>Split by <select id="layer"></select></label>
+      </div>
+      <div class="legend" id="legend"></div>
       <div class="chart" id="chart" role="list"></div>
       <div class="chart-more" id="chart-more"></div>
     </section>
@@ -196,6 +220,23 @@ const fmtDate = (iso, time) => iso ? new Date(iso).toLocaleString("en-GB", time
 const OUTCOME_LABEL = (o) => o ? o.charAt(0) + o.slice(1).toLowerCase().replace(/_/g, " ") : "—";
 const ymd = (d) => d.toISOString().slice(0, 10);
 
+// Every way the chart can slice a booking. `filter` is also the URL/state key used when a bar
+// or segment is clicked, so any view can be filtered on and shared.
+const DIMS = {
+  link:        { label: "Meeting link", inTitle: "meeting link", plural: "links",       get: (r) => r.link },
+  owner:       { label: "GetGrounder",  plural: "GetGrounders", get: (r) => r.owner },
+  outcome:     { label: "Outcome",      inTitle: "outcome", plural: "outcomes",    get: (r) => OUTCOME_LABEL(r.outcome) },
+  utmCampaign: { label: "UTM campaign", plural: "campaigns",   get: (r) => r.utmCampaign || "(no UTM campaign)" },
+  utmSource:   { label: "UTM source",   plural: "sources",     get: (r) => r.utmSource || "(no UTM source)" },
+  utmMedium:   { label: "UTM medium",   plural: "mediums",     get: (r) => r.utmMedium || "(no UTM medium)" },
+};
+const FACETS = Object.keys(DIMS);
+const isNone = (v) => v === "—" || /^\(no /.test(v);
+// Six validated categorical hues (light + dark checked for CVD separation); everything past the
+// top six folds into "Other", and empty values ("no UTM", no outcome) get their own pale grey.
+const LAYER_COLORS = ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)", "var(--c6)"];
+const OTHER = "Other";
+
 let all = [];            // rows for the loaded date range
 let loadedRange = "";
 let shownRows = PAGE_ROWS, chartAll = false;
@@ -205,7 +246,7 @@ let sortKey = "booked", sortAsc = false;
 const state = Object.fromEntries(new URLSearchParams(location.search));
 function syncUrl() {
   const p = new URLSearchParams();
-  for (const k of ["from", "to", "q", "link", "owner"]) if (state[k]) p.set(k, state[k]);
+  for (const k of ["from", "to", "q", "by", "layer", ...FACETS]) if (state[k]) p.set(k, state[k]);
   history.replaceState(null, "", location.pathname + (p.toString() ? "?" + p : ""));
 }
 
@@ -243,8 +284,8 @@ async function load() {
       ...r.contacts.flatMap((c) => [c.name, c.email])].join(" ").toLowerCase() }));
   loadedRange = range;
   $("status").hidden = true; $("content").hidden = false;
-  fillSelect("f-link", all.map((r) => r.link), "All links", state.link);
   fillSelect("f-owner", all.map((r) => r.owner), "Everyone", state.owner);
+  assignLayerColors();
   render();
 }
 
@@ -257,10 +298,20 @@ function fillSelect(id, values, allLabel, current) {
     `<option value="${esc(v)}"${v === current ? " selected" : ""}>${esc(v)} (${counts[v] || 0})</option>`).join("");
 }
 
+// A pasted meeting-link URL (https://meetings-eu1.hubspot.com/<slug>?uuid=…) is reduced to its
+// slug so it matches the link name; any other URL is matched on host + path without the query.
+function searchTerm(t) {
+  if (!/^https?:\/\//.test(t)) return t;
+  try {
+    const u = new URL(t);
+    const path = decodeURIComponent(u.pathname).replace(/^\/+|\/+$/g, "");
+    return /meetings.*\.hubspot\.com$/.test(u.hostname) ? path : (u.hostname + "/" + path).replace(/\/$/, "");
+  } catch { return t; }
+}
+
 function filtered() {
-  const terms = (state.q || "").toLowerCase().split(/\s+/).filter(Boolean);
-  return all.filter((r) => (!state.link || r.link === state.link)
-    && (!state.owner || r.owner === state.owner)
+  const terms = (state.q || "").toLowerCase().split(/\s+/).filter(Boolean).map(searchTerm).filter(Boolean);
+  return all.filter((r) => FACETS.every((k) => !state[k] || DIMS[k].get(r) === state[k])
     && terms.every((t) => r._hay.includes(t)));
 }
 
@@ -280,16 +331,15 @@ function render() {
 function renderChips() {
   const chips = [];
   if (state.q) chips.push(["q", `Search: “${state.q}”`]);
-  if (state.link) chips.push(["link", `Link: ${state.link}`]);
-  if (state.owner) chips.push(["owner", `GetGrounder: ${state.owner}`]);
+  for (const k of FACETS) if (state[k]) chips.push([k, `${DIMS[k].label}: ${state[k]}`]);
   $("active-filters").innerHTML = chips.length
     ? "Filtered by " + chips.map(([k, l]) => `<span class="chip">${esc(l)}<button data-clear="${k}" aria-label="Remove filter">×</button></span>`).join("")
     : "";
 }
 
-function groupByLink(rows) {
+function groupBy(rows, dim) {
   const g = {};
-  for (const r of rows) (g[r.link] ||= []).push(r);
+  for (const r of rows) (g[DIMS[dim].get(r)] ||= []).push(r);
   return Object.entries(g).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
 }
 
@@ -299,37 +349,89 @@ function topN(arr, n) {
   return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, n);
 }
 
+function initChartControls() {
+  if (!DIMS[state.by]) state.by = "link";
+  if (state.layer && (!DIMS[state.layer] || state.layer === state.by)) state.layer = "";
+  $("by").innerHTML = FACETS.map((k) => `<option value="${k}"${k === state.by ? " selected" : ""}>${DIMS[k].label}</option>`).join("");
+  $("layer").innerHTML = `<option value="">Nothing (single colour)</option>` + FACETS.filter((k) => k !== state.by)
+    .map((k) => `<option value="${k}"${k === state.layer ? " selected" : ""}>${DIMS[k].label}</option>`).join("");
+}
+
+// Colour follows the value, not its rank in the current view: slots are assigned from the whole
+// loaded date range, so filtering the page never repaints a surviving value a different colour.
+let layerColor = {};
+function assignLayerColors() {
+  layerColor = {};
+  if (!state.layer) return;
+  const ranked = groupBy(all, state.layer).map(([v]) => v).filter((v) => !isNone(v));
+  ranked.slice(0, LAYER_COLORS.length).forEach((v, i) => layerColor[v] = LAYER_COLORS[i]);
+}
+const layerKey = (v) => isNone(v) ? v : (layerColor[v] ? v : OTHER);
+const colorOf = (k) => isNone(k) ? "var(--c-none)" : k === OTHER ? "var(--c-other)" : layerColor[k];
+
 let chartGroups = [];
 function renderChart(rows) {
-  chartGroups = groupByLink(rows);
-  if (!chartGroups.length) { $("chart").innerHTML = `<div class="empty">No meetings match these filters.</div>`; $("chart-more").innerHTML = ""; return; }
+  const by = state.by, layer = state.layer;
+  $("chart-title").textContent = `Meetings booked by ${DIMS[by].inTitle || DIMS[by].label}` + (layer ? `, split by ${DIMS[layer].inTitle || DIMS[layer].label}` : "");
+  $("chart-sub").textContent = layer
+    ? "Hover a segment for details. Click a bar to filter to it, a segment to filter to both, or a legend item to filter to that value."
+    : "Hover a bar for details, click to filter the page to it.";
+  chartGroups = groupBy(rows, by);
+  if (!chartGroups.length) { $("chart").innerHTML = `<div class="empty">No meetings match these filters.</div>`; $("chart-more").innerHTML = ""; $("legend").innerHTML = ""; return; }
+
+  // Segment order inside every bar = legend order, so the same value always sits in the same place.
+  let order = [];
+  if (layer) {
+    const totals = {};
+    rows.forEach((r) => { const k = layerKey(DIMS[layer].get(r)); totals[k] = (totals[k] || 0) + 1; });
+    order = Object.keys(layerColor).filter((k) => totals[k]);
+    if (totals[OTHER]) order.push(OTHER);
+    order.push(...Object.keys(totals).filter((k) => isNone(k)).sort());
+    $("legend").innerHTML = order.map((k) => `<button data-legend="${esc(k)}"${k === OTHER ? " disabled" : ""} title="${k === OTHER ? "Values outside the top six" : "Filter to " + esc(k)}">
+      <span class="sw" style="background:${colorOf(k)}"></span>${esc(k)} <span class="ct">${totals[k]}</span></button>`).join("");
+  } else $("legend").innerHTML = "";
+
   const show = chartAll ? chartGroups : chartGroups.slice(0, CHART_TOP);
   const max = chartGroups[0][1].length;
-  $("chart").innerHTML = show.map(([link, rs], i) => {
+  $("chart").innerHTML = show.map(([val, rs], i) => {
     const pct = Math.max(0.5, 100 * rs.length / max);
-    const sel = state.link === link ? " selected" : "";
-    return `<div class="lab" data-i="${i}" title="${esc(link)}">${esc(link)}</div>
-      <div class="track${sel}" data-i="${i}" role="listitem" aria-label="${esc(link)}: ${rs.length} meetings">
-        <div class="bar" style="width:${pct}%"></div><span class="num">${rs.length}</span></div>`;
+    const sel = state[by] === val ? " selected" : "";
+    let inner;
+    if (layer) {
+      const c = {};
+      rs.forEach((r) => { const k = layerKey(DIMS[layer].get(r)); c[k] = (c[k] || 0) + 1; });
+      inner = `<div class="stack" style="width:${pct}%">` + order.filter((k) => c[k]).map((k) =>
+        `<div class="seg" data-i="${i}" data-seg="${esc(k)}" style="flex:${c[k]} 1 0;background:${colorOf(k)}"></div>`).join("") + `</div>`;
+    } else inner = `<div class="bar" style="width:${pct}%"></div>`;
+    return `<div class="lab" data-i="${i}" title="${esc(val)}">${esc(val)}</div>
+      <div class="track${sel}" data-i="${i}" role="listitem" aria-label="${esc(val)}: ${rs.length} meetings">${inner}<span class="num">${rs.length}</span></div>`;
   }).join("");
   const hidden = chartGroups.length - show.length;
   $("chart-more").innerHTML = chartGroups.length > CHART_TOP
-    ? `<button id="chart-toggle">${chartAll ? "Show top " + CHART_TOP : `Show all ${chartGroups.length} links (+${hidden} more)`}</button>` : "";
+    ? `<button id="chart-toggle">${chartAll ? "Show top " + CHART_TOP : `Show all ${chartGroups.length} ${DIMS[by].plural} (+${hidden} more)`}</button>` : "";
 }
 
-function tooltipHtml([link, rs]) {
-  const owners = topN(rs.map((r) => r.owner), 4).map(([n, c]) => `${esc(n)} (${c})`).join(", ");
+function tooltipHtml([val, rs], seg) {
+  const by = state.by, layer = state.layer;
+  const lines = [];
+  if (layer && seg) {
+    const n = rs.filter((r) => layerKey(DIMS[layer].get(r)) === seg).length;
+    const detail = seg === OTHER ? " (" + topN(rs.map((r) => DIMS[layer].get(r)).filter((v) => layerKey(v) === OTHER), 3).map(([v, c]) => `${esc(v)} ${c}`).join(", ") + ")" : "";
+    lines.push(`<div class="t-seg"><span class="sw" style="background:${colorOf(seg)}"></span><span><b>${esc(seg)}</b>: ${n} of ${rs.length} (${Math.round(100 * n / rs.length)}%)${detail}</span></div>`);
+  }
+  lines.push(`<div><b>${rs.length}</b> meetings · ${new Set(rs.flatMap((r) => r.contacts.map((c) => c.id))).size} contacts</div>`);
+  // Summaries for the dimensions this bar isn't already defined by.
+  const summary = (k, n) => topN(rs.map((r) => DIMS[k].get(r)), n).map(([v, c]) => `${esc(v)} (${c})`).join(", ");
+  if (by !== "link") lines.push(`<div><span class="t-muted">Links:</span> ${summary("link", 3)}</div>`);
+  if (by !== "owner") lines.push(`<div><span class="t-muted">GetGrounders:</span> ${summary("owner", 4)}</div>`);
   const utm = rs.filter((r) => r.utmSource || r.utmMedium || r.utmCampaign).length;
-  const camps = topN(rs.map((r) => r.utmCampaign), 3).map(([n, c]) => `${esc(n)} (${c})`).join(", ");
-  const outcomes = topN(rs.map((r) => OUTCOME_LABEL(r.outcome)), 4).map(([n, c]) => `${esc(n)} ${c}`).join(" · ");
+  lines.push(`<div><span class="t-muted">With UTMs:</span> ${utm} (${Math.round(100 * utm / rs.length)}%)</div>`);
+  if (by !== "utmCampaign") { const camps = topN(rs.map((r) => r.utmCampaign), 3).map(([n, c]) => `${esc(n)} (${c})`).join(", "); if (camps) lines.push(`<div><span class="t-muted">Top campaigns:</span> ${camps}</div>`); }
+  if (by !== "outcome") lines.push(`<div><span class="t-muted">Outcomes:</span> ${topN(rs.map((r) => OUTCOME_LABEL(r.outcome)), 4).map(([n, c]) => `${esc(n)} ${c}`).join(" · ")}</div>`);
   const last = rs.reduce((a, r) => r.booked > a ? r.booked : a, "");
-  return `<div class="t-title">${esc(link)}</div>
-    <div><b>${rs.length}</b> meetings · ${new Set(rs.flatMap((r) => r.contacts.map((c) => c.id))).size} contacts</div>
-    <div><span class="t-muted">GetGrounders:</span> ${owners}</div>
-    <div><span class="t-muted">With UTMs:</span> ${utm} (${Math.round(100 * utm / rs.length)}%)${camps ? `<br><span class="t-muted">Top campaigns:</span> ${camps}` : ""}</div>
-    <div><span class="t-muted">Outcomes:</span> ${outcomes}</div>
-    <div><span class="t-muted">Last booked:</span> ${fmtDate(last, true)}</div>
-    <div class="t-hint">${state.link === link ? "Click to clear this filter" : "Click to filter to this link"}</div>`;
+  lines.push(`<div><span class="t-muted">Last booked:</span> ${fmtDate(last, true)}</div>`);
+  const hint = state[by] === val ? "Click to clear this filter" : seg && seg !== OTHER ? "Click to filter to this bar + segment" : "Click to filter to this bar";
+  return `<div class="t-title">${esc(val)}</div>${lines.join("")}<div class="t-hint">${hint}</div>`;
 }
 
 function rowHtml(r) {
@@ -386,23 +488,39 @@ function placeTip(e) {
 $("chart").addEventListener("mousemove", (e) => {
   const el = e.target.closest("[data-i]");
   if (!el) { tip.style.display = "none"; return; }
-  tip.innerHTML = tooltipHtml(chartGroups[+el.dataset.i]);
+  tip.innerHTML = tooltipHtml(chartGroups[+el.dataset.i], el.dataset.seg);
   tip.style.display = "block"; placeTip(e);
 });
 $("chart").addEventListener("mouseleave", () => tip.style.display = "none");
+function setFacet(k, v) {
+  state[k] = v;
+  if (k === "owner") $("f-owner").value = v;
+}
 $("chart").addEventListener("click", (e) => {
   const el = e.target.closest("[data-i]");
   if (!el) return;
-  const link = chartGroups[+el.dataset.i][0];
-  state.link = state.link === link ? "" : link;
-  $("f-link").value = state.link;
+  const val = chartGroups[+el.dataset.i][0];
+  const clearing = state[state.by] === val;
+  setFacet(state.by, clearing ? "" : val);
+  const seg = el.dataset.seg;
+  if (!clearing && seg && seg !== OTHER) setFacet(state.layer, seg);
   tip.style.display = "none"; shownRows = PAGE_ROWS; render();
 });
+$("legend").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-legend]");
+  if (!b || b.dataset.legend === OTHER) return;
+  setFacet(state.layer, state[state.layer] === b.dataset.legend ? "" : b.dataset.legend);
+  shownRows = PAGE_ROWS; render();
+});
+$("by").addEventListener("change", () => {
+  state.by = $("by").value; if (state.layer === state.by) state.layer = "";
+  chartAll = false; initChartControls(); assignLayerColors(); render();
+});
+$("layer").addEventListener("change", () => { state.layer = $("layer").value; assignLayerColors(); render(); });
 $("chart-more").addEventListener("click", (e) => { if (e.target.id === "chart-toggle") { chartAll = !chartAll; renderChart(filtered()); } });
 
 let qTimer;
 $("q").addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(() => { state.q = $("q").value.trim(); shownRows = PAGE_ROWS; render(); }, 150); });
-$("f-link").addEventListener("change", () => { state.link = $("f-link").value; shownRows = PAGE_ROWS; render(); });
 $("f-owner").addEventListener("change", () => { state.owner = $("f-owner").value; shownRows = PAGE_ROWS; render(); });
 for (const id of ["from", "to"]) $(id).addEventListener("change", () => {
   if (!$("from").value || !$("to").value || $("from").value > $("to").value) return;
@@ -418,11 +536,11 @@ document.querySelectorAll(".presets button").forEach((b) => b.addEventListener("
 }));
 $("active-filters").addEventListener("click", (e) => {
   const k = e.target.dataset.clear; if (!k) return;
-  state[k] = ""; if (k === "q") $("q").value = ""; if (k === "link") $("f-link").value = ""; if (k === "owner") $("f-owner").value = "";
+  if (k === "q") { state.q = ""; $("q").value = ""; } else setFacet(k, "");
   render();
 });
 $("reset").addEventListener("click", () => {
-  state.q = state.link = state.owner = ""; $("q").value = ""; $("f-link").value = ""; $("f-owner").value = "";
+  state.q = ""; $("q").value = ""; FACETS.forEach((k) => setFacet(k, ""));
   shownRows = PAGE_ROWS; render();
 });
 document.querySelectorAll("th[data-sort]").forEach((th) => th.addEventListener("click", () => {
@@ -433,6 +551,7 @@ $("more-rows").addEventListener("click", () => { shownRows += PAGE_ROWS; renderT
 $("csv").addEventListener("click", downloadCsv);
 
 initDates();
+initChartControls();
 if (!new URLSearchParams(location.search).get("from")) document.querySelector('.presets button[data-days="90"]').classList.add("active");
 load();
 </script>
