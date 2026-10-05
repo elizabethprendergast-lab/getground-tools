@@ -35,6 +35,7 @@ const REPORTS = {
     projects: [
       {
         key: "active-lead",
+        closed: true, // Moved under "Closed" on the dashboard (5 Oct) — data still computed/shown.
         label: "Active Lead — Ltd Company Set-up",
         match: (s) => s.includes("Active Lead"),
         // Real naming convention (verified live against actual task subjects, not guessed):
@@ -58,6 +59,7 @@ const REPORTS = {
       },
       {
         key: "reengage-pack",
+        closed: true, // Moved under "Closed" on the dashboard (5 Oct) — data still computed/shown.
         label: "Reengage — Pack companies",
         match: (s) => s.includes("Pack companies"),
         // Real subject: "#N | Call | Reengage | Pack companies". "Pack" alone collides with
@@ -110,6 +112,7 @@ const REPORTS = {
       },
       {
         key: "reengage-nonpaying",
+        closed: true, // Moved under "Closed" on the dashboard (5 Oct) — data still computed/shown.
         label: "Re-engagement — Non-paying customers (old partner leads)",
         match: (s) => s.includes("Non paying customers - old partner leads"),
         // Real subject: "#N | Call | Re-engagement | Non paying customers - old partner leads".
@@ -128,6 +131,7 @@ const REPORTS = {
       },
       {
         key: "ba-closed-won-reengage",
+        closed: true, // Moved under "Closed" on the dashboard (5 Oct) — data still computed/shown.
         label: "Experiment — BA closed won deal reengage",
         match: (s) => s.includes("Experiment | BA closed won deal reengage"),
         // Real subject: "#N | Call | Experiment | BA closed won deal reengage". First wave:
@@ -535,6 +539,7 @@ async function stats(url, env) {
         key: cfg.key,
         label: cfg.label,
         context: cfg.context || "",
+        closed: !!cfg.closed,
         taskViewQuery: cfg.searchTerm || "",
         taskNamePattern: cfg.namePattern || "",
         tasks: { total: b.total, done: b.done, notDone: b.total - b.done, reps: b.reps, byCallNumber, priorityBreakdown },
