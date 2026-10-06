@@ -208,6 +208,23 @@ const REPORTS = {
         // Email can book a meeting directly, same as Upsell-Complete — see outcomeForEnrollmentTask.
         outcomeMatching: "enrollment",
       },
+      {
+        key: "reengage-nonpaying-master",
+        label: "Re-engagement — Non-paying master list",
+        // Real subject: "#1 | Call | Re-engagement | Non paying customers (master list) mrr".
+        // Doesn't collide with the closed "reengage-nonpaying" project (matched on its full
+        // "- old partner leads" phrase).
+        match: (s) => s.includes("Non paying customers (master list) mrr"),
+        namePattern: "Call | Re-engagement | Non paying customers (master list) mrr",
+        searchTerm: "Call | Re-engagement | Non paying customers (master list) mrr",
+        context: "Master list of non-paying customers, called to move them onto a paid plan.",
+        // Verified against real data (2026-10-06): "master" AND "list" returns 22 tasks
+        // portal-wide, every one of them this campaign (all #1, created 6 Oct) — clean without
+        // an owner filter.
+        attributionSearch: { tokens: ["master", "list"], ownerFiltered: false },
+        // Same attribution rules as Upsell-Complete — see outcomeForEnrollmentTask.
+        outcomeMatching: "enrollment",
+      },
     ],
   },
 };
