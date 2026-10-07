@@ -1509,7 +1509,7 @@ function btlButtonGroup(id) {
   return "Header / footer / other";
 }
 
-const BTL_CACHE_VERSION = "v7-mixpanel-live";
+const BTL_CACHE_VERSION = "v8-source-diag";
 
 let _mpTimeCol = null; // detected once per warm worker
 async function mpTimeExpr(env) {
@@ -1759,6 +1759,12 @@ async function btlCalcReport(url, env, ctx) {
     }
   } catch (e) { out.errors.formLeads = String(e); }
 
+  // Which Mixpanel source this deployment can use — presence only, never values.
+  out.mixpanelSource = {
+    serviceAccount: Boolean(env.MIXPANEL_SA_USERNAME && env.MIXPANEL_SA_SECRET),
+    usernameSet: Boolean(env.MIXPANEL_SA_USERNAME), secretSet: Boolean(env.MIXPANEL_SA_SECRET),
+    bigQuery: Boolean(env.GCP_SA_EMAIL && env.GCP_SA_PRIVATE_KEY),
+  };
   // --- Mixpanel: live via service account if configured, else BigQuery, else the snapshot
   if (env.MIXPANEL_SA_USERNAME && env.MIXPANEL_SA_SECRET) {
     try { await btlMixpanelLive(env, out, launchMs); } catch (e) { out.errors.mixpanel = String(e); }

@@ -326,7 +326,10 @@ function renderForms(d) {
 function render(d) {
   const launch = new Date(d.launchIso);
   afterDaysSoFar = d.days.after;
-  const snapNote = d.mixpanelSnapshotAt ? `<br><span style="color:var(--text-muted)">Visits, clicks and sign-ups are a <b>Mixpanel snapshot taken ${new Date(d.mixpanelSnapshotAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" })}</b> (the site has no live Mixpanel connection yet). Form leads and plans are live from HubSpot.</span>` : "";
+  const src = d.mixpanelSource || {};
+  const srcNote = d.mixpanelLive ? `<br><span style="color:var(--text-muted)">Visits, clicks and sign-ups: <b>live from Mixpanel</b>.</span>`
+    : `<br><span style="color:var(--text-muted)">Mixpanel login on this site: username ${src.usernameSet ? "found" : "not found"}, secret ${src.secretSet ? "found" : "not found"}.</span>`;
+  const snapNote = (d.mixpanelSnapshotAt ? srcNote : "") + (d.mixpanelSnapshotAt ? `<br><span style="color:var(--text-muted)">Visits, clicks and sign-ups are a <b>Mixpanel snapshot taken ${new Date(d.mixpanelSnapshotAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" })}</b> (the site has no live Mixpanel connection yet). Form leads and plans are live from HubSpot.</span>` : "") + (d.mixpanelLive ? srcNote : "");
   document.getElementById("meta").innerHTML = `Relaunched <b>${launch.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" })}</b> · comparing the 4 weeks before with the <b>${fmt(d.days.after, 1)} days</b> since.${snapNote}`;
   const daily = d.daily || [];
   const beforeDays = daily.filter((x) => x.date < LAUNCH_DAY);
