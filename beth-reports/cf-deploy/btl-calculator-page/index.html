@@ -180,7 +180,7 @@ let afterDaysSoFar = 0;
 
 function deltaHtml(before, after) {
   if (!before || after == null || !isFinite(after)) return "";
-  if (afterDaysSoFar < MIN_DAYS_TO_COMPARE) return `<span class="early">too early to compare</span>`;
+  if (afterDaysSoFar < MIN_DAYS_TO_COMPARE) return ""; // no % change until there's enough data
   const pct = ((after - before) / before) * 100;
   const cls = pct >= 0 ? "up" : "down";
   return `<span class="delta ${cls}">${pct >= 0 ? "▲" : "▼"} ${Math.abs(pct).toFixed(0)}%</span>`;
