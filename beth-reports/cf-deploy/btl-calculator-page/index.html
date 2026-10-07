@@ -206,7 +206,7 @@ function renderFunnel(d) {
   const steps = [
     ["Clicked Set up today", clickers],
     ["Reached sign-up page", landed],
-    ["Created an account", d.signups ? d.signups.total : 0],
+    [`Created an account${d.signups && d.signups.note ? ` (${d.signups.note})` : ""}`, d.signups ? d.signups.total : 0],
     ["Bought a plan", d.signups ? d.signups.plans : 0],
   ];
   const max = Math.max(...steps.map((s) => s[1]), 1);
