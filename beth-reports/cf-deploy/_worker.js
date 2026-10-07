@@ -1509,7 +1509,7 @@ function btlButtonGroup(id) {
   return "Header / footer / other";
 }
 
-const BTL_CACHE_VERSION = "v2-snapshot";
+const BTL_CACHE_VERSION = "v3-snapshot-signups";
 
 let _mpTimeCol = null; // detected once per warm worker
 async function mpTimeExpr(env) {
