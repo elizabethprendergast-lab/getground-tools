@@ -101,11 +101,6 @@
   .funnel .row:hover .bar { background: var(--bar-hover); }
   .people { font-size: 12px; color: var(--text-secondary); padding: 0 0 6px calc(34% + 22px); }
   .people a { color: var(--series-1); margin-right: 10px; white-space: nowrap; }
-  .formsetup { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: 0 0 16px; }
-  .formsetup > div { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; min-width: 0; }
-  .formsetup h3 { font-size: 13px; margin: 0 0 6px; color: var(--text-primary); }
-  .formsetup ul { margin: 0; padding-left: 18px; }
-  .formsetup li { margin-bottom: 4px; }
   .notes { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
   .notes li { margin-bottom: 4px; }
 </style>
@@ -140,20 +135,7 @@
 
   <section class="card">
     <h2>Form leads</h2>
-    <p class="sub">HubSpot form submissions made on this page. The page's forms changed with the relaunch, so read this alongside app sign-ups.</p>
-    <div class="formsetup">
-      <div><h3>Before (to 6 Oct 14:02)</h3><ul>
-        <li><b>Set Up My Limited Company</b> → Set Up form (<i>Company Google Ads Lead Capture – 042026</i>) → HubSpot redirect to the app's create-company page.</li>
-        <li><b>Calculate My Tax Savings</b> → Calculate form (<i>P&amp;P – LTD Company Set-Up</i>) → 4-question quiz → AI Property Analyser. No savings shown until after the form.</li>
-        <li>Two ways into a form, from the hero, header, "How it works" and final sections.</li>
-      </ul></div>
-      <div><h3>Now</h3><ul>
-        <li><b>Learn more</b> (under the calculator only) → same Set Up form → company formation page (from 6 Oct 15:13).</li>
-        <li><b>Set up today</b> → no form. Core Plan checkout (6 Oct 14:02 – 7 Oct 09:32), then app sign-up first (from 7 Oct 09:32). These show as app sign-ups, not form leads.</li>
-        <li><b>Calculate my tax savings</b> → scrolls to the instant calculator. No form.</li>
-        <li>The Calculate form is gone from this page.</li>
-      </ul></div>
-    </div>
+    <p class="sub">HubSpot form submissions made on this page.</p>
     <div id="forms"></div>
   </section>
 
