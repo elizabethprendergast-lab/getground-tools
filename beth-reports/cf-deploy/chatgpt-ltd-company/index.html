@@ -126,25 +126,25 @@
 
   <section class="card">
     <h2>Visitors per day</h2>
-    <p class="sub">Unique visitors from the ChatGPT Ltd company ads (Mixpanel). The line marks the ad link switch.</p>
+    <p class="sub">Unique visitors from the ChatGPT Ltd company ads (Mixpanel). Hover a day for page views.</p>
     <div id="chart"></div>
   </section>
 
   <section class="card">
     <h2>Where they landed</h2>
-    <p class="sub">First page each visitor saw. Before the switch the ad went to /company, which forwarded to the formation page.</p>
+    <p class="sub">First page each visitor saw.</p>
     <div id="landings"></div>
   </section>
 
   <section class="card">
     <h2>Pages they visited</h2>
-    <p class="sub">Visitors per page, before vs after the link switch.</p>
+    <p class="sub">Visitors per page.</p>
     <div id="pages"></div>
   </section>
 
   <section class="card">
     <h2>What they clicked</h2>
-    <p class="sub">Visitors clicking each button, before vs after the link switch.</p>
+    <p class="sub">Visitors clicking each button.</p>
     <div id="buttons"></div>
   </section>
 
@@ -158,7 +158,8 @@
     <h2>How to read this</h2>
     <ul class="notes">
       <li>Covers visits tagged <code>utm_source=chatgpt</code> with <code>utm_campaign=ltd_company</code> (plus an early <code>chatgpt_LTDads</code> test) since 5 Oct. Mixpanel remembers the tags for the rest of the visit, so pages after the landing page are counted too.</li>
-      <li><b>Before / after the switch</b>: the ad first linked to /company, which forwards to the formation page and drops the tags from the address. It now links straight to /features/limited-company-set-up.</li>
+      <li><b>Only people who accept the cookie banner are tracked</b>, so visitors here will be lower than ChatGPT's own click count — use the ads dashboard for clicks.</li>
+      <li><b>Internal tests count too.</b> A browser that once clicked the ad link keeps the ChatGPT tags, so later testing on other pages (e.g. the BTL calculator page) shows here.</li>
       <li><b>Meetings booked</b> only count bookings whose link carried the ChatGPT tags. The formation page's "Talk to our team" link doesn't pass them yet, so clicks on it are shown as the intent signal.</li>
       <li><b>Sign-ups</b> count new app accounts that came through a link carrying the tags (e.g. the BTL calculator page's Set up today). Only covers people who accepted cookies, and includes internal tests.</li>
     </ul>
@@ -223,20 +224,18 @@ function renderChart(daily, switchDay) {
   });
 }
 
-function beforeAfterChart(el, rows, labelOf, subOf) {
-  if (!rows || !rows.length) { el.innerHTML = `<p class="sub">Nothing recorded yet.</p>`; return; }
-  const max = Math.max(...rows.flatMap((r) => [r.before, r.after]), 1);
-  const w = (v) => `${Math.max((v / max) * 80, v > 0 ? 1 : 0)}%`;
-  el.innerHTML = `<div class="legend"><span><i style="background:var(--before)"></i>Before link switch (visitors)</span><span><i style="background:var(--since)"></i>After link switch (visitors)</span></div>
-    <div class="cchart">${rows.map((r) => `
-      <div class="lab">${esc(labelOf(r))}${subOf ? `<small>${esc(subOf(r))}</small>` : ""}</div>
-      <div class="bars"><div class="brow"><div class="b before" style="width:${w(r.before)}"></div><span class="v">${r.before}</span></div>
-      <div class="brow"><div class="b since" style="width:${w(r.after)}"></div><span class="v">${r.after}</span></div></div>`).join("")}</div>`;
+function totalsChart(el, rows, labelOf, subOf) {
+  const list = (rows || []).map((r) => ({ ...r, total: (r.before || 0) + (r.after || 0) })).filter((r) => r.total).sort((a, b) => b.total - a.total);
+  if (!list.length) { el.innerHTML = `<p class="sub">Nothing recorded yet.</p>`; return; }
+  const max = Math.max(...list.map((r) => r.total), 1);
+  el.innerHTML = `<div class="cchart">${list.map((r) => `
+    <div class="lab">${esc(labelOf(r))}${subOf ? `<small>${esc(subOf(r))}</small>` : ""}</div>
+    <div class="bars"><div class="brow"><div class="b since" style="width:${Math.max((r.total / max) * 80, 1)}%"></div><span class="v">${r.total}</span></div></div>`).join("")}</div>`;
 }
 
 function render(d) {
   const sw = d.switchIso ? fmtTime(d.switchIso) : null;
-  document.getElementById("meta").innerHTML = `Ads running since <b>5 Oct 2026</b> · ${sw ? `link switched <b>${sw}</b>` : "link switch not seen yet (no visits on the new link)"} · live from Mixpanel and HubSpot.`;
+  document.getElementById("meta").innerHTML = `Ads running since <b>5 Oct 2026</b> · live from Mixpanel and HubSpot.`;
   if (d.errors.mixpanel) {
     document.getElementById("tiles").innerHTML = `<p class="err">Mixpanel data unavailable: ${esc(d.errors.mixpanel)}</p>`;
     return;
@@ -245,19 +244,19 @@ function render(d) {
   const switchDay = d.switchIso ? new Date(d.switchIso).toLocaleDateString("en-CA", { timeZone: "Europe/London" }) : null;
   const talk = (d.buttons || []).filter((b) => /talk to our team/i.test(b.label)).reduce((t, b) => t + b.before + b.after, 0);
   const tiles = [
-    tile("Visitors", `${(d.visitors.before + d.visitors.after)}`, `Before switch: ${d.visitors.before} · after: ${d.visitors.after}`),
+    tile("Visitors", `${(d.visitors.before + d.visitors.after)}`, `${daily.reduce((t, x) => t + x.pageViews, 0)} page views`),
     tile("Clicked “Talk to our team”", `${talk}`, "intent to book a call"),
     tile("Meetings booked", d.meetings ? `${d.meetings.total}` : "—", d.errors.meetings ? "unavailable" : "with ChatGPT tags"),
-    tile("App sign-ups", `${d.signups ? d.signups.total : 0}`, d.signups ? `Before switch: ${d.signups.before} · after: ${d.signups.after}` : ""),
+    tile("App sign-ups", `${d.signups ? d.signups.total : 0}`, ""),
     tile("Plans bought", `${d.plans ? d.plans.total : 0}`, ""),
   ];
   document.getElementById("tiles").innerHTML = tiles.join("");
-  renderChart(daily, switchDay);
+  renderChart(daily, null);
   const lr = {};
   for (const l of d.landings || []) { lr[l.path] = lr[l.path] || { path: l.path, before: 0, after: 0 }; lr[l.path][l.period] += l.visitors; }
-  beforeAfterChart(document.getElementById("landings"), Object.values(lr).sort((a, b) => (b.before + b.after) - (a.before + a.after)), (r) => r.path);
-  beforeAfterChart(document.getElementById("pages"), d.pages, (r) => r.path);
-  beforeAfterChart(document.getElementById("buttons"), d.buttons, (r) => r.label, (r) => r.page);
+  totalsChart(document.getElementById("landings"), Object.values(lr).sort((a, b) => (b.before + b.after) - (a.before + a.after)), (r) => r.path);
+  totalsChart(document.getElementById("pages"), d.pages, (r) => r.path);
+  totalsChart(document.getElementById("buttons"), d.buttons, (r) => r.label, (r) => r.page);
   const steps = [
     { l: "Visited from the ads", v: d.visitors.before + d.visitors.after, people: null, empty: "Website visitors aren't logged in, so they aren't linked to a contact." },
     { l: "Clicked “Talk to our team”", v: talk, people: null, empty: "Clicks aren't linked to a contact." },
