@@ -360,7 +360,7 @@ async function handleLogin(request, env) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (request.method === "POST" && url.pathname === "/__login") return handleLogin(request, env);
     if (!isAuthed(request, env)) {
@@ -372,6 +372,7 @@ export default {
     if (url.pathname === "/api/deals") return dealAttribution(url, env);
     if (url.pathname === "/api/referrals") return referrals(url, env);
     if (url.pathname === "/api/meetings") return meetingsBooked(url, env);
+    if (url.pathname === "/api/btl-calc") return btlCalcReport(url, env, ctx);
     // Per-campaign pages are query-string routed (/?campaign=key) rather than path-routed
     // (/campaign/key) — tried path-routing first, but it needs a server-side rewrite to the
     // SPA shell for a path with no matching static file, and that rewrite hit an asset-server
@@ -1462,4 +1463,268 @@ async function meetingsBooked(url, env) {
   } catch (e) {
     return json({ error: String(e) }, 502);
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// BTL calculator landing page report (/btl-calculator-page/) — www.getground.co.uk/
+// btl-limited-company-calculator, the Company Google Ads landing page. Relaunched 6 Oct 2026
+// (monorepo PR #1623: free-setup hero, instant tax calculator, Set up today -> checkout), then
+// 7 Oct Set up today switched to app sign-up first (#1629). Compares the 4 weeks before the
+// relaunch with the days since. Aggregates only — no contact-level data leaves the worker.
+//
+// Sources:
+//   - Visits, clicks, calculator use, app sign-up landings and sign-ups: Mixpanel via BigQuery
+//     (mixpanel_production.mp_master_event; may lag Mixpanel itself by up to a day).
+//   - Form leads: HubSpot form submissions on this page (both forms the page has used).
+//   - Plans bought: Core/Complete Plans deals (closed won) for form leads after they submitted,
+//     and for app accounts created from this page's sign-up link (matched by contact user_id).
+const BTL = {
+  pagePath: "/btl-limited-company-calculator",
+  launchIso: "2026-10-06T13:02:00Z",      // #1623 merged (14:02 BST)
+  signupFirstIso: "2026-10-07T08:32:00Z", // #1629 merged (09:32 BST)
+  baselineStartIso: "2026-09-07T23:00:00Z", // 8 Sep 00:00 BST — 4 weeks before launch day
+  // Both forms this page has embedded, so the old and new versions are counted alike.
+  forms: {
+    "e2ab0d60-3478-495c-bd6a-8ac066202cc2": "Set Up / Learn more form",
+    "01c695d9-e896-4391-bcdf-1621b23e873d": "Old Calculate form",
+  },
+  plansPipeline: "1882997999",
+  // The sign-up link Set up today sends people to (app login page with the Core Plan checkout as
+  // the redirect). Matched both URL-encoded and decoded, since page_url may be stored either way.
+  appLandingLikes: [
+    "%app.getground.co.uk/%redirect=packs-and-plans%2Fcheckout%3Fplan_short_id%3DPL0000002%",
+    "%app.getground.co.uk/%redirect=packs-and-plans/checkout?plan_short_id=PL0000002%",
+  ],
+};
+
+// Button ids -> readable groups. Old ids are kept so the "before" period reads correctly.
+function btlButtonGroup(id) {
+  if (!id) return "Other";
+  if (id.startsWith("btl_calc_landing_setup_today")) return "Set up today";
+  if (id.startsWith("btl_calc_landing_learn_more")) return "Learn more (form)";
+  if (id.startsWith("btl_calc_landing_calculator")) return "Calculate my tax savings (scroll)";
+  if (id.startsWith("btl_calc_landing_cta1")) return "Old: Set Up My Limited Company (form)";
+  if (id.startsWith("btl_calc_landing_cta2")) return "Old: Calculate My Tax Savings (form)";
+  if (id.startsWith("btl_calculator_quiz") || id.includes("see_my_tax")) return "Old: See My Tax Savings (quiz)";
+  return "Header / footer / other";
+}
+
+let _mpTimeCol = null; // detected once per warm worker
+async function mpTimeExpr(env) {
+  if (_mpTimeCol) return _mpTimeCol;
+  const cols = await bqQuery(env, `SELECT column_name, data_type FROM \`${BQ_PROJECT}.mixpanel_production.INFORMATION_SCHEMA.COLUMNS\` WHERE table_name = 'mp_master_event'`);
+  const byName = Object.fromEntries(cols.map((c) => [c.column_name, c.data_type]));
+  const pick = ["time", "event_time", "timestamp", "mp_time"].find((n) => byName[n]);
+  if (!pick) throw new Error(`mp_master_event: no time column found (columns: ${Object.keys(byName).join(", ")})`);
+  const t = byName[pick];
+  // Mixpanel exports time as TIMESTAMP, or as epoch seconds/millis in INT64 depending on the export.
+  _mpTimeCol = t === "TIMESTAMP" ? `\`${pick}\``
+    : t === "INT64" ? `IF(\`${pick}\` > 100000000000, TIMESTAMP_MILLIS(\`${pick}\`), TIMESTAMP_SECONDS(\`${pick}\`))`
+    : `TIMESTAMP(\`${pick}\`)`;
+  return _mpTimeCol;
+}
+
+function btlMixpanelSql(T) {
+  const url = `COALESCE(JSON_VALUE(properties,'$.page_url'), JSON_VALUE(properties,'$."$current_url"'))`;
+  const landing = BTL.appLandingLikes.map((l) => `${url} LIKE '${l}'`).join(" OR ");
+  return `
+WITH ev AS (
+  SELECT ${T} AS ts, event_name, distinct_id, CAST(user_id AS STRING) AS user_id,
+         ${url} AS url,
+         JSON_VALUE(properties,'$.button_id') AS button_id,
+         JSON_VALUE(properties,'$.page_section') AS section,
+         JSON_VALUE(properties,'$.option_group') AS option_group,
+         JSON_VALUE(properties,'$."$device_id"') AS device_id
+  FROM \`${BQ_PROJECT}.mixpanel_production.mp_master_event\`
+  WHERE ${T} >= TIMESTAMP('${BTL.baselineStartIso}')
+),
+page AS (SELECT * FROM ev WHERE url LIKE '%getground.co.uk${BTL.pagePath}%'),
+landings AS (SELECT ts, distinct_id, device_id FROM ev WHERE ts >= TIMESTAMP('${BTL.launchIso}') AND (${landing})),
+signups AS (
+  SELECT DISTINCT e.ts, COALESCE(e.user_id, e.distinct_id) AS uid
+  FROM (SELECT * FROM ev WHERE event_name IN ('user_creation_succeeded','web_session_user_creation_succeeded') AND ts >= TIMESTAMP('${BTL.launchIso}')) e
+  JOIN landings l ON (e.distinct_id = l.distinct_id OR (e.device_id IS NOT NULL AND e.device_id = l.device_id))
+  WHERE e.ts >= l.ts
+)
+SELECT 'daily' AS kind, CAST(DATE(ts,'Europe/London') AS STRING) AS d, CAST(NULL AS STRING) AS bucket, CAST(NULL AS STRING) AS section,
+  COUNT(DISTINCT distinct_id) AS users, COUNTIF(event_name='page_viewed') AS events,
+  COUNT(DISTINCT IF(event_name='option_selected' AND option_group='btl_tax_savings_calculator', distinct_id, NULL)) AS extra
+FROM page GROUP BY d
+UNION ALL
+SELECT 'click', IF(ts >= TIMESTAMP('${BTL.launchIso}'),'after','before'), button_id, section,
+  COUNT(DISTINCT distinct_id), COUNT(*), NULL
+FROM page WHERE event_name='button_clicked' GROUP BY 2,3,4
+UNION ALL
+SELECT 'clickday', CAST(DATE(ts,'Europe/London') AS STRING), button_id, NULL, COUNT(DISTINCT distinct_id), COUNT(*), NULL
+FROM page WHERE event_name='button_clicked' GROUP BY 2,3
+UNION ALL
+SELECT 'landing', CAST(DATE(ts,'Europe/London') AS STRING), NULL, NULL, COUNT(DISTINCT distinct_id), COUNT(*), NULL
+FROM landings GROUP BY 2
+UNION ALL
+SELECT 'signup', CAST(DATE(ts,'Europe/London') AS STRING), uid, NULL, 1, 1, NULL FROM signups`;
+}
+
+async function btlWonStages(API, H) {
+  const p = await hsFetch(`${API}/crm/v3/pipelines/deals/${BTL.plansPipeline}`, { headers: H });
+  return new Set((p.stages || []).filter((s) => s.metadata && s.metadata.isClosed === "true" && Number(s.metadata.probability) === 1).map((s) => s.id));
+}
+
+async function btlPlansForContacts(API, H, contactSince, won) {
+  // contactSince: { contactId: sinceMs } -> number of won Plans deals created after sinceMs
+  const ids = Object.keys(contactSince);
+  if (!ids.length) return [];
+  const c2d = await batchAssociations(API, H, "contacts", "deals", ids);
+  const dealIds = [...new Set(Object.values(c2d).flat())];
+  const deals = await batchRead(API, H, "deals", dealIds, ["pipeline", "dealstage", "createdate", "amount"]);
+  const out = [];
+  for (const cid of ids) {
+    for (const did of c2d[cid] || []) {
+      const d = deals[did];
+      if (!d || d.pipeline !== BTL.plansPipeline || !won.has(d.dealstage)) continue;
+      const ms = Date.parse(d.createdate);
+      if (ms >= contactSince[cid] - 3600e3) out.push({ ms, amount: Number(d.amount) || 0 });
+    }
+  }
+  return out;
+}
+
+async function btlFormLeads(API, H) {
+  const since = Date.parse(BTL.baselineStartIso);
+  const subs = [];
+  for (const [formId, name] of Object.entries(BTL.forms)) {
+    let after = null;
+    do {
+      const j = await hsFetch(`${API}/form-integrations/v1/submissions/forms/${formId}?limit=50${after ? `&after=${after}` : ""}`, { headers: H });
+      for (const r of j.results || []) {
+        if (r.submittedAt < since) continue;
+        if (!(r.pageUrl || "").includes(BTL.pagePath)) continue;
+        const email = ((r.values || []).find((v) => v.name === "email") || {}).value;
+        if (email) subs.push({ formId, form: name, ms: r.submittedAt, email: email.toLowerCase().trim() });
+      }
+      after = j.paging && j.paging.next && j.paging.next.after;
+      // Results come newest first; stop paging once a whole page is older than the window.
+      if ((j.results || []).length && j.results[j.results.length - 1].submittedAt < since) after = null;
+    } while (after);
+  }
+  return subs;
+}
+
+function londonDay(ms) {
+  return new Date(ms).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+}
+
+async function btlCalcReport(url, env, ctx) {
+  const cache = caches.default;
+  const cacheKey = new Request(`${url.origin}/__cache/btl-calc-v1`);
+  if (url.searchParams.get("refresh") !== "1") {
+    const hit = await cache.match(cacheKey);
+    if (hit) return hit;
+  }
+  const API = "https://api.hubapi.com";
+  const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
+  const nowMs = Date.now();
+  const launchMs = Date.parse(BTL.launchIso), baseMs = Date.parse(BTL.baselineStartIso);
+  const out = {
+    page: `https://www.getground.co.uk${BTL.pagePath}`,
+    launchIso: BTL.launchIso, signupFirstIso: BTL.signupFirstIso, baselineStartIso: BTL.baselineStartIso,
+    generatedAt: new Date(nowMs).toISOString(),
+    days: { before: (launchMs - baseMs) / 864e5, after: (nowMs - launchMs) / 864e5 },
+    errors: {},
+  };
+
+  let won = null;
+  try { won = await btlWonStages(API, H); } catch (e) { out.errors.plans = String(e); }
+
+  // --- HubSpot: form leads and the plans they went on to buy
+  try {
+    const subs = await btlFormLeads(API, H);
+    const firstByEmail = {};
+    for (const s of subs.sort((a, b) => a.ms - b.ms)) if (!firstByEmail[s.email]) firstByEmail[s.email] = s;
+    const daily = {};
+    for (const s of subs) {
+      const d = londonDay(s.ms);
+      daily[d] = daily[d] || { submissions: 0 };
+      daily[d].submissions++;
+    }
+    out.formLeads = {
+      daily,
+      byForm: Object.values(BTL.forms).map((f) => ({
+        form: f,
+        before: subs.filter((s) => s.form === f && s.ms < launchMs).length,
+        after: subs.filter((s) => s.form === f && s.ms >= launchMs).length,
+      })),
+      people: {
+        before: Object.values(firstByEmail).filter((s) => s.ms < launchMs).length,
+        after: Object.values(firstByEmail).filter((s) => s.ms >= launchMs).length,
+      },
+    };
+    if (won) {
+      const emails = Object.keys(firstByEmail);
+      const contactSince = {};
+      for (const c of chunk(emails, 100)) {
+        const j = await hsFetch(`${API}/crm/v3/objects/contacts/batch/read`, {
+          method: "POST", headers: H,
+          body: JSON.stringify({ idProperty: "email", inputs: c.map((id) => ({ id })), properties: ["email"] }),
+        });
+        for (const r of j.results || []) contactSince[r.id] = firstByEmail[(r.properties.email || "").toLowerCase()].ms;
+      }
+      const plans = await btlPlansForContacts(API, H, contactSince, won);
+      out.formLeads.plans = {
+        before: plans.filter((p) => p.ms < launchMs).length,
+        after: plans.filter((p) => p.ms >= launchMs).length,
+      };
+    }
+  } catch (e) { out.errors.formLeads = String(e); }
+
+  // --- Mixpanel (BigQuery): visits, clicks, calculator, app sign-up landings and sign-ups
+  if (!env.GCP_SA_EMAIL || !env.GCP_SA_PRIVATE_KEY) {
+    out.errors.mixpanel = "BigQuery service account not configured";
+  } else {
+    try {
+      const rows = await bqQuery(env, btlMixpanelSql(await mpTimeExpr(env)));
+      const num = (v) => Number(v) || 0;
+      out.daily = rows.filter((r) => r.kind === "daily").map((r) => ({ date: r.d, visitors: num(r.users), pageViews: num(r.events), calculatorUsers: num(r.extra) })).sort((a, b) => a.date.localeCompare(b.date));
+      const clicks = {};
+      for (const r of rows.filter((x) => x.kind === "click")) {
+        const k = `${btlButtonGroup(r.bucket)}|${r.section || "—"}`;
+        clicks[k] = clicks[k] || { group: btlButtonGroup(r.bucket), section: r.section || "—", before: 0, after: 0, beforeClicks: 0, afterClicks: 0 };
+        clicks[k][r.d] += num(r.users);
+        clicks[k][`${r.d}Clicks`] += num(r.events);
+      }
+      out.clicks = Object.values(clicks).sort((a, b) => (b.after + b.before) - (a.after + a.before));
+      const clickDaily = {};
+      for (const r of rows.filter((x) => x.kind === "clickday")) {
+        const g = btlButtonGroup(r.bucket);
+        clickDaily[r.d] = clickDaily[r.d] || {};
+        clickDaily[r.d][g] = (clickDaily[r.d][g] || 0) + num(r.users);
+      }
+      out.clickDaily = clickDaily;
+      out.signupLandings = rows.filter((r) => r.kind === "landing").map((r) => ({ date: r.d, users: num(r.users) }));
+      const signupRows = rows.filter((r) => r.kind === "signup");
+      const signupUids = [...new Set(signupRows.map((r) => r.bucket).filter((u) => /^\d+$/.test(u || "")))];
+      const signupDaily = {};
+      for (const r of signupRows) signupDaily[r.d] = (signupDaily[r.d] || 0) + 1;
+      out.signups = { total: new Set(signupRows.map((r) => r.bucket)).size, daily: signupDaily };
+      // Plans bought by those new accounts: HubSpot contacts carry the app user id (user_id).
+      if (won && signupUids.length) {
+        const contactSince = {};
+        for (const c of chunk(signupUids, 100)) {
+          const j = await hsFetch(`${API}/crm/v3/objects/contacts/search`, {
+            method: "POST", headers: H,
+            body: JSON.stringify({ filterGroups: [{ filters: [{ propertyName: "user_id", operator: "IN", values: c }] }], properties: ["user_id"], limit: 100 }),
+          });
+          for (const r of j.results || []) contactSince[r.id] = launchMs;
+        }
+        const plans = await btlPlansForContacts(API, H, contactSince, won);
+        out.signups.plans = plans.length;
+      } else if (out.signups) {
+        out.signups.plans = 0;
+      }
+    } catch (e) { out.errors.mixpanel = String(e); }
+  }
+
+  const res = json(out, 200);
+  res.headers.set("Cache-Control", "max-age=600");
+  if (ctx && ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, res.clone()));
+  return res;
 }
