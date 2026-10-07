@@ -362,7 +362,9 @@ function render(d) {
   if (!d.errors.mixpanel) {
     tiles.push(tile("Visitors", afterDays.length ? avg(afterDays, "visitors") : null, avg(beforeDays, "visitors"), "/day", 1, afterDays.length ? "" : "(first full day pending)"));
     tiles.push(tile("Clicked to set up", setupAfter, setupBefore, "people/day", 1, "", false));
-    tiles.push(tile("Used the calculator", afterDays.length ? avg(afterDays, "calculatorUsers") : null, null, "/day", 1, "new since relaunch"));
+    // Calculator users since relaunch (launch day onward), rated over the same window as clicks.
+    const calcSince = daily.filter((x) => x.date >= LAUNCH_DAY).reduce((t, x) => t + x.calculatorUsers, 0) / cd.after;
+    tiles.push(`<div class="tile"><div class="l">Used the calculator</div><div class="v">${fmt(calcSince, 1)}<span style="font-size:13px;font-weight:400;color:var(--text-muted)"> people/day</span></div><div class="was">Before: none</div></div>`);
     tiles.push(tile("App sign-ups from page", d.signups ? d.signups.total : 0, null, "since", 0));
   }
   if (fl) tiles.push(tile("Form leads", fl.people.after / d.days.after, fl.people.before / d.days.before, "people/day", 2));
