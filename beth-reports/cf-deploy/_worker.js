@@ -77,6 +77,7 @@ const REPORTS = {
       },
       {
         key: "reengage-unmigrated",
+        closed: true, // Moved under "Closed" on the dashboard (7 Oct) — data still computed/shown.
         label: "Reengage — Unmigrated customers",
         match: (s) => s.includes("unmigrated customers"),
         // Real subject: "#N | Call | Reengage | unmigrated customers".
@@ -210,18 +211,18 @@ const REPORTS = {
       },
       {
         key: "reengage-nonpaying-master",
-        label: "Re-engagement — Non-paying master list",
-        // Real subject: "#1 | Call | Re-engagement | Non paying customers (master list) mrr".
-        // Doesn't collide with the closed "reengage-nonpaying" project (matched on its full
-        // "- old partner leads" phrase).
-        match: (s) => s.includes("Non paying customers (master list) mrr"),
-        namePattern: "Call | Re-engagement | Non paying customers (master list) mrr",
-        searchTerm: "Call | Re-engagement | Non paying customers (master list) mrr",
-        context: "Master list of non-paying customers, called to move them onto a paid plan.",
-        // Verified against real data (2026-10-06): "master" AND "list" returns 22 tasks
-        // portal-wide, every one of them this campaign (all #1, created 6 Oct) — clean without
-        // an owner filter.
-        attributionSearch: { tokens: ["master", "list"], ownerFiltered: false },
+        label: "Reengage — Nonpaying customers final followup",
+        // Real subject: "#1 | Call | Reengage | Nonpaying customers final followup" (some have a
+        // double space after "#1 |"). Renamed 7 Oct from "Non paying customers (master list) mrr"
+        // — the original 22 tasks (6 Oct) were renamed, plus 56 new ones created 7 Oct.
+        // Key kept so the tab's URL doesn't change.
+        match: (s) => s.includes("Call | Reengage | Nonpaying customers final followup"),
+        namePattern: "Call | Reengage | Nonpaying customers final followup",
+        searchTerm: "Call | Reengage | Nonpaying customers final followup",
+        context: "Final follow-up with non-paying customers, called to move them onto a paid plan.",
+        // Verified against real data (2026-10-07): "Nonpaying" AND "followup" returns exactly
+        // 78 tasks portal-wide, every one of them this campaign — clean without an owner filter.
+        attributionSearch: { tokens: ["Nonpaying", "followup"], ownerFiltered: false },
         // Same attribution rules as Upsell-Complete — see outcomeForEnrollmentTask.
         outcomeMatching: "enrollment",
         // "Action needed by 16th October" (nonpaying customer (master list) - 1026) went to 23
@@ -1059,7 +1060,7 @@ async function outcomes(url, env) {
       portalId: PORTAL_ID,
       projects,
       other,
-      method: "Each completed task is first matched to the nearest OUTBOUND call on the same contact, within -2h/+15min of completion, preferring same-owner calls (no direct task<->call association exists in this account). If no call matches, the task is reclassified by the next non-call outreach on the contact within -3h/+3h of completion, in priority order: a rep note (classified from its text where recognisable, otherwise shown verbatim), then a WhatsApp message, then an email. Only tasks with none of these show as '(no outreach found)'. totalReached counts contact by any channel; totalMatchedToCall counts calls only. EXCEPTION — the Complete plan upsell, LTD freemium, LTD missed leads and BA closed won queues use enrollment-window matching instead: Closed won (same rule as the Deals card) > meeting created since the task was created (split into from email — contact self-booked via the booking link — vs booked by a rep) > the latest outbound/manually-logged call between task creation and completion + 48h, preferring the task owner's calls > the note/WhatsApp/email fallback above. For LTD missed leads and BA closed won, only meetings/calls/notes by the campaign reps (Asya, Chey, Yoana) count — other teams' activity on the same contacts is ignored. LTD missed leads has no campaign email, so all its meetings count as booked by rep. Non-paying master list's email went out before its call tasks were created, so its closed-won and meeting window opens at the email send (6 Oct 11:35 UTC) instead.",
+      method: "Each completed task is first matched to the nearest OUTBOUND call on the same contact, within -2h/+15min of completion, preferring same-owner calls (no direct task<->call association exists in this account). If no call matches, the task is reclassified by the next non-call outreach on the contact within -3h/+3h of completion, in priority order: a rep note (classified from its text where recognisable, otherwise shown verbatim), then a WhatsApp message, then an email. Only tasks with none of these show as '(no outreach found)'. totalReached counts contact by any channel; totalMatchedToCall counts calls only. EXCEPTION — the Complete plan upsell, LTD freemium, LTD missed leads and BA closed won queues use enrollment-window matching instead: Closed won (same rule as the Deals card) > meeting created since the task was created (split into from email — contact self-booked via the booking link — vs booked by a rep) > the latest outbound/manually-logged call between task creation and completion + 48h, preferring the task owner's calls > the note/WhatsApp/email fallback above. For LTD missed leads and BA closed won, only meetings/calls/notes by the campaign reps (Asya, Chey, Yoana) count — other teams' activity on the same contacts is ignored. LTD missed leads has no campaign email, so all its meetings count as booked by rep. Nonpaying final followup's email went out before its call tasks were created, so its closed-won and meeting window opens at the email send (6 Oct 11:35 UTC) instead.",
     }, 200);
   } catch (e) {
     return json({ error: String(e) }, 502);
@@ -1207,7 +1208,7 @@ async function dealAttribution(url, env) {
       portalId: PORTAL_ID,
       projects,
       other,
-      method: "Every contact ever associated with a task in this sequence (any task status) is checked for a Closed Won deal in the \"Plans\" HubSpot pipeline that closed ON OR AFTER the date they were first enrolled in that sequence (their earliest task's creation date there) — a deal that closed before they were ever put into the sequence doesn't count. Where the campaign email went out before the call tasks (Non-paying master list: 6 Oct 11:35 UTC), enrollment is the email send instead. Bucketed by plan type (plans___product_type: Core/Complete) and whether it was flagged an upsell (p_p___upsell). A contact can appear in more than one bucket if they closed more than one qualifying deal (e.g. closed Core shortly after enrolling, then upsold to Complete later) — both are real outcomes. SEPARATELY, contacts with no qualifying deal are checked against the \"Packs and Plans confirmed\" behavioral event (is_migration=true) — migrations never create a Plans deal, per the team, so they'd otherwise be invisible here. This event carries a real timestamp, so — same as deals — only an event that fired ON OR AFTER enrollment counts. Migration rows show whether MRR has actually started (hs_active_contracts_mrr) since these customers are usually still on trial.",
+      method: "Every contact ever associated with a task in this sequence (any task status) is checked for a Closed Won deal in the \"Plans\" HubSpot pipeline that closed ON OR AFTER the date they were first enrolled in that sequence (their earliest task's creation date there) — a deal that closed before they were ever put into the sequence doesn't count. Where the campaign email went out before the call tasks (Nonpaying final followup: 6 Oct 11:35 UTC, for the first 22 contacts), enrollment is the email send instead. Bucketed by plan type (plans___product_type: Core/Complete) and whether it was flagged an upsell (p_p___upsell). A contact can appear in more than one bucket if they closed more than one qualifying deal (e.g. closed Core shortly after enrolling, then upsold to Complete later) — both are real outcomes. SEPARATELY, contacts with no qualifying deal are checked against the \"Packs and Plans confirmed\" behavioral event (is_migration=true) — migrations never create a Plans deal, per the team, so they'd otherwise be invisible here. This event carries a real timestamp, so — same as deals — only an event that fired ON OR AFTER enrollment counts. Migration rows show whether MRR has actually started (hs_active_contracts_mrr) since these customers are usually still on trial.",
     }, 200);
   } catch (e) {
     return json({ error: String(e) }, 502);
