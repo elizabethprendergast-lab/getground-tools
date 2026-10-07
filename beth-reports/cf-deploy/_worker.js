@@ -1509,7 +1509,7 @@ function btlButtonGroup(id) {
   return "Header / footer / other";
 }
 
-const BTL_CACHE_VERSION = "v4-funnel-contacts";
+const BTL_CACHE_VERSION = "v5-mixpanel-live";
 
 let _mpTimeCol = null; // detected once per warm worker
 async function mpTimeExpr(env) {
@@ -1617,6 +1617,83 @@ function londonDay(ms) {
   return new Date(ms).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
 }
 
+// Live Mixpanel via the Raw Event Export API (EU residency), authenticated with a read-only
+// service account (MIXPANEL_SA_USERNAME / MIXPANEL_SA_SECRET Pages secrets). Three small exports
+// per refresh; with the 10-minute cache that stays well inside the export rate limit.
+const MP_PROJECT_ID = "3987900"; // New Production
+async function mpExport(env, { from, to, events, where }) {
+  const q = new URLSearchParams({ project_id: MP_PROJECT_ID, from_date: from, to_date: to });
+  if (events) q.set("event", JSON.stringify(events));
+  if (where) q.set("where", where);
+  const r = await fetch(`https://data-eu.mixpanel.com/api/2.0/export?${q}`, {
+    headers: { Authorization: "Basic " + btoa(`${env.MIXPANEL_SA_USERNAME}:${env.MIXPANEL_SA_SECRET}`), Accept: "text/plain" },
+  });
+  const text = await r.text();
+  if (!r.ok) throw new Error(`Mixpanel export ${r.status}: ${text.slice(0, 200)}`);
+  return text.split("\n").filter(Boolean).map((l) => JSON.parse(l));
+}
+
+async function btlMixpanelLive(env, out, launchMs) {
+  const today = londonDay(Date.now());
+  const page = await mpExport(env, {
+    from: londonDay(Date.parse(BTL.baselineStartIso) + 3600e3), to: today,
+    where: `defined(properties["$current_url"]) and "getground.co.uk${BTL.pagePath}" in properties["$current_url"]`,
+  });
+  const launchDay = londonDay(launchMs);
+  const landingEvents = await mpExport(env, {
+    from: launchDay, to: today, events: ["page_viewed"],
+    where: `defined(properties["$current_url"]) and "app.getground.co.uk/" in properties["$current_url"] and "plan_short_id" in properties["$current_url"] and "redirect=packs-and-plans" in properties["$current_url"]`,
+  });
+  const creations = await mpExport(env, { from: launchDay, to: today, events: ["user_creation_succeeded", "web_session_user_creation_succeeded"] });
+
+  const ms = (e) => (e.properties.time || 0) * 1000;
+  const days = {};
+  const uniq = (d, k) => (days[d][k] = days[d][k] || new Set());
+  const clicks = {};
+  for (const e of page) {
+    const p = e.properties, t = ms(e), d = londonDay(t);
+    days[d] = days[d] || { pageViews: 0 };
+    uniq(d, "visitors").add(p.distinct_id);
+    if (e.event === "page_viewed") days[d].pageViews++;
+    if (e.event === "option_selected" && p.option_group === "btl_tax_savings_calculator") uniq(d, "calc").add(p.distinct_id);
+    if (e.event === "button_clicked") {
+      const period = t >= launchMs ? "after" : "before";
+      const k = `${btlButtonGroup(p.button_id)}|${p.page_section || "—"}`;
+      clicks[k] = clicks[k] || { group: btlButtonGroup(p.button_id), section: p.page_section || "—", beforeSet: new Set(), afterSet: new Set(), beforeClicks: 0, afterClicks: 0 };
+      clicks[k][`${period}Set`].add(p.distinct_id);
+      clicks[k][`${period}Clicks`]++;
+    }
+  }
+  out.daily = Object.keys(days).sort().map((d) => ({ date: d, visitors: days[d].visitors.size, pageViews: days[d].pageViews, calculatorUsers: days[d].calc ? days[d].calc.size : 0 }));
+  out.clicks = Object.values(clicks).map((c) => ({ group: c.group, section: c.section, before: c.beforeSet.size, after: c.afterSet.size, beforeClicks: c.beforeClicks, afterClicks: c.afterClicks }))
+    .sort((a, b) => (b.after + b.before) - (a.after + a.before));
+
+  // Sign-ups: an account created (normal or web-session upgrade) by a device/user that landed
+  // on this page's sign-up link, after that landing.
+  const firstLanding = {};
+  const landDays = {}, landUids = new Set();
+  for (const e of landingEvents) {
+    const p = e.properties, t = ms(e);
+    if (t < launchMs) continue;
+    for (const id of [p.$device_id, p.$user_id].filter(Boolean)) firstLanding[id] = Math.min(firstLanding[id] ?? Infinity, t);
+    const d = londonDay(t);
+    (landDays[d] = landDays[d] || new Set()).add(p.$device_id || p.distinct_id);
+    if (p.$user_id) landUids.add(String(p.$user_id));
+  }
+  out.signupLandings = Object.keys(landDays).sort().map((d) => ({ date: d, users: landDays[d].size, userIds: [] }));
+  if (out.signupLandings.length) out.signupLandings[0].userIds = [...landUids];
+  const signed = {}, signDaily = {};
+  for (const e of creations) {
+    const p = e.properties, t = ms(e);
+    const first = Math.min(firstLanding[p.$device_id] ?? Infinity, firstLanding[p.$user_id] ?? Infinity);
+    if (!(t >= first)) continue;
+    const uid = String(p.$user_id || p.distinct_id);
+    if (!signed[uid]) { signed[uid] = t; const d = londonDay(t); signDaily[d] = (signDaily[d] || 0) + 1; }
+  }
+  out.signups = { total: Object.keys(signed).length, daily: signDaily, userIds: Object.keys(signed).filter((u) => /^\d+$/.test(u)), plans: 0 };
+  out.mixpanelLive = true;
+}
+
 async function btlCalcReport(url, env, ctx) {
   const cache = caches.default;
   // Versioned so a deploy that changes the response shape never serves a stale cached copy —
@@ -1682,8 +1759,10 @@ async function btlCalcReport(url, env, ctx) {
     }
   } catch (e) { out.errors.formLeads = String(e); }
 
-  // --- Mixpanel (BigQuery): visits, clicks, calculator, app sign-up landings and sign-ups
-  if (!env.GCP_SA_EMAIL || !env.GCP_SA_PRIVATE_KEY) {
+  // --- Mixpanel: live via service account if configured, else BigQuery, else the snapshot
+  if (env.MIXPANEL_SA_USERNAME && env.MIXPANEL_SA_SECRET) {
+    try { await btlMixpanelLive(env, out, launchMs); } catch (e) { out.errors.mixpanel = String(e); }
+  } else if (!env.GCP_SA_EMAIL || !env.GCP_SA_PRIVATE_KEY) {
     // No warehouse access on this Pages project yet: fall back to a Mixpanel snapshot pulled by
     // hand (btl-calculator-page/mixpanel-snapshot.json), clearly labelled as such on the page.
     try {
