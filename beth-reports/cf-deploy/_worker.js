@@ -1509,7 +1509,7 @@ function btlButtonGroup(id) {
   return "Header / footer / other";
 }
 
-const BTL_CACHE_VERSION = "v10-no-cache-on-error";
+const BTL_CACHE_VERSION = "v11-signup-identity";
 
 let _mpTimeCol = null; // detected once per warm worker
 async function mpTimeExpr(env) {
@@ -1651,6 +1651,13 @@ async function btlMixpanelLive(env, out, launchMs) {
     where: `defined(properties["$current_url"]) and "app.getground.co.uk/" in properties["$current_url"] and "plan_short_id" in properties["$current_url"] and "redirect=packs-and-plans" in properties["$current_url"]`,
   });
   const creations = await mpExport(env, { from: launchDay, to: today, events: ["user_creation_succeeded", "web_session_user_creation_succeeded"] });
+  // Raw export doesn't resolve identity: the landing is recorded against the anonymous
+  // $device_id, the account creation against $user_id only. Events after sign-up on the
+  // checkout path carry both, so use them to map device -> user.
+  const linking = await mpExport(env, {
+    from: launchDay, to: today,
+    where: `defined(properties["$device_id"]) and defined(properties["$user_id"]) and defined(properties["$current_url"]) and "app.getground.co.uk/" in properties["$current_url"] and "packs-and-plans" in properties["$current_url"]`,
+  });
 
   const ms = (e) => (e.properties.time || 0) * 1000;
   const days = {};
@@ -1688,10 +1695,18 @@ async function btlMixpanelLive(env, out, launchMs) {
   }
   out.signupLandings = Object.keys(landDays).sort().map((d) => ({ date: d, users: landDays[d].size, userIds: [] }));
   if (out.signupLandings.length) out.signupLandings[0].userIds = [...landUids];
+  // user id -> earliest landing by any device that user was later seen on
+  const userFirstLanding = {};
+  for (const e of linking) {
+    const p = e.properties, dev = p.$device_id, uid = String(p.$user_id);
+    if (firstLanding[dev] !== undefined) userFirstLanding[uid] = Math.min(userFirstLanding[uid] ?? Infinity, firstLanding[dev]);
+  }
+  for (const uid of Object.keys(userFirstLanding)) landUids.add(uid);
+  if (out.signupLandings.length) out.signupLandings[0].userIds = [...landUids];
   const signed = {}, signDaily = {};
   for (const e of creations) {
     const p = e.properties, t = ms(e);
-    const first = Math.min(firstLanding[p.$device_id] ?? Infinity, firstLanding[p.$user_id] ?? Infinity);
+    const first = Math.min(firstLanding[p.$device_id] ?? Infinity, firstLanding[p.$user_id] ?? Infinity, userFirstLanding[String(p.$user_id)] ?? Infinity);
     if (!(t >= first)) continue;
     const uid = String(p.$user_id || p.distinct_id);
     if (!signed[uid]) { signed[uid] = t; const d = londonDay(t); signDaily[d] = (signDaily[d] || 0) + 1; }
