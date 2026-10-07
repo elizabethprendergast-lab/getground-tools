@@ -735,7 +735,11 @@ async function fetchData() {
   cache = { stats: statsRes, outcomes: outcomesRes, deals: dealsRes, referrals: referralsRes };
   scopedOutcomes = {};
   scopedDeals = {};
+  // Keep the last good load for this tab, so coming back (e.g. the back button from another
+  // report) can paint instantly instead of waiting on the live HubSpot fetch again.
+  try { sessionStorage.setItem(LAST_LOAD_KEY, JSON.stringify(cache)); } catch (_) { /* quota / disabled */ }
 }
+const LAST_LOAD_KEY = "beth-reports:last-load";
 
 function render() {
   const key = currentCampaignKey();
@@ -785,6 +789,13 @@ function render() {
 
 async function load({ force = false } = {}) {
   try {
+    if (!force && !cache.stats) {
+      // Paint the previous load straight away (if this tab has one), then refresh it below.
+      try {
+        const saved = JSON.parse(sessionStorage.getItem(LAST_LOAD_KEY) || "null");
+        if (saved && saved.stats) { cache = saved; render(); force = true; }
+      } catch (_) { /* unreadable — fall through to a normal load */ }
+    }
     if (force || !cache.stats) {
       if (force) document.getElementById("update-btn").textContent = "Updating…";
       await fetchData();
@@ -802,12 +813,18 @@ document.addEventListener("click", (e) => {
   if (!a) return;
   const url = new URL(a.href, location.href);
   if (url.origin !== location.origin) return;
+  // Only the home page's own tabs (/ and /?campaign=…) are rendered in place. Other reports
+  // (/meetings-booked/, /btl-calculator-page/) are separate pages and must navigate normally,
+  // or the back button returns to a half-rendered home page.
+  if (url.pathname !== "/") return;
   if (e.metaKey || e.ctrlKey || e.shiftKey || a.target === "_blank") return;
   e.preventDefault();
   history.pushState({}, "", url.pathname + url.search);
   render();
 });
 window.addEventListener("popstate", render);
+// Restored from the back/forward cache mid-load: finish loading rather than sit on "Loading…".
+window.addEventListener("pageshow", (e) => { if (e.persisted && !cache.stats) load(); });
 
 // Periodic background refresh so an already-open tab picks up a HubSpot change (priority,
 // new/completed tasks) without someone having to remember to click Update.
