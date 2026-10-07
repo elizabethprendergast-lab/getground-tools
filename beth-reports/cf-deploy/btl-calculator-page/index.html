@@ -318,7 +318,7 @@ function renderForms(d) {
     "Set Up / Learn more form": "Set Up form — before: Set Up button · now: Learn more",
     "Old Calculate form": "Calculate form — removed in the relaunch",
   };
-  const rows = f.byForm.map((x) => `<tr><td>${esc(FORM_LABELS[x.form] || x.form)}</td><td class="n">${x.before}</td><td class="n">${fmt(x.before / d.days.before, 2)}</td><td class="n">${x.after}</td><td class="n">${fmt(x.after / d.days.after, 2)}</td></tr>`).join("");
+  const rows = f.byForm.map((x) => `<tr><td>${esc(FORM_LABELS[x.form] || x.form)}</td><td class="n">${x.before}</td><td class="n">${fmt(x.before / d.days.before, 2)}</td>${x.form === "Old Calculate form" && !x.after ? `<td class="n">—</td><td class="n">—</td>` : `<td class="n">${x.after}</td><td class="n">${fmt(x.after / d.days.after, 2)}</td>`}</tr>`).join("");
   el.innerHTML = `<div class="table-scroll"><table><thead><tr><th>Form</th><th class="n">Before</th><th class="n">Before /day</th><th class="n">Since</th><th class="n">Since /day</th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="sub" style="margin-top:10px">Unique people: ${f.people.before} before, ${f.people.after} since. Of them, ${f.plans ? f.plans.before : "—"} before and ${f.plans ? f.plans.after : "—"} since went on to buy a plan.</p>`;
 }
