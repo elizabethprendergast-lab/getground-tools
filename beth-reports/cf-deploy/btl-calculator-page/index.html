@@ -134,7 +134,7 @@
 
   <section class="card">
     <h2>Where people click</h2>
-    <p class="sub">People clicking per day, with the old and new buttons that do the same job compared side by side. Hover a row to see the individual buttons and where on the page they were.</p>
+    <p class="sub">Average people clicking per day (total people ÷ days in each period), with the old and new buttons that do the same job compared side by side. Hover a row to see the individual buttons and where on the page they were.</p>
     <div id="clicks"></div>
   </section>
 
@@ -300,7 +300,7 @@ function renderClicks(d) {
   if (!rows.length) { el.innerHTML = `<p class="sub">No clicks recorded.</p>`; return; }
   const max = Math.max(...rows.flatMap((r) => [r.a, r.b]), 0.01);
   const w = (v) => `${Math.max((v / max) * 80, v > 0 ? 1 : 0)}%`;
-  const chart = `<div class="legend"><span><i style="background:var(--before)"></i>Before (people/day)</span><span><i style="background:var(--since)"></i>Since relaunch (people/day)</span></div>
+  const chart = `<div class="legend"><span><i style="background:var(--before)"></i>Before: average people per day (8 Sep – 5 Oct)</span><span><i style="background:var(--since)"></i>Since relaunch: average people per day</span></div>
     <div class="chart-wrap"><div class="cchart">${rows.map((r, i) => `
       <div class="lab">${esc(r.group)}${r.noBefore ? "<small>new on the relaunched page</small>" : ""}</div>
       <div class="bars" data-i="${i}">
