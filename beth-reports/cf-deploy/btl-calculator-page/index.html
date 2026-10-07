@@ -56,7 +56,7 @@
   .tile .v { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .tile .was { font-size: 12px; color: var(--text-secondary); margin-top: 4px; font-variant-numeric: tabular-nums; }
   .delta { font-size: 12px; font-weight: 600; margin-left: 6px; white-space: nowrap; }
-  .early { font-size: 12px; font-weight: 400; color: var(--text-muted); margin-left: 6px; white-space: nowrap; }
+  .early { display: block; font-size: 12px; font-weight: 400; color: var(--text-muted); margin-top: 2px; }
   .delta.up { color: var(--good); } .delta.down { color: var(--critical); }
 
   section.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
@@ -101,6 +101,11 @@
   .funnel .row:hover .bar { background: var(--bar-hover); }
   .people { font-size: 12px; color: var(--text-secondary); padding: 0 0 6px calc(34% + 22px); }
   .people a { color: var(--series-1); margin-right: 10px; white-space: nowrap; }
+  .formsetup { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: 0 0 16px; }
+  .formsetup > div { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; min-width: 0; }
+  .formsetup h3 { font-size: 13px; margin: 0 0 6px; color: var(--text-primary); }
+  .formsetup ul { margin: 0; padding-left: 18px; }
+  .formsetup li { margin-bottom: 4px; }
   .notes { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
   .notes li { margin-bottom: 4px; }
 </style>
@@ -135,7 +140,20 @@
 
   <section class="card">
     <h2>Form leads</h2>
-    <p class="sub">HubSpot form submissions made on this page.</p>
+    <p class="sub">HubSpot form submissions made on this page. The page's forms changed with the relaunch, so read this alongside app sign-ups.</p>
+    <div class="formsetup">
+      <div><h3>Before (to 6 Oct 14:02)</h3><ul>
+        <li><b>Set Up My Limited Company</b> → Set Up form (<i>Company Google Ads Lead Capture – 042026</i>) → HubSpot redirect to the app's create-company page.</li>
+        <li><b>Calculate My Tax Savings</b> → Calculate form (<i>P&amp;P – LTD Company Set-Up</i>) → 4-question quiz → AI Property Analyser. No savings shown until after the form.</li>
+        <li>Two ways into a form, from the hero, header, "How it works" and final sections.</li>
+      </ul></div>
+      <div><h3>Now</h3><ul>
+        <li><b>Learn more</b> (under the calculator only) → same Set Up form → company formation page (from 6 Oct 15:13).</li>
+        <li><b>Set up today</b> → no form. Core Plan checkout (6 Oct 14:02 – 7 Oct 09:32), then app sign-up first (from 7 Oct 09:32). These show as app sign-ups, not form leads.</li>
+        <li><b>Calculate my tax savings</b> → scrolls to the instant calculator. No form.</li>
+        <li>The Calculate form is gone from this page.</li>
+      </ul></div>
+    </div>
     <div id="forms"></div>
   </section>
 
@@ -314,7 +332,11 @@ function renderForms(d) {
   const el = document.getElementById("forms");
   if (d.errors.formLeads) { el.innerHTML = `<p class="err">HubSpot form data unavailable: ${esc(d.errors.formLeads)}</p>`; return; }
   const f = d.formLeads;
-  const rows = f.byForm.map((x) => `<tr><td>${esc(x.form)}</td><td class="n">${x.before}</td><td class="n">${fmt(x.before / d.days.before, 2)}</td><td class="n">${x.after}</td><td class="n">${fmt(x.after / d.days.after, 2)}</td></tr>`).join("");
+  const FORM_LABELS = {
+    "Set Up / Learn more form": "Set Up form — before: Set Up button · now: Learn more",
+    "Old Calculate form": "Calculate form — removed in the relaunch",
+  };
+  const rows = f.byForm.map((x) => `<tr><td>${esc(FORM_LABELS[x.form] || x.form)}</td><td class="n">${x.before}</td><td class="n">${fmt(x.before / d.days.before, 2)}</td><td class="n">${x.after}</td><td class="n">${fmt(x.after / d.days.after, 2)}</td></tr>`).join("");
   el.innerHTML = `<div class="table-scroll"><table><thead><tr><th>Form</th><th class="n">Before</th><th class="n">Before /day</th><th class="n">Since</th><th class="n">Since /day</th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="sub" style="margin-top:10px">Unique people: ${f.people.before} before, ${f.people.after} since. Of them, ${f.plans ? f.plans.before : "—"} before and ${f.plans ? f.plans.after : "—"} since went on to buy a plan.</p>`;
 }
@@ -343,6 +365,9 @@ function render(d) {
     tiles.push(tile("App sign-ups from page", d.signups ? d.signups.total : 0, null, "since", 0));
   }
   if (fl) tiles.push(tile("Form leads", fl.people.after / d.days.after, fl.people.before / d.days.before, "people/day", 2));
+  // Set up today replaced a form with app sign-up, so compare total hand-raisers, not forms alone.
+  // Before the relaunch the page had no sign-up route, so "before" is form leads only.
+  if (fl) tiles.push(tile("Leads + sign-ups", (fl.people.after + (d.signups ? d.signups.total : 0)) / d.days.after, fl.people.before / d.days.before, "people/day", 2, "(before: form leads only)"));
   const plansAfter = (fl && fl.plans ? fl.plans.after : 0) + (d.signups ? d.signups.plans || 0 : 0);
   tiles.push(`<div class="tile"><div class="l">Plans bought</div><div class="v">${plansAfter}<span style="font-size:13px;font-weight:400;color:var(--text-muted)"> since relaunch</span></div>
     <div class="was">${fl && fl.plans ? `4 weeks before: ${fl.plans.before} (from form leads)` : ""}</div></div>`);
