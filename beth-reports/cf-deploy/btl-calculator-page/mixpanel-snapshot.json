@@ -379,7 +379,12 @@
  "signupLandings": [
   {
    "date": "2026-10-07",
-   "users": 2
+   "users": 2,
+   "userIds": [
+    "94200",
+    "241590",
+    "241598"
+   ]
   }
  ],
  "signups": {
@@ -388,6 +393,9 @@
   "daily": {
    "2026-10-07": 1
   },
-  "note": "includes 1 internal test sign-up (7 Oct 09:46)"
+  "note": "includes 1 internal test sign-up (7 Oct 09:46)",
+  "userIds": [
+   "241598"
+  ]
  }
 }
