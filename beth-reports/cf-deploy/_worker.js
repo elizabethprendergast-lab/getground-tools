@@ -1971,7 +1971,7 @@ const CHATGPT = {
   campaigns: ["ltd_company", "chatgpt_LTDads"],
   directLanding: "/features/limited-company-set-up",
 };
-const CHATGPT_CACHE_VERSION = "v1";
+const CHATGPT_CACHE_VERSION = "v2-counts";
 
 function urlPath(u) {
   try { return new URL(u).pathname.replace(/\/$/, "") || "/"; } catch (_) { return "(unknown)"; }
@@ -2019,14 +2019,16 @@ async function chatgptLtdReport(url, env, ctx) {
           const k = `${period(t)}|${path}`;
           landings[k] = (landings[k] || 0) + 1;
         }
-        pages[path] = pages[path] || { before: new Set(), after: new Set() };
+        pages[path] = pages[path] || { before: new Set(), after: new Set(), views: 0 };
         pages[path][period(t)].add(who);
+        pages[path].views++;
       }
       if (e.event === "button_clicked") {
         const label = (p.button_text || p.button_id || "(unlabelled)").trim();
         const k = `${label}|${urlPath(p.$current_url)}`;
-        buttons[k] = buttons[k] || { label, page: urlPath(p.$current_url), before: new Set(), after: new Set() };
+        buttons[k] = buttons[k] || { label, page: urlPath(p.$current_url), before: new Set(), after: new Set(), clicks: 0 };
         buttons[k][period(t)].add(who);
+        buttons[k].clicks++;
       }
     }
     out.daily = Object.keys(days).sort().map((d) => ({ date: d, visitors: days[d].visitors.size, pageViews: days[d].pageViews }));
@@ -2034,8 +2036,8 @@ async function chatgptLtdReport(url, env, ctx) {
     for (const [who, t] of Object.entries(firstSeen)) visitors[period(t)].add(who);
     out.visitors = { before: visitors.before.size, after: visitors.after.size };
     out.landings = Object.entries(landings).map(([k, n]) => { const [p, path] = k.split("|"); return { period: p, path, visitors: n }; }).sort((a, b) => b.visitors - a.visitors);
-    out.pages = Object.entries(pages).map(([path, v]) => ({ path, before: v.before.size, after: v.after.size })).sort((a, b) => (b.before + b.after) - (a.before + a.after)).slice(0, 15);
-    out.buttons = Object.values(buttons).map((b) => ({ label: b.label, page: b.page, before: b.before.size, after: b.after.size })).sort((a, b) => (b.before + b.after) - (a.before + a.after)).slice(0, 15);
+    out.pages = Object.entries(pages).map(([path, v]) => ({ path, before: v.before.size, after: v.after.size, views: v.views })).sort((a, b) => b.views - a.views).slice(0, 15);
+    out.buttons = Object.values(buttons).map((b) => ({ label: b.label, page: b.page, before: b.before.size, after: b.after.size, clicks: b.clicks })).sort((a, b) => b.clicks - a.clicks).slice(0, 15);
 
     // App sign-ups: links into the app carry the UTMs (e.g. BTL calculator page "Set up today"),
     // so app events from these visitors carry utm_source=chatgpt too. Link device -> user via
