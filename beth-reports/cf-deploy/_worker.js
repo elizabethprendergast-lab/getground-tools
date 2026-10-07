@@ -1509,6 +1509,8 @@ function btlButtonGroup(id) {
   return "Header / footer / other";
 }
 
+const BTL_CACHE_VERSION = "v2-snapshot";
+
 let _mpTimeCol = null; // detected once per warm worker
 async function mpTimeExpr(env) {
   if (_mpTimeCol) return _mpTimeCol;
@@ -1615,7 +1617,9 @@ function londonDay(ms) {
 
 async function btlCalcReport(url, env, ctx) {
   const cache = caches.default;
-  const cacheKey = new Request(`${url.origin}/__cache/btl-calc-v1`);
+  // Versioned so a deploy that changes the response shape never serves a stale cached copy —
+  // bump BTL_CACHE_VERSION whenever btlCalcReport's output changes.
+  const cacheKey = new Request(`${url.origin}/__cache/btl-calc-${BTL_CACHE_VERSION}`);
   if (url.searchParams.get("refresh") !== "1") {
     const hit = await cache.match(cacheKey);
     if (hit) return hit;
