@@ -1509,7 +1509,7 @@ function btlButtonGroup(id) {
   return "Header / footer / other";
 }
 
-const BTL_CACHE_VERSION = "v5-mixpanel-live";
+const BTL_CACHE_VERSION = "v6-mixpanel-live-secrets";
 
 let _mpTimeCol = null; // detected once per warm worker
 async function mpTimeExpr(env) {
