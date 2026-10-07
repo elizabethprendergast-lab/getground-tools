@@ -111,7 +111,7 @@
 
   <section class="card">
     <h2>Where people click</h2>
-    <p class="sub">People clicking each button per day, before vs since the relaunch. "Old" buttons only exist in the before period.</p>
+    <p class="sub">People clicking each button per day, before vs since the relaunch. "Old" buttons in the since column are 6 Oct clicks from before the 14:02 relaunch.</p>
     <div id="clicks"></div>
   </section>
 
@@ -216,8 +216,9 @@ function renderFunnel(d) {
 function renderClicks(d) {
   const el = document.getElementById("clicks");
   if (d.errors.mixpanel) { el.innerHTML = `<p class="err">Mixpanel data unavailable: ${esc(d.errors.mixpanel)}</p>`; return; }
+  const cd = d.clickDays || d.days;
   const rows = (d.clicks || []).map((c) => `<tr><td>${esc(c.group)}</td><td>${esc(c.section)}</td>
-    <td class="n">${fmt(c.before / d.days.before, 2)}</td><td class="n">${fmt(c.after / d.days.after, 2)}</td><td class="n">${c.after}</td></tr>`).join("");
+    <td class="n">${fmt(c.before / cd.before, 2)}</td><td class="n">${fmt(c.after / cd.after, 2)}</td><td class="n">${c.after}</td></tr>`).join("");
   el.innerHTML = rows ? `<div class="table-scroll"><table><thead><tr><th>Button</th><th>Position</th><th class="n">Before (people/day)</th><th class="n">Since (people/day)</th><th class="n">Since (people)</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<p class="sub">No clicks recorded.</p>`;
 }
 
@@ -233,14 +234,18 @@ function renderForms(d) {
 function render(d) {
   const launch = new Date(d.launchIso);
   afterDaysSoFar = d.days.after;
-  document.getElementById("meta").innerHTML = `Relaunched <b>${launch.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" })}</b> · comparing the 4 weeks before with the <b>${fmt(d.days.after, 1)} days</b> since.`;
+  const snapNote = d.mixpanelSnapshotAt ? `<br><span style="color:var(--text-muted)">Visits, clicks and sign-ups are a <b>Mixpanel snapshot taken ${new Date(d.mixpanelSnapshotAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" })}</b> (the site has no live Mixpanel connection yet). Form leads and plans are live from HubSpot.</span>` : "";
+  document.getElementById("meta").innerHTML = `Relaunched <b>${launch.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" })}</b> · comparing the 4 weeks before with the <b>${fmt(d.days.after, 1)} days</b> since.${snapNote}`;
   const daily = d.daily || [];
   const beforeDays = daily.filter((x) => x.date < LAUNCH_DAY);
-  const afterDays = daily.filter((x) => x.date > LAUNCH_DAY);
+  // Complete days only: the launch day is split old/new, and today is still in progress.
+  const todayLondon = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const afterDays = daily.filter((x) => x.date > LAUNCH_DAY && x.date < todayLondon);
   const avg = (arr, k) => arr.length ? arr.reduce((a, x) => a + x[k], 0) / arr.length : null;
   const sumGroups = (period, groups) => (d.clicks || []).filter((c) => groups.includes(c.group)).reduce((a, c) => a + c[period], 0);
-  const mainBefore = sumGroups("before", ["Old: Set Up My Limited Company (form)", "Old: Calculate My Tax Savings (form)"]) / d.days.before;
-  const mainAfter = sumGroups("after", ["Set up today", "Learn more (form)", "Calculate my tax savings (scroll)"]) / d.days.after;
+  const cd = d.clickDays || d.days;
+  const mainBefore = sumGroups("before", ["Old: Set Up My Limited Company (form)", "Old: Calculate My Tax Savings (form)"]) / cd.before;
+  const mainAfter = sumGroups("after", ["Set up today", "Learn more (form)", "Calculate my tax savings (scroll)"]) / cd.after;
   const fl = d.formLeads;
   const tiles = [];
   if (!d.errors.mixpanel) {
