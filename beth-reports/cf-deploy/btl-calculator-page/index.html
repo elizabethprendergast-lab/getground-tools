@@ -129,7 +129,7 @@
 
   <section class="card">
     <h2>Where people click</h2>
-    <p class="sub">People clicking each button per day, before vs since the relaunch. "Old" buttons in the since column are 6 Oct clicks from before the 14:02 relaunch.</p>
+    <p class="sub">People clicking per day, with the old and new buttons that do the same job compared side by side. Hover a row to see the individual buttons and where on the page they were.</p>
     <div id="clicks"></div>
   </section>
 
@@ -262,14 +262,29 @@ function renderClicks(d) {
   const el = document.getElementById("clicks");
   if (d.errors.mixpanel) { el.innerHTML = `<p class="err">Mixpanel data unavailable: ${esc(d.errors.mixpanel)}</p>`; return; }
   const cd = d.clickDays || d.days;
-  const rows = (d.clicks || []).map((c) => ({ ...c, b: c.before / cd.before, a: c.after / cd.after }))
-    .sort((x, y) => Math.max(y.a, y.b) - Math.max(x.a, x.b));
+  // Old and new buttons that do the same job share a row, so before/since compare like with like.
+  // Old-button clicks in the since period are 6 Oct morning (pre-relaunch), so they're left out.
+  const JOBS = [
+    { key: "Set up my company", before: ["Old: Set Up My Limited Company (form)"], since: ["Set up today"] },
+    { key: "Calculate tax savings", before: ["Old: Calculate My Tax Savings (form)", "Old: See My Tax Savings (quiz)"], since: ["Calculate my tax savings (scroll)"] },
+    { key: "Learn more (form)", before: [], since: ["Learn more (form)"] },
+    { key: "Header / footer / menu", before: ["Header / footer / other"], since: ["Header / footer / other"] },
+  ];
+  const rows = JOBS.map((j) => {
+    const bParts = (d.clicks || []).filter((c) => j.before.includes(c.group) && c.before);
+    const aParts = (d.clicks || []).filter((c) => j.since.includes(c.group) && c.after);
+    const before = bParts.reduce((t, c) => t + c.before, 0), after = aParts.reduce((t, c) => t + c.after, 0);
+    return { group: j.key, before, after, b: before / cd.before, a: after / cd.after,
+      beforeBy: bParts.map((c) => `${c.group.replace(/^Old: /, "")} · ${c.section}: ${c.before}`),
+      sinceBy: aParts.map((c) => `${c.group} · ${c.section}: ${c.after}`),
+      noBefore: !j.before.length };
+  });
   if (!rows.length) { el.innerHTML = `<p class="sub">No clicks recorded.</p>`; return; }
   const max = Math.max(...rows.flatMap((r) => [r.a, r.b]), 0.01);
   const w = (v) => `${Math.max((v / max) * 80, v > 0 ? 1 : 0)}%`;
   const chart = `<div class="legend"><span><i style="background:var(--before)"></i>Before (people/day)</span><span><i style="background:var(--since)"></i>Since relaunch (people/day)</span></div>
     <div class="chart-wrap"><div class="cchart">${rows.map((r, i) => `
-      <div class="lab">${esc(r.group)}<small>${esc(r.section)}</small></div>
+      <div class="lab">${esc(r.group)}${r.noBefore ? "<small>new on the relaunched page</small>" : ""}</div>
       <div class="bars" data-i="${i}">
         <div class="brow"><div class="b before" style="width:${w(r.b)}"></div><span class="v">${fmt(r.b, 2)}</span></div>
         <div class="brow"><div class="b since" style="width:${w(r.a)}"></div><span class="v">${fmt(r.a, 2)}</span></div>
@@ -280,7 +295,7 @@ function renderClicks(d) {
   el.querySelectorAll(".bars").forEach((b) => {
     const r = rows[+b.dataset.i];
     b.addEventListener("mousemove", (e) => {
-      tip.innerHTML = `<b>${esc(r.group)}</b> · ${esc(r.section)}<br>Before: ${fmt(r.b, 2)}/day (${r.before} people, ${r.beforeClicks} clicks)<br>Since: ${fmt(r.a, 2)}/day (${r.after} people, ${r.afterClicks} clicks)`;
+      tip.innerHTML = `<b>${esc(r.group)}</b><br>Before: ${fmt(r.b, 2)}/day (${r.before} people)${r.beforeBy.length ? `<br>&nbsp;&nbsp;${r.beforeBy.map(esc).join("<br>&nbsp;&nbsp;")}` : ""}<br>Since: ${fmt(r.a, 2)}/day (${r.after} people)${r.sinceBy.length ? `<br>&nbsp;&nbsp;${r.sinceBy.map(esc).join("<br>&nbsp;&nbsp;")}` : ""}`;
       const box = wrap.getBoundingClientRect();
       tip.style.display = "block";
       tip.style.left = Math.min(e.clientX - box.left + 12, box.width - tip.offsetWidth) + "px";
@@ -288,7 +303,7 @@ function renderClicks(d) {
     });
     b.addEventListener("mouseleave", () => { tip.style.display = "none"; });
   });
-  const table = `<div class="table-scroll" style="margin-top:10px"><table><thead><tr><th>Button</th><th>Position</th><th class="n">Before (people/day)</th><th class="n">Since (people/day)</th><th class="n">Since (people)</th></tr></thead><tbody>${rows.map((c) => `<tr><td>${esc(c.group)}</td><td>${esc(c.section)}</td><td class="n">${fmt(c.b, 2)}</td><td class="n">${fmt(c.a, 2)}</td><td class="n">${c.after}</td></tr>`).join("")}</tbody></table></div>`;
+  const table = `<div class="table-scroll" style="margin-top:10px"><table><thead><tr><th>Button</th><th class="n">Before (people/day)</th><th class="n">Since (people/day)</th><th class="n">Before (people)</th><th class="n">Since (people)</th></tr></thead><tbody>${rows.map((c) => `<tr><td>${esc(c.group)}</td><td class="n">${fmt(c.b, 2)}</td><td class="n">${fmt(c.a, 2)}</td><td class="n">${c.before}</td><td class="n">${c.after}</td></tr>`).join("")}</tbody></table></div>`;
   el.querySelector("#clicks-table").innerHTML = table;
   el.querySelector("#clicks-toggle").addEventListener("click", (e) => {
     const t = el.querySelector("#clicks-table"); t.hidden = !t.hidden; e.target.textContent = t.hidden ? "Show as table" : "Hide table";
