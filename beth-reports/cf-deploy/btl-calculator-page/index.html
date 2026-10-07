@@ -354,13 +354,14 @@ function render(d) {
   const avg = (arr, k) => arr.length ? arr.reduce((a, x) => a + x[k], 0) / arr.length : null;
   const sumGroups = (period, groups) => (d.clicks || []).filter((c) => groups.includes(c.group)).reduce((a, c) => a + c[period], 0);
   const cd = d.clickDays || d.days;
-  const mainBefore = sumGroups("before", ["Old: Set Up My Limited Company (form)", "Old: Calculate My Tax Savings (form)"]) / cd.before;
-  const mainAfter = sumGroups("after", ["Set up today", "Learn more (form)", "Calculate my tax savings (scroll)"]) / cd.after;
+  // Set-up intent: old "Set Up My Limited Company" before, "Set up today" since.
+  const setupBefore = sumGroups("before", ["Old: Set Up My Limited Company (form)"]) / cd.before;
+  const setupAfter = sumGroups("after", ["Set up today"]) / cd.after;
   const fl = d.formLeads;
   const tiles = [];
   if (!d.errors.mixpanel) {
     tiles.push(tile("Visitors", afterDays.length ? avg(afterDays, "visitors") : null, avg(beforeDays, "visitors"), "/day", 1, afterDays.length ? "" : "(first full day pending)"));
-    tiles.push(tile("Main button clicks", mainAfter, mainBefore, "people/day"));
+    tiles.push(tile("Clicked to set up", setupAfter, setupBefore, "people/day", 1, "", false));
     tiles.push(tile("Used the calculator", afterDays.length ? avg(afterDays, "calculatorUsers") : null, null, "/day", 1, "new since relaunch"));
     tiles.push(tile("App sign-ups from page", d.signups ? d.signups.total : 0, null, "since", 0));
   }
