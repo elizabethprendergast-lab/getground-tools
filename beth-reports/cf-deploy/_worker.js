@@ -1509,7 +1509,7 @@ function btlButtonGroup(id) {
   return "Header / footer / other";
 }
 
-const BTL_CACHE_VERSION = "v11-signup-identity";
+const BTL_CACHE_VERSION = "v12-signup-hubspot-confirm";
 
 let _mpTimeCol = null; // detected once per warm worker
 async function mpTimeExpr(env) {
@@ -1712,6 +1712,9 @@ async function btlMixpanelLive(env, out, launchMs) {
     if (!signed[uid]) { signed[uid] = t; const d = londonDay(t); signDaily[d] = (signDaily[d] || 0) + 1; }
   }
   out.signups = { total: Object.keys(signed).length, daily: signDaily, userIds: Object.keys(signed).filter((u) => /^\d+$/.test(u)), plans: 0 };
+  // Accounts seen after a landing on this page's link, for HubSpot to confirm as new sign-ups
+  // (the app doesn't always send its account-created event to Mixpanel).
+  out._linkedUsers = userFirstLanding;
   out.mixpanelLive = true;
 }
 
@@ -1849,6 +1852,30 @@ async function btlCalcReport(url, env, ctx) {
       out.signupLandings.push({ date: null, users: 0, userIds: rows.filter((r) => r.kind === "landinguid").map((r) => r.bucket) });
     } catch (e) { out.errors.mixpanel = String(e); }
   }
+
+  // Confirm sign-ups Mixpanel missed: a user seen after landing on this page's sign-up link
+  // whose HubSpot contact was created after that landing (excludes existing accounts logging in).
+  try {
+    const linked = out._linkedUsers || {};
+    delete out._linkedUsers;
+    const known = new Set((out.signups && out.signups.userIds) || []);
+    const candidates = Object.keys(linked).filter((u) => /^\d+$/.test(u) && !known.has(u));
+    for (const c of chunk(candidates, 100)) {
+      const j = await hsFetch(`${API}/crm/v3/objects/contacts/search`, {
+        method: "POST", headers: H,
+        body: JSON.stringify({ filterGroups: [{ filters: [{ propertyName: "user_id", operator: "IN", values: c }] }], properties: ["user_id", "createdate"], limit: 100 }),
+      });
+      for (const r of j.results || []) {
+        const uid = r.properties.user_id, created = Date.parse(r.properties.createdate);
+        if (created >= linked[uid] - 5 * 60e3) {
+          out.signups.userIds.push(uid);
+          out.signups.total++;
+          const d = londonDay(created);
+          out.signups.daily[d] = (out.signups.daily[d] || 0) + 1;
+        }
+      }
+    }
+  } catch (e) { out.errors.signupConfirm = String(e); }
 
   // Funnel people: app user ids -> HubSpot contact ids, so the page can link each step to the
   // records (ids/links only, no names/emails — this site is behind a shared password, not SSO).
