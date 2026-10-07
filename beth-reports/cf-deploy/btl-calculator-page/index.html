@@ -368,9 +368,6 @@ function render(d) {
     tiles.push(tile("App sign-ups from page", d.signups ? d.signups.total : 0, null, "since", 0));
   }
   if (fl) tiles.push(tile("Form leads", fl.people.after / d.days.after, fl.people.before / d.days.before, "people/day", 2));
-  // Set up today replaced a form with app sign-up, so compare total hand-raisers, not forms alone.
-  // Before the relaunch the page had no sign-up route, so "before" is form leads only.
-  if (fl) tiles.push(tile("Leads + sign-ups", (fl.people.after + (d.signups ? d.signups.total : 0)) / d.days.after, fl.people.before / d.days.before, "people/day", 2, "(before: form leads only)"));
   const plansAfter = (fl && fl.plans ? fl.plans.after : 0) + (d.signups ? d.signups.plans || 0 : 0);
   tiles.push(`<div class="tile"><div class="l">Plans bought</div><div class="v">${plansAfter}<span style="font-size:13px;font-weight:400;color:var(--text-muted)"> since relaunch</span></div>
     <div class="was">${fl && fl.plans ? `4 weeks before: ${fl.plans.before} (from form leads)` : ""}</div></div>`);
