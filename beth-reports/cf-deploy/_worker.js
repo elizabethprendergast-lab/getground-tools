@@ -378,6 +378,7 @@ export default {
     if (url.pathname === "/api/referrals") return referrals(url, env);
     if (url.pathname === "/api/meetings") return meetingsBooked(url, env);
     if (url.pathname === "/api/btl-calc") return btlCalcReport(url, env, ctx);
+    if (url.pathname === "/api/chatgpt-ltd") return chatgptLtdReport(url, env, ctx);
     // Per-campaign pages are query-string routed (/?campaign=key) rather than path-routed
     // (/campaign/key) — tried path-routing first, but it needs a server-side rewrite to the
     // SPA shell for a path with no matching static file, and that rewrite hit an asset-server
@@ -1952,6 +1953,153 @@ async function btlCalcReport(url, env, ctx) {
 
   const res = json(out, 200);
   // Don't keep an errored result for 10 minutes — the next load should retry straight away.
+  if (Object.keys(out.errors).length) return res;
+  res.headers.set("Cache-Control", "max-age=600");
+  if (ctx && ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, res.clone()));
+  return res;
+}
+
+// ---------------------------------------------------------------------------------------------
+// ChatGPT ads – Ltd company report (/chatgpt-ltd-company/). Ads (utm_source=chatgpt,
+// utm_campaign=ltd_company; an early test used chatgpt_LTDads) first pointed at /company, which
+// redirects to /features/limited-company-set-up and drops the query string; the ad link was then
+// switched to /features/limited-company-set-up directly. Mixpanel keeps UTMs as super
+// properties, so every event from these visitors carries them even after the redirect.
+const CHATGPT = {
+  startDay: "2026-10-05",
+  campaigns: ["ltd_company", "chatgpt_LTDads"],
+  directLanding: "/features/limited-company-set-up",
+};
+const CHATGPT_CACHE_VERSION = "v1";
+
+function urlPath(u) {
+  try { return new URL(u).pathname.replace(/\/$/, "") || "/"; } catch (_) { return "(unknown)"; }
+}
+
+async function chatgptLtdReport(url, env, ctx) {
+  const cache = caches.default;
+  const cacheKey = new Request(`${url.origin}/__cache/chatgpt-ltd-${CHATGPT_CACHE_VERSION}`);
+  if (url.searchParams.get("refresh") !== "1") {
+    const hit = await cache.match(cacheKey);
+    if (hit) return hit;
+  }
+  const API = "https://api.hubapi.com";
+  const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
+  const today = londonDay(Date.now());
+  const out = { campaigns: CHATGPT.campaigns, startDay: CHATGPT.startDay, generatedAt: new Date().toISOString(), errors: {} };
+  if (!mpCreds(env)) { out.errors.mixpanel = "Mixpanel service account not configured"; return json(out, 200); }
+
+  const campaignWhere = CHATGPT.campaigns.map((c) => `properties["utm_campaign"] == "${c}"`).join(" or ");
+  try {
+    const events = await mpExport(env, {
+      from: CHATGPT.startDay, to: today,
+      where: `properties["utm_source"] == "chatgpt" and (${campaignWhere})`,
+    });
+    const ms = (e) => (e.properties.time || 0) * 1000;
+    events.sort((a, b) => ms(a) - ms(b));
+    const web = events.filter((e) => (e.properties.$current_url || "").includes("www.getground.co.uk"));
+
+    // Link switch: first ad visit that landed on the direct URL with the UTMs still in it.
+    const firstDirect = web.find((e) => e.event === "page_viewed" && (e.properties.$current_url || "").includes(`${CHATGPT.directLanding}?`) && (e.properties.$current_url || "").includes("utm_source=chatgpt"));
+    const switchMs = firstDirect ? ms(firstDirect) : null;
+    out.switchIso = switchMs ? new Date(switchMs).toISOString() : null;
+    const period = (t) => (switchMs && t >= switchMs ? "after" : "before");
+
+    const days = {}, landings = {}, pages = {}, buttons = {}, firstSeen = {};
+    for (const e of web) {
+      const p = e.properties, t = ms(e), d = londonDay(t), who = p.distinct_id;
+      days[d] = days[d] || { visitors: new Set(), pageViews: 0 };
+      days[d].visitors.add(who);
+      if (e.event === "page_viewed") {
+        days[d].pageViews++;
+        const path = urlPath(p.$current_url);
+        if (!firstSeen[who]) {
+          firstSeen[who] = t;
+          const k = `${period(t)}|${path}`;
+          landings[k] = (landings[k] || 0) + 1;
+        }
+        pages[path] = pages[path] || { before: new Set(), after: new Set() };
+        pages[path][period(t)].add(who);
+      }
+      if (e.event === "button_clicked") {
+        const label = (p.button_text || p.button_id || "(unlabelled)").trim();
+        const k = `${label}|${urlPath(p.$current_url)}`;
+        buttons[k] = buttons[k] || { label, page: urlPath(p.$current_url), before: new Set(), after: new Set() };
+        buttons[k][period(t)].add(who);
+      }
+    }
+    out.daily = Object.keys(days).sort().map((d) => ({ date: d, visitors: days[d].visitors.size, pageViews: days[d].pageViews }));
+    const visitors = { before: new Set(), after: new Set() };
+    for (const [who, t] of Object.entries(firstSeen)) visitors[period(t)].add(who);
+    out.visitors = { before: visitors.before.size, after: visitors.after.size };
+    out.landings = Object.entries(landings).map(([k, n]) => { const [p, path] = k.split("|"); return { period: p, path, visitors: n }; }).sort((a, b) => b.visitors - a.visitors);
+    out.pages = Object.entries(pages).map(([path, v]) => ({ path, before: v.before.size, after: v.after.size })).sort((a, b) => (b.before + b.after) - (a.before + a.after)).slice(0, 15);
+    out.buttons = Object.values(buttons).map((b) => ({ label: b.label, page: b.page, before: b.before.size, after: b.after.size })).sort((a, b) => (b.before + b.after) - (a.before + a.after)).slice(0, 15);
+
+    // App sign-ups: links into the app carry the UTMs (e.g. BTL calculator page "Set up today"),
+    // so app events from these visitors carry utm_source=chatgpt too. Link device -> user via
+    // app events carrying both ids, and confirm the account is new in HubSpot.
+    const app = events.filter((e) => (e.properties.$current_url || "").includes("app.getground.co.uk"));
+    const firstApp = {};
+    for (const e of app) {
+      const p = e.properties;
+      for (const id of [p.$device_id, p.$user_id].filter(Boolean)) firstApp[String(id)] = Math.min(firstApp[String(id)] ?? Infinity, ms(e));
+    }
+    out.appVisitors = new Set(app.map((e) => e.properties.$device_id || e.properties.distinct_id)).size;
+    const userIds = new Set(app.map((e) => e.properties.$user_id).filter(Boolean).map(String));
+    const created = await mpExport(env, { from: CHATGPT.startDay, to: today, events: ["user_creation_succeeded", "web_session_user_creation_succeeded"] });
+    for (const e of created) {
+      const p = e.properties;
+      if (firstApp[p.$device_id] !== undefined && p.$user_id) userIds.add(String(p.$user_id));
+    }
+    const people = [];
+    for (const c of chunk([...userIds].filter((u) => /^\d+$/.test(u)), 100)) {
+      const j = await hsFetch(`${API}/crm/v3/objects/contacts/search`, {
+        method: "POST", headers: H,
+        body: JSON.stringify({ filterGroups: [{ filters: [{ propertyName: "user_id", operator: "IN", values: c }] }], properties: ["user_id", "firstname", "lastname", "email", "createdate"], limit: 100 }),
+      });
+      for (const r of j.results || []) {
+        const p = r.properties, first = firstApp[p.user_id] ?? Math.min(...Object.values(firstApp));
+        if (Date.parse(p.createdate) >= Date.parse(`${CHATGPT.startDay}T00:00:00+01:00`) && Date.parse(p.createdate) >= first - 5 * 60e3) {
+          people.push({ contactId: r.id, userId: p.user_id, name: [p.firstname, p.lastname].filter(Boolean).join(" ").trim() || p.email || null, createdMs: Date.parse(p.createdate) });
+        }
+      }
+    }
+    out.signups = { total: people.length, before: people.filter((x) => period(x.createdMs) === "before").length, after: people.filter((x) => period(x.createdMs) === "after").length, people };
+    // Plans bought by those accounts
+    const won = await btlWonStages(API, H);
+    const c2d = people.length ? await batchAssociations(API, H, "contacts", "deals", people.map((x) => x.contactId)) : {};
+    const deals = await batchRead(API, H, "deals", [...new Set(Object.values(c2d).flat())], ["pipeline", "dealstage", "createdate"]);
+    out.plans = { people: people.filter((x) => (c2d[x.contactId] || []).some((id) => { const d = deals[id]; return d && d.pipeline === BTL.plansPipeline && won.has(d.dealstage) && Date.parse(d.createdate) >= x.createdMs - 3600e3; })) };
+    out.plans.total = out.plans.people.length;
+  } catch (e) { out.errors.mixpanel = String(e); }
+
+  // Meetings booked with these UTMs. The formation page's "Talk to our team" link doesn't pass
+  // UTMs yet, so this stays 0 until it does; clicks on it are counted above as the intent signal.
+  try {
+    const since = Date.parse(`${CHATGPT.startDay}T00:00:00+01:00`);
+    const j = await hsFetch(`${API}/crm/v3/objects/meetings/search`, {
+      method: "POST", headers: H,
+      body: JSON.stringify({
+        filterGroups: CHATGPT.campaigns.map((c) => ({ filters: [
+          { propertyName: "utm_source_of_meeting", operator: "EQ", value: "chatgpt" },
+          { propertyName: "utm_campaign_of_meeting", operator: "EQ", value: c },
+          { propertyName: "hs_createdate", operator: "GTE", value: String(since) },
+        ] })),
+        properties: ["hs_createdate", "hs_meeting_outcome"], limit: 100,
+      }),
+    });
+    const meetings = j.results || [];
+    const m2c = meetings.length ? await batchAssociations(API, H, "meetings", "contacts", meetings.map((m) => m.id)) : {};
+    const cids = [...new Set(Object.values(m2c).flat())];
+    const contacts = await batchRead(API, H, "contacts", cids, ["firstname", "lastname", "email"]);
+    out.meetings = {
+      total: meetings.length,
+      people: cids.map((id) => ({ contactId: id, name: [contacts[id] && contacts[id].firstname, contacts[id] && contacts[id].lastname].filter(Boolean).join(" ").trim() || (contacts[id] && contacts[id].email) || null })),
+    };
+  } catch (e) { out.errors.meetings = String(e); }
+
+  const res = json(out, 200);
   if (Object.keys(out.errors).length) return res;
   res.headers.set("Cache-Control", "max-age=600");
   if (ctx && ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, res.clone()));
