@@ -224,6 +224,11 @@ const REPORTS = {
         attributionSearch: { tokens: ["master", "list"], ownerFiltered: false },
         // Same attribution rules as Upsell-Complete — see outcomeForEnrollmentTask.
         outcomeMatching: "enrollment",
+        // "Action needed by 16th October" (nonpaying customer (master list) - 1026) went to 23
+        // contacts at 11:35 UTC on 6 Oct, ~2.5h before the call tasks were created (14:03 UTC).
+        // The attribution window opens at the send so a sign-up or self-booked meeting from the
+        // email in that gap still counts — see attributionStartMs.
+        campaignEmail: { id: 485822676194, sentAt: "2026-10-06T11:35:51Z" },
       },
     ],
   },
@@ -698,13 +703,24 @@ const ASYNC_WINDOW_AFTER_MS = 3 * 60 * 60 * 1000;  // completion + 3h
 // meeting (booking link sent by the rep after a call) is labelled "by rep" too.
 const ENROLLMENT_CALL_AFTER_MS = 48 * 60 * 60 * 1000; // completion + 48h
 
+// Where a project's campaign email went out before its call tasks were created
+// (campaignEmail.sentAt), the closed-won and meeting window opens at the send instead of the
+// task's creation. Only if the task came within 24h of the send — a contact added to the queue
+// later never got that email send, so their window stays at their own task.
+const CAMPAIGN_EMAIL_LEAD_MAX_MS = 24 * 60 * 60 * 1000;
+function attributionStartMs(cfg, taskCreatedMs) {
+  const sentMs = cfg && cfg.campaignEmail ? Date.parse(cfg.campaignEmail.sentAt) : NaN;
+  return sentMs <= taskCreatedMs && taskCreatedMs - sentMs <= CAMPAIGN_EMAIL_LEAD_MAX_MS ? sentMs : taskCreatedMs;
+}
+
 function outcomeForEnrollmentTask(p, ctx) {
-  const { contactsForTask, enrolledMs, contactToCalls, calls, contactToMeetings, meetings, contactToDeals, deals, isClosedPlansDeal, dispLabel, repOk, noCampaignEmail } = ctx;
+  const { contactsForTask, enrolledMs, contactToCalls, calls, contactToMeetings, meetings, contactToDeals, deals, isClosedPlansDeal, dispLabel, repOk, noCampaignEmail, projectCfg } = ctx;
   const createdMs = Date.parse(p.hs_createdate);
+  const startMs = attributionStartMs(projectCfg, createdMs);
 
   for (const cid of contactsForTask) {
     const won = (contactToDeals[cid] || []).map((id) => deals[id])
-      .filter((d) => isClosedPlansDeal(d) && Date.parse(d.closedate) >= (enrolledMs[cid] ?? createdMs));
+      .filter((d) => isClosedPlansDeal(d) && Date.parse(d.closedate) >= (enrolledMs[cid] ?? startMs));
     if (won.length) {
       const d = won[0];
       return { outcome: `Closed won — ${d.plans___product_type || "plan"} ${d.p_p___upsell === "true" ? "upsell" : "new"}`, category: "converted" };
@@ -715,7 +731,7 @@ function outcomeForEnrollmentTask(p, ctx) {
   for (const cid of contactsForTask) {
     for (const id of contactToMeetings[cid] || []) {
       const m = meetings[id];
-      if (!m || !m.hs_createdate || Date.parse(m.hs_createdate) < createdMs) continue;
+      if (!m || !m.hs_createdate || Date.parse(m.hs_createdate) < startMs) continue;
       if (!repOk(m)) continue;
       if (!meeting || m.hs_meeting_source === "MEETINGS_PUBLIC") meeting = m; // self-booked wins: the call didn't cause it
     }
@@ -862,15 +878,16 @@ async function outcomes(url, env) {
       // Enrollment = contact's earliest task in the project, same as the Deals card. Only done
       // tasks are fetched here, which is the same date in practice (#1 is the first created).
       const enrolledMs = {};
+      const cfgFor = (key) => (report.projects || []).find((c) => c.key === key);
       for (const p of enrollTasks) {
-        const ms = Date.parse(p.hs_createdate);
+        const ms = attributionStartMs(cfgFor(classifyProject(report, p.hs_task_subject)), Date.parse(p.hs_createdate));
         for (const cid of taskToContacts[p.hs_object_id] || []) if (!(enrolledMs[cid] <= ms)) enrolledMs[cid] = ms;
       }
       const ctx = { enrolledMs, contactToCalls, calls, contactToMeetings, meetings, contactToDeals, deals, isClosedPlansDeal, dispLabel };
       for (const p of enrollTasks) {
         const key = classifyProject(report, p.hs_task_subject);
-        const noCampaignEmail = !!(report.projects || []).find((c) => c.key === key)?.noCampaignEmail;
-        enrolledByTask.set(p.hs_object_id, outcomeForEnrollmentTask(p, { ...ctx, repOk: repFilterFor(key), noCampaignEmail, contactsForTask: taskToContacts[p.hs_object_id] || [] }));
+        const projectCfg = cfgFor(key);
+        enrolledByTask.set(p.hs_object_id, outcomeForEnrollmentTask(p, { ...ctx, repOk: repFilterFor(key), noCampaignEmail: !!projectCfg?.noCampaignEmail, projectCfg, contactsForTask: taskToContacts[p.hs_object_id] || [] }));
       }
     }
 
@@ -1018,7 +1035,7 @@ async function outcomes(url, env) {
       portalId: PORTAL_ID,
       projects,
       other,
-      method: "Each completed task is first matched to the nearest OUTBOUND call on the same contact, within -2h/+15min of completion, preferring same-owner calls (no direct task<->call association exists in this account). If no call matches, the task is reclassified by the next non-call outreach on the contact within -3h/+3h of completion, in priority order: a rep note (classified from its text where recognisable, otherwise shown verbatim), then a WhatsApp message, then an email. Only tasks with none of these show as '(no outreach found)'. totalReached counts contact by any channel; totalMatchedToCall counts calls only. EXCEPTION — the Complete plan upsell, LTD freemium, LTD missed leads and BA closed won queues use enrollment-window matching instead: Closed won (same rule as the Deals card) > meeting created since the task was created (split into from email — contact self-booked via the booking link — vs booked by a rep) > the latest outbound/manually-logged call between task creation and completion + 48h, preferring the task owner's calls > the note/WhatsApp/email fallback above. For LTD missed leads and BA closed won, only meetings/calls/notes by the campaign reps (Asya, Chey, Yoana) count — other teams' activity on the same contacts is ignored. LTD missed leads has no campaign email, so all its meetings count as booked by rep.",
+      method: "Each completed task is first matched to the nearest OUTBOUND call on the same contact, within -2h/+15min of completion, preferring same-owner calls (no direct task<->call association exists in this account). If no call matches, the task is reclassified by the next non-call outreach on the contact within -3h/+3h of completion, in priority order: a rep note (classified from its text where recognisable, otherwise shown verbatim), then a WhatsApp message, then an email. Only tasks with none of these show as '(no outreach found)'. totalReached counts contact by any channel; totalMatchedToCall counts calls only. EXCEPTION — the Complete plan upsell, LTD freemium, LTD missed leads and BA closed won queues use enrollment-window matching instead: Closed won (same rule as the Deals card) > meeting created since the task was created (split into from email — contact self-booked via the booking link — vs booked by a rep) > the latest outbound/manually-logged call between task creation and completion + 48h, preferring the task owner's calls > the note/WhatsApp/email fallback above. For LTD missed leads and BA closed won, only meetings/calls/notes by the campaign reps (Asya, Chey, Yoana) count — other teams' activity on the same contacts is ignored. LTD missed leads has no campaign email, so all its meetings count as booked by rep. Non-paying master list's email went out before its call tasks were created, so its closed-won and meeting window opens at the email send (6 Oct 11:35 UTC) instead.",
     }, 200);
   } catch (e) {
     return json({ error: String(e) }, 502);
@@ -1089,7 +1106,8 @@ async function dealAttribution(url, env) {
     for (const p of allTasks) {
       const key = classifyProject(report, p.hs_task_subject);
       const map = (projectContacts[key] ||= new Map());
-      const createdMs = Date.parse(p.hs_createdate);
+      // Opens at the campaign email's send where it preceded the tasks — see attributionStartMs.
+      const createdMs = attributionStartMs((report.projects || []).find((c) => c.key === key), Date.parse(p.hs_createdate));
       for (const cid of taskToContacts[p.hs_object_id] || []) {
         const prev = map.get(cid);
         if (prev === undefined || createdMs < prev) map.set(cid, createdMs);
@@ -1165,7 +1183,7 @@ async function dealAttribution(url, env) {
       portalId: PORTAL_ID,
       projects,
       other,
-      method: "Every contact ever associated with a task in this sequence (any task status) is checked for a Closed Won deal in the \"Plans\" HubSpot pipeline that closed ON OR AFTER the date they were first enrolled in that sequence (their earliest task's creation date there) — a deal that closed before they were ever put into the sequence doesn't count. Bucketed by plan type (plans___product_type: Core/Complete) and whether it was flagged an upsell (p_p___upsell). A contact can appear in more than one bucket if they closed more than one qualifying deal (e.g. closed Core shortly after enrolling, then upsold to Complete later) — both are real outcomes. SEPARATELY, contacts with no qualifying deal are checked against the \"Packs and Plans confirmed\" behavioral event (is_migration=true) — migrations never create a Plans deal, per the team, so they'd otherwise be invisible here. This event carries a real timestamp, so — same as deals — only an event that fired ON OR AFTER enrollment counts. Migration rows show whether MRR has actually started (hs_active_contracts_mrr) since these customers are usually still on trial.",
+      method: "Every contact ever associated with a task in this sequence (any task status) is checked for a Closed Won deal in the \"Plans\" HubSpot pipeline that closed ON OR AFTER the date they were first enrolled in that sequence (their earliest task's creation date there) — a deal that closed before they were ever put into the sequence doesn't count. Where the campaign email went out before the call tasks (Non-paying master list: 6 Oct 11:35 UTC), enrollment is the email send instead. Bucketed by plan type (plans___product_type: Core/Complete) and whether it was flagged an upsell (p_p___upsell). A contact can appear in more than one bucket if they closed more than one qualifying deal (e.g. closed Core shortly after enrolling, then upsold to Complete later) — both are real outcomes. SEPARATELY, contacts with no qualifying deal are checked against the \"Packs and Plans confirmed\" behavioral event (is_migration=true) — migrations never create a Plans deal, per the team, so they'd otherwise be invisible here. This event carries a real timestamp, so — same as deals — only an event that fired ON OR AFTER enrollment counts. Migration rows show whether MRR has actually started (hs_active_contracts_mrr) since these customers are usually still on trial.",
     }, 200);
   } catch (e) {
     return json({ error: String(e) }, 502);
