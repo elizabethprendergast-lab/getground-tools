@@ -138,13 +138,13 @@
 
   <section class="card">
     <h2>Pages they visited</h2>
-    <p class="sub">Visitors per page.</p>
+    <p class="sub">Page views per page.</p>
     <div id="pages"></div>
   </section>
 
   <section class="card">
     <h2>What they clicked</h2>
-    <p class="sub">Visitors clicking each button.</p>
+    <p class="sub">Total clicks per button.</p>
     <div id="buttons"></div>
   </section>
 
@@ -224,8 +224,9 @@ function renderChart(daily, switchDay) {
   });
 }
 
-function totalsChart(el, rows, labelOf, subOf) {
-  const list = (rows || []).map((r) => ({ ...r, total: (r.before || 0) + (r.after || 0) })).filter((r) => r.total).sort((a, b) => b.total - a.total);
+function totalsChart(el, rows, labelOf, subOf, valueOf) {
+  const val = valueOf || ((r) => (r.before || 0) + (r.after || 0));
+  const list = (rows || []).map((r) => ({ ...r, total: val(r) })).filter((r) => r.total).sort((a, b) => b.total - a.total);
   if (!list.length) { el.innerHTML = `<p class="sub">Nothing recorded yet.</p>`; return; }
   const max = Math.max(...list.map((r) => r.total), 1);
   el.innerHTML = `<div class="cchart">${list.map((r) => `
@@ -255,8 +256,8 @@ function render(d) {
   const lr = {};
   for (const l of d.landings || []) { lr[l.path] = lr[l.path] || { path: l.path, before: 0, after: 0 }; lr[l.path][l.period] += l.visitors; }
   totalsChart(document.getElementById("landings"), Object.values(lr).sort((a, b) => (b.before + b.after) - (a.before + a.after)), (r) => r.path);
-  totalsChart(document.getElementById("pages"), d.pages, (r) => r.path);
-  totalsChart(document.getElementById("buttons"), d.buttons, (r) => r.label, (r) => r.page);
+  totalsChart(document.getElementById("pages"), d.pages, (r) => r.path, null, (r) => r.views ?? (r.before + r.after));
+  totalsChart(document.getElementById("buttons"), d.buttons, (r) => r.label, (r) => r.page, (r) => r.clicks ?? (r.before + r.after));
   const steps = [
     { l: "Visited from the ads", v: d.visitors.before + d.visitors.after, people: null, empty: "Website visitors aren't logged in, so they aren't linked to a contact." },
     { l: "Clicked “Talk to our team”", v: talk, people: null, empty: "Clicks aren't linked to a contact." },
