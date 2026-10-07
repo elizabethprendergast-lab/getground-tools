@@ -101,6 +101,15 @@
   .funnel .row:hover .bar { background: var(--bar-hover); }
   .people { font-size: 12px; color: var(--text-secondary); padding: 0 0 6px calc(34% + 22px); }
   .people a { color: var(--series-1); margin-right: 10px; white-space: nowrap; }
+  #contact-popover {
+    position: fixed; z-index: 50; max-width: 260px; max-height: 260px; overflow-y: auto;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18); padding: 10px 12px; font-size: 12px; display: none;
+  }
+  #contact-popover .ph-title { font-size: 11px; color: var(--text-muted); margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.03em; }
+  #contact-popover a { display: block; padding: 4px 0; color: var(--series-1); text-decoration: none; }
+  #contact-popover a:hover { text-decoration: underline; }
+  #contact-popover .ph-note { color: var(--text-muted); font-style: italic; display: block; padding: 4px 0; }
   .notes { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
   .notes li { margin-bottom: 4px; }
 </style>
@@ -150,6 +159,7 @@
     </ul>
   </section>
   <p class="notes" id="footer"></p>
+  <div id="contact-popover"></div>
 </main>
 
 <script>
@@ -216,11 +226,27 @@ function renderChart(daily) {
   });
 }
 
-function peopleHtml(list, emptyText) {
-  if (!list || !list.length) return `<span>${esc(emptyText)}</span>`;
-  return list.map((p) => p.contactId
-    ? `<a href="https://app-eu1.hubspot.com/contacts/25516403/record/0-1/${encodeURIComponent(p.contactId)}" target="_blank" rel="noopener">HubSpot ${esc(p.contactId)} ↗</a>`
-    : `<span style="margin-right:10px">app user ${esc(p.userId)} (no HubSpot match)</span>`).join("");
+let popoverHideTimer = null;
+function showContactPopover(anchorEl, people, emptyText) {
+  clearTimeout(popoverHideTimer);
+  const pop = document.getElementById("contact-popover");
+  const list = people || [];
+  pop.innerHTML = people === null
+    ? `<span class="ph-note">${esc(emptyText)}</span>`
+    : `<p class="ph-title">${list.length} contact${list.length === 1 ? "" : "s"}</p>` + (list.length
+      ? list.map((p) => p.contactId
+        ? `<a href="https://app-eu1.hubspot.com/contacts/25516403/record/0-1/${encodeURIComponent(p.contactId)}" target="_blank" rel="noopener">${esc(p.name || `HubSpot ${p.contactId}`)}</a>`
+        : `<span class="ph-note">App user ${esc(p.userId)} (not in HubSpot yet)</span>`).join("")
+      : `<span class="ph-note">${esc(emptyText)}</span>`);
+  const rect = anchorEl.getBoundingClientRect();
+  pop.style.display = "block";
+  const top = Math.min(rect.bottom + 6, window.innerHeight - pop.offsetHeight - 12);
+  pop.style.top = Math.max(8, top) + "px";
+  pop.style.left = Math.min(rect.left, window.innerWidth - 280) + "px";
+}
+function scheduleHidePopover() {
+  clearTimeout(popoverHideTimer);
+  popoverHideTimer = setTimeout(() => { document.getElementById("contact-popover").style.display = "none"; }, 250);
 }
 function renderFunnel(d) {
   const el = document.getElementById("funnel");
@@ -229,33 +255,26 @@ function renderFunnel(d) {
   const clickers = (d.clicks || []).filter((c) => c.group === "Set up today").reduce((a, c) => a + c.after, 0);
   const landed = (d.signupLandings || []).reduce((a, r) => a + r.users, 0);
   const steps = [
-    { l: "Clicked Set up today", v: clickers, people: null, empty: "Website visitors aren't logged in, so clicks aren't linked to an account." },
-    { l: "Reached sign-up page", v: landed, people: fp.landed, empty: "No linked accounts." },
-    { l: "Created an account", v: d.signups ? d.signups.total : 0, people: fp.signedUp, empty: "None yet.", note: d.signups && d.signups.note },
-    { l: "Bought a plan", v: d.signups ? d.signups.plans : 0, people: fp.boughtPlan, empty: "None yet." },
+    { l: "Clicked Set up today", v: clickers, people: null, empty: "Website visitors aren't logged in, so clicks aren't linked to a contact." },
+    { l: "Reached sign-up page", v: landed, people: fp.landed || [], empty: "No linked contacts." },
+    { l: "Created an account", v: d.signups ? d.signups.total : 0, people: fp.signedUp || [], empty: "None yet." },
+    { l: "Bought a plan", v: d.signups ? d.signups.plans : 0, people: fp.boughtPlan || [], empty: "None yet." },
   ];
   const max = Math.max(...steps.map((s) => s.v), 1);
-  el.innerHTML = `<div class="chart-wrap"><div class="funnel">${steps.map((s, i) => `
-    <div class="row" data-i="${i}" tabindex="0" role="button" aria-expanded="false"><div class="lab">${esc(s.l)}</div><div class="track"><div class="bar" style="width:${(s.v / max) * 85}%"></div><span class="num">${s.v}</span></div></div>
-    <div class="people" data-for="${i}" hidden>${s.note ? `<div style="margin-bottom:4px">${esc(s.note)}</div>` : ""}${s.people === null ? esc(s.empty) : peopleHtml(s.people, s.empty)}</div>`).join("")}</div><div class="tip"></div></div>
-    <p class="sub" style="margin:10px 0 0">Hover a step to see its HubSpot records; click to open the list with links.</p>`;
-  const tip = el.querySelector(".tip"), wrap = el.querySelector(".chart-wrap");
+  el.innerHTML = `<div class="funnel">${steps.map((s, i) => `
+    <div class="row" data-i="${i}" tabindex="0"><div class="lab">${esc(s.l)}</div><div class="track"><div class="bar" style="width:${(s.v / max) * 85}%"></div><span class="num">${s.v}</span></div></div>`).join("")}</div>
+    <p class="sub" style="margin:10px 0 0">Hover a step to see the contacts; click a name to open them in HubSpot.</p>`;
   el.querySelectorAll(".row").forEach((r) => {
     const s = steps[+r.dataset.i];
-    const n = s.people ? s.people.length : 0;
-    r.addEventListener("mousemove", (e) => {
-      const ids = s.people === null ? esc(s.empty) : (n ? s.people.map((p) => p.contactId ? `HubSpot ${esc(p.contactId)}` : `app user ${esc(p.userId)}`).join("<br>") : esc(s.empty));
-      tip.innerHTML = `<b>${esc(s.l)}: ${s.v}</b><br>${ids}`;
-      const box = wrap.getBoundingClientRect();
-      tip.style.display = "block";
-      tip.style.left = Math.min(e.clientX - box.left + 12, box.width - tip.offsetWidth) + "px";
-      tip.style.top = (e.clientY - box.top + 14) + "px";
-    });
-    r.addEventListener("mouseleave", () => { tip.style.display = "none"; });
-    const toggle = () => { const p = el.querySelector(`.people[data-for="${r.dataset.i}"]`); p.hidden = !p.hidden; r.setAttribute("aria-expanded", String(!p.hidden)); };
-    r.addEventListener("click", toggle);
-    r.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+    const show = () => showContactPopover(r.querySelector(".track"), s.people, s.empty);
+    r.addEventListener("mouseenter", show);
+    r.addEventListener("focus", show);
+    r.addEventListener("mouseleave", scheduleHidePopover);
+    r.addEventListener("blur", scheduleHidePopover);
   });
+  const pop = document.getElementById("contact-popover");
+  pop.onmouseenter = () => clearTimeout(popoverHideTimer);
+  pop.onmouseleave = scheduleHidePopover;
 }
 
 function renderClicks(d) {

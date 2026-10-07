@@ -1509,7 +1509,7 @@ function btlButtonGroup(id) {
   return "Header / footer / other";
 }
 
-const BTL_CACHE_VERSION = "v12-signup-hubspot-confirm";
+const BTL_CACHE_VERSION = "v13-contact-names";
 
 let _mpTimeCol = null; // detected once per warm worker
 async function mpTimeExpr(env) {
@@ -1877,8 +1877,8 @@ async function btlCalcReport(url, env, ctx) {
     }
   } catch (e) { out.errors.signupConfirm = String(e); }
 
-  // Funnel people: app user ids -> HubSpot contact ids, so the page can link each step to the
-  // records (ids/links only, no names/emails — this site is behind a shared password, not SSO).
+  // Funnel people: app user ids -> HubSpot contacts (name, or email if no name) so each step
+  // lists who it was, same as the campaign cards' contact hovers.
   try {
     const landedUids = [...new Set((out.signupLandings || []).flatMap((l) => l.userIds || []))];
     const signedUids = (out.signups && out.signups.userIds) || [];
@@ -1887,11 +1887,14 @@ async function btlCalcReport(url, env, ctx) {
     for (const c of chunk(allUids, 100)) {
       const j = await hsFetch(`${API}/crm/v3/objects/contacts/search`, {
         method: "POST", headers: H,
-        body: JSON.stringify({ filterGroups: [{ filters: [{ propertyName: "user_id", operator: "IN", values: c }] }], properties: ["user_id"], limit: 100 }),
+        body: JSON.stringify({ filterGroups: [{ filters: [{ propertyName: "user_id", operator: "IN", values: c }] }], properties: ["user_id", "firstname", "lastname", "email"], limit: 100 }),
       });
-      for (const r of j.results || []) uidToContact[r.properties.user_id] = r.id;
+      for (const r of j.results || []) {
+        const p = r.properties;
+        uidToContact[p.user_id] = { id: r.id, name: [p.firstname, p.lastname].filter(Boolean).join(" ").trim() || p.email || null };
+      }
     }
-    const person = (uid) => ({ userId: uid, contactId: uidToContact[uid] || null });
+    const person = (uid) => ({ userId: uid, contactId: uidToContact[uid] ? uidToContact[uid].id : null, name: uidToContact[uid] ? uidToContact[uid].name : null });
     out.funnelPeople = { landed: landedUids.map(person), signedUp: signedUids.map(person), boughtPlan: [] };
     if (won && out.signups) {
       const since = {};
