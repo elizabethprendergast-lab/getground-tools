@@ -1509,7 +1509,7 @@ function btlButtonGroup(id) {
   return "Header / footer / other";
 }
 
-const BTL_CACHE_VERSION = "v9-mp-names";
+const BTL_CACHE_VERSION = "v10-no-cache-on-error";
 
 let _mpTimeCol = null; // detected once per warm worker
 async function mpTimeExpr(env) {
@@ -1865,6 +1865,8 @@ async function btlCalcReport(url, env, ctx) {
   } catch (e) { out.errors.funnelPeople = String(e); }
 
   const res = json(out, 200);
+  // Don't keep an errored result for 10 minutes — the next load should retry straight away.
+  if (Object.keys(out.errors).length) return res;
   res.headers.set("Cache-Control", "max-age=600");
   if (ctx && ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, res.clone()));
   return res;
