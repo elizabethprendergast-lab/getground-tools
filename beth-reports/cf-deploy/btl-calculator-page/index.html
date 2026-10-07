@@ -83,6 +83,24 @@
   .funnel .track { display: flex; align-items: center; min-width: 0; border-left: 1px solid var(--baseline); height: 24px; }
   .funnel .bar { height: 14px; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 2px; }
   .funnel .num { font-size: 12px; color: var(--text-secondary); margin-left: 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  :root { --before: #eb6834; --since: #2a78d6; }
+  @media (prefers-color-scheme: dark) { :root { --before: #d95926; --since: #3987e5; } }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary); margin: 0 0 12px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .cchart { display: grid; grid-template-columns: minmax(110px, 34%) minmax(0, 1fr); column-gap: 12px; row-gap: 10px; position: relative; }
+  .cchart .lab { font-size: 12px; color: var(--text-secondary); text-align: right; align-self: center; line-height: 1.3; }
+  .cchart .lab small { display: block; color: var(--text-muted); }
+  .cchart .bars { display: flex; flex-direction: column; gap: 2px; border-left: 1px solid var(--baseline); padding: 2px 0; min-width: 0; cursor: default; }
+  .cchart .bars:hover .b { filter: brightness(0.9); }
+  .cchart .brow { display: flex; align-items: center; min-width: 0; height: 12px; }
+  .cchart .b { height: 10px; border-radius: 0 4px 4px 0; min-width: 2px; flex: none; }
+  .cchart .b.before { background: var(--before); } .cchart .b.since { background: var(--since); }
+  .cchart .v { font-size: 11px; color: var(--text-secondary); margin-left: 5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .linkish { font: inherit; font-size: 12px; background: none; border: none; color: var(--series-1); cursor: pointer; padding: 0; margin-top: 12px; text-decoration: underline; }
+  .funnel .row { cursor: pointer; }
+  .funnel .row:hover .bar { background: var(--bar-hover); }
+  .people { font-size: 12px; color: var(--text-secondary); padding: 0 0 6px calc(34% + 22px); }
+  .people a { color: var(--series-1); margin-right: 10px; white-space: nowrap; }
   .notes { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
   .notes li { margin-bottom: 4px; }
 </style>
@@ -198,28 +216,83 @@ function renderChart(daily) {
   });
 }
 
+function peopleHtml(list, emptyText) {
+  if (!list || !list.length) return `<span>${esc(emptyText)}</span>`;
+  return list.map((p) => p.contactId
+    ? `<a href="https://app-eu1.hubspot.com/contacts/25516403/record/0-1/${encodeURIComponent(p.contactId)}" target="_blank" rel="noopener">HubSpot ${esc(p.contactId)} ↗</a>`
+    : `<span style="margin-right:10px">app user ${esc(p.userId)} (no HubSpot match)</span>`).join("");
+}
 function renderFunnel(d) {
   const el = document.getElementById("funnel");
   if (d.errors.mixpanel) { el.innerHTML = `<p class="err">Mixpanel data unavailable: ${esc(d.errors.mixpanel)}</p>`; return; }
+  const fp = d.funnelPeople || {};
   const clickers = (d.clicks || []).filter((c) => c.group === "Set up today").reduce((a, c) => a + c.after, 0);
   const landed = (d.signupLandings || []).reduce((a, r) => a + r.users, 0);
   const steps = [
-    ["Clicked Set up today", clickers],
-    ["Reached sign-up page", landed],
-    [`Created an account${d.signups && d.signups.note ? ` (${d.signups.note})` : ""}`, d.signups ? d.signups.total : 0],
-    ["Bought a plan", d.signups ? d.signups.plans : 0],
+    { l: "Clicked Set up today", v: clickers, people: null, empty: "Website visitors aren't logged in, so clicks aren't linked to an account." },
+    { l: "Reached sign-up page", v: landed, people: fp.landed, empty: "No linked accounts." },
+    { l: "Created an account", v: d.signups ? d.signups.total : 0, people: fp.signedUp, empty: "None yet.", note: d.signups && d.signups.note },
+    { l: "Bought a plan", v: d.signups ? d.signups.plans : 0, people: fp.boughtPlan, empty: "None yet." },
   ];
-  const max = Math.max(...steps.map((s) => s[1]), 1);
-  el.innerHTML = `<div class="funnel">${steps.map(([l, v]) => `<div class="row"><div class="lab">${esc(l)}</div><div class="track"><div class="bar" style="width:${(v / max) * 85}%"></div><span class="num">${v}</span></div></div>`).join("")}</div>`;
+  const max = Math.max(...steps.map((s) => s.v), 1);
+  el.innerHTML = `<div class="chart-wrap"><div class="funnel">${steps.map((s, i) => `
+    <div class="row" data-i="${i}" tabindex="0" role="button" aria-expanded="false"><div class="lab">${esc(s.l)}</div><div class="track"><div class="bar" style="width:${(s.v / max) * 85}%"></div><span class="num">${s.v}</span></div></div>
+    <div class="people" data-for="${i}" hidden>${s.note ? `<div style="margin-bottom:4px">${esc(s.note)}</div>` : ""}${s.people === null ? esc(s.empty) : peopleHtml(s.people, s.empty)}</div>`).join("")}</div><div class="tip"></div></div>
+    <p class="sub" style="margin:10px 0 0">Hover a step to see its HubSpot records; click to open the list with links.</p>`;
+  const tip = el.querySelector(".tip"), wrap = el.querySelector(".chart-wrap");
+  el.querySelectorAll(".row").forEach((r) => {
+    const s = steps[+r.dataset.i];
+    const n = s.people ? s.people.length : 0;
+    r.addEventListener("mousemove", (e) => {
+      const ids = s.people === null ? esc(s.empty) : (n ? s.people.map((p) => p.contactId ? `HubSpot ${esc(p.contactId)}` : `app user ${esc(p.userId)}`).join("<br>") : esc(s.empty));
+      tip.innerHTML = `<b>${esc(s.l)}: ${s.v}</b><br>${ids}`;
+      const box = wrap.getBoundingClientRect();
+      tip.style.display = "block";
+      tip.style.left = Math.min(e.clientX - box.left + 12, box.width - tip.offsetWidth) + "px";
+      tip.style.top = (e.clientY - box.top + 14) + "px";
+    });
+    r.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+    const toggle = () => { const p = el.querySelector(`.people[data-for="${r.dataset.i}"]`); p.hidden = !p.hidden; r.setAttribute("aria-expanded", String(!p.hidden)); };
+    r.addEventListener("click", toggle);
+    r.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+  });
 }
 
 function renderClicks(d) {
   const el = document.getElementById("clicks");
   if (d.errors.mixpanel) { el.innerHTML = `<p class="err">Mixpanel data unavailable: ${esc(d.errors.mixpanel)}</p>`; return; }
   const cd = d.clickDays || d.days;
-  const rows = (d.clicks || []).map((c) => `<tr><td>${esc(c.group)}</td><td>${esc(c.section)}</td>
-    <td class="n">${fmt(c.before / cd.before, 2)}</td><td class="n">${fmt(c.after / cd.after, 2)}</td><td class="n">${c.after}</td></tr>`).join("");
-  el.innerHTML = rows ? `<div class="table-scroll"><table><thead><tr><th>Button</th><th>Position</th><th class="n">Before (people/day)</th><th class="n">Since (people/day)</th><th class="n">Since (people)</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<p class="sub">No clicks recorded.</p>`;
+  const rows = (d.clicks || []).map((c) => ({ ...c, b: c.before / cd.before, a: c.after / cd.after }))
+    .sort((x, y) => Math.max(y.a, y.b) - Math.max(x.a, x.b));
+  if (!rows.length) { el.innerHTML = `<p class="sub">No clicks recorded.</p>`; return; }
+  const max = Math.max(...rows.flatMap((r) => [r.a, r.b]), 0.01);
+  const w = (v) => `${Math.max((v / max) * 80, v > 0 ? 1 : 0)}%`;
+  const chart = `<div class="legend"><span><i style="background:var(--before)"></i>Before (people/day)</span><span><i style="background:var(--since)"></i>Since relaunch (people/day)</span></div>
+    <div class="chart-wrap"><div class="cchart">${rows.map((r, i) => `
+      <div class="lab">${esc(r.group)}<small>${esc(r.section)}</small></div>
+      <div class="bars" data-i="${i}">
+        <div class="brow"><div class="b before" style="width:${w(r.b)}"></div><span class="v">${fmt(r.b, 2)}</span></div>
+        <div class="brow"><div class="b since" style="width:${w(r.a)}"></div><span class="v">${fmt(r.a, 2)}</span></div>
+      </div>`).join("")}</div><div class="tip"></div></div>
+    <button class="linkish" id="clicks-toggle">Show as table</button><div id="clicks-table" hidden></div>`;
+  el.innerHTML = chart;
+  const tip = el.querySelector(".tip"), wrap = el.querySelector(".chart-wrap");
+  el.querySelectorAll(".bars").forEach((b) => {
+    const r = rows[+b.dataset.i];
+    b.addEventListener("mousemove", (e) => {
+      tip.innerHTML = `<b>${esc(r.group)}</b> · ${esc(r.section)}<br>Before: ${fmt(r.b, 2)}/day (${r.before} people, ${r.beforeClicks} clicks)<br>Since: ${fmt(r.a, 2)}/day (${r.after} people, ${r.afterClicks} clicks)`;
+      const box = wrap.getBoundingClientRect();
+      tip.style.display = "block";
+      tip.style.left = Math.min(e.clientX - box.left + 12, box.width - tip.offsetWidth) + "px";
+      tip.style.top = (e.clientY - box.top + 14) + "px";
+    });
+    b.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+  });
+  const table = `<div class="table-scroll" style="margin-top:10px"><table><thead><tr><th>Button</th><th>Position</th><th class="n">Before (people/day)</th><th class="n">Since (people/day)</th><th class="n">Since (people)</th></tr></thead><tbody>${rows.map((c) => `<tr><td>${esc(c.group)}</td><td>${esc(c.section)}</td><td class="n">${fmt(c.b, 2)}</td><td class="n">${fmt(c.a, 2)}</td><td class="n">${c.after}</td></tr>`).join("")}</tbody></table></div>`;
+  el.querySelector("#clicks-table").innerHTML = table;
+  el.querySelector("#clicks-toggle").addEventListener("click", (e) => {
+    const t = el.querySelector("#clicks-table"); t.hidden = !t.hidden; e.target.textContent = t.hidden ? "Show as table" : "Hide table";
+  });
 }
 
 function renderForms(d) {

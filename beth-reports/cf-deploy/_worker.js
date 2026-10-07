@@ -1509,7 +1509,7 @@ function btlButtonGroup(id) {
   return "Header / footer / other";
 }
 
-const BTL_CACHE_VERSION = "v3-snapshot-signups";
+const BTL_CACHE_VERSION = "v4-funnel-contacts";
 
 let _mpTimeCol = null; // detected once per warm worker
 async function mpTimeExpr(env) {
@@ -1541,7 +1541,7 @@ WITH ev AS (
   WHERE ${T} >= TIMESTAMP('${BTL.baselineStartIso}')
 ),
 page AS (SELECT * FROM ev WHERE url LIKE '%getground.co.uk${BTL.pagePath}%'),
-landings AS (SELECT ts, distinct_id, device_id FROM ev WHERE ts >= TIMESTAMP('${BTL.launchIso}') AND (${landing})),
+landings AS (SELECT ts, distinct_id, device_id, user_id FROM ev WHERE ts >= TIMESTAMP('${BTL.launchIso}') AND (${landing})),
 signups AS (
   SELECT DISTINCT e.ts, COALESCE(e.user_id, e.distinct_id) AS uid
   FROM (SELECT * FROM ev WHERE event_name IN ('user_creation_succeeded','web_session_user_creation_succeeded') AND ts >= TIMESTAMP('${BTL.launchIso}')) e
@@ -1563,7 +1563,9 @@ UNION ALL
 SELECT 'landing', CAST(DATE(ts,'Europe/London') AS STRING), NULL, NULL, COUNT(DISTINCT distinct_id), COUNT(*), NULL
 FROM landings GROUP BY 2
 UNION ALL
-SELECT 'signup', CAST(DATE(ts,'Europe/London') AS STRING), uid, NULL, 1, 1, NULL FROM signups`;
+SELECT 'signup', CAST(DATE(ts,'Europe/London') AS STRING), uid, NULL, 1, 1, NULL FROM signups
+UNION ALL
+SELECT DISTINCT 'landinguid', NULL, user_id, NULL, 1, 1, NULL FROM landings WHERE user_id IS NOT NULL`;
 }
 
 async function btlWonStages(API, H) {
@@ -1736,24 +1738,39 @@ async function btlCalcReport(url, env, ctx) {
       const signupUids = [...new Set(signupRows.map((r) => r.bucket).filter((u) => /^\d+$/.test(u || "")))];
       const signupDaily = {};
       for (const r of signupRows) signupDaily[r.d] = (signupDaily[r.d] || 0) + 1;
-      out.signups = { total: new Set(signupRows.map((r) => r.bucket)).size, daily: signupDaily };
-      // Plans bought by those new accounts: HubSpot contacts carry the app user id (user_id).
-      if (won && signupUids.length) {
-        const contactSince = {};
-        for (const c of chunk(signupUids, 100)) {
-          const j = await hsFetch(`${API}/crm/v3/objects/contacts/search`, {
-            method: "POST", headers: H,
-            body: JSON.stringify({ filterGroups: [{ filters: [{ propertyName: "user_id", operator: "IN", values: c }] }], properties: ["user_id"], limit: 100 }),
-          });
-          for (const r of j.results || []) contactSince[r.id] = launchMs;
-        }
-        const plans = await btlPlansForContacts(API, H, contactSince, won);
-        out.signups.plans = plans.length;
-      } else if (out.signups) {
-        out.signups.plans = 0;
-      }
+      out.signups = { total: new Set(signupRows.map((r) => r.bucket)).size, daily: signupDaily, userIds: signupUids };
+      out.signupLandings.push({ date: null, users: 0, userIds: rows.filter((r) => r.kind === "landinguid").map((r) => r.bucket) });
     } catch (e) { out.errors.mixpanel = String(e); }
   }
+
+  // Funnel people: app user ids -> HubSpot contact ids, so the page can link each step to the
+  // records (ids/links only, no names/emails — this site is behind a shared password, not SSO).
+  try {
+    const landedUids = [...new Set((out.signupLandings || []).flatMap((l) => l.userIds || []))];
+    const signedUids = (out.signups && out.signups.userIds) || [];
+    const allUids = [...new Set([...landedUids, ...signedUids])];
+    const uidToContact = {};
+    for (const c of chunk(allUids, 100)) {
+      const j = await hsFetch(`${API}/crm/v3/objects/contacts/search`, {
+        method: "POST", headers: H,
+        body: JSON.stringify({ filterGroups: [{ filters: [{ propertyName: "user_id", operator: "IN", values: c }] }], properties: ["user_id"], limit: 100 }),
+      });
+      for (const r of j.results || []) uidToContact[r.properties.user_id] = r.id;
+    }
+    const person = (uid) => ({ userId: uid, contactId: uidToContact[uid] || null });
+    out.funnelPeople = { landed: landedUids.map(person), signedUp: signedUids.map(person), boughtPlan: [] };
+    if (won && out.signups) {
+      const since = {};
+      for (const p of out.funnelPeople.signedUp) if (p.contactId) since[p.contactId] = launchMs;
+      const c2d = Object.keys(since).length ? await batchAssociations(API, H, "contacts", "deals", Object.keys(since)) : {};
+      const deals = await batchRead(API, H, "deals", [...new Set(Object.values(c2d).flat())], ["pipeline", "dealstage", "createdate"]);
+      for (const p of out.funnelPeople.signedUp) {
+        const bought = (c2d[p.contactId] || []).some((did) => { const d = deals[did]; return d && d.pipeline === BTL.plansPipeline && won.has(d.dealstage) && Date.parse(d.createdate) >= launchMs - 3600e3; });
+        if (bought) out.funnelPeople.boughtPlan.push(p);
+      }
+      out.signups.plans = out.funnelPeople.boughtPlan.length;
+    }
+  } catch (e) { out.errors.funnelPeople = String(e); }
 
   const res = json(out, 200);
   res.headers.set("Cache-Control", "max-age=600");
