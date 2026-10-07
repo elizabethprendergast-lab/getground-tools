@@ -1509,7 +1509,7 @@ function btlButtonGroup(id) {
   return "Header / footer / other";
 }
 
-const BTL_CACHE_VERSION = "v8-source-diag";
+const BTL_CACHE_VERSION = "v9-mp-names";
 
 let _mpTimeCol = null; // detected once per warm worker
 async function mpTimeExpr(env) {
@@ -1621,12 +1621,18 @@ function londonDay(ms) {
 // service account (MIXPANEL_SA_USERNAME / MIXPANEL_SA_SECRET Pages secrets). Three small exports
 // per refresh; with the 10-minute cache that stays well inside the export rate limit.
 const MP_PROJECT_ID = "3987900"; // New Production
+// The secrets were first saved in Cloudflare with a leading space in their names; accept both.
+function mpCreds(env) {
+  const user = env.MIXPANEL_SA_USERNAME || env[" MIXPANEL_SA_USERNAME"];
+  const secret = env.MIXPANEL_SA_SECRET || env[" MIXPANEL_SA_SECRET"];
+  return user && secret ? { user: String(user).trim(), secret: String(secret).trim() } : null;
+}
 async function mpExport(env, { from, to, events, where }) {
   const q = new URLSearchParams({ project_id: MP_PROJECT_ID, from_date: from, to_date: to });
   if (events) q.set("event", JSON.stringify(events));
   if (where) q.set("where", where);
   const r = await fetch(`https://data-eu.mixpanel.com/api/2.0/export?${q}`, {
-    headers: { Authorization: "Basic " + btoa(`${env.MIXPANEL_SA_USERNAME}:${env.MIXPANEL_SA_SECRET}`), Accept: "text/plain" },
+    headers: { Authorization: "Basic " + btoa(`${mpCreds(env).user}:${mpCreds(env).secret}`), Accept: "text/plain" },
   });
   const text = await r.text();
   if (!r.ok) throw new Error(`Mixpanel export ${r.status}: ${text.slice(0, 200)}`);
@@ -1761,12 +1767,13 @@ async function btlCalcReport(url, env, ctx) {
 
   // Which Mixpanel source this deployment can use — presence only, never values.
   out.mixpanelSource = {
-    serviceAccount: Boolean(env.MIXPANEL_SA_USERNAME && env.MIXPANEL_SA_SECRET),
-    usernameSet: Boolean(env.MIXPANEL_SA_USERNAME), secretSet: Boolean(env.MIXPANEL_SA_SECRET),
+    serviceAccount: Boolean(mpCreds(env)),
+    usernameSet: Boolean(env.MIXPANEL_SA_USERNAME || env[" MIXPANEL_SA_USERNAME"]),
+    secretSet: Boolean(env.MIXPANEL_SA_SECRET || env[" MIXPANEL_SA_SECRET"]),
     bigQuery: Boolean(env.GCP_SA_EMAIL && env.GCP_SA_PRIVATE_KEY),
   };
   // --- Mixpanel: live via service account if configured, else BigQuery, else the snapshot
-  if (env.MIXPANEL_SA_USERNAME && env.MIXPANEL_SA_SECRET) {
+  if (mpCreds(env)) {
     try { await btlMixpanelLive(env, out, launchMs); } catch (e) { out.errors.mixpanel = String(e); }
   } else if (!env.GCP_SA_EMAIL || !env.GCP_SA_PRIVATE_KEY) {
     // No warehouse access on this Pages project yet: fall back to a Mixpanel snapshot pulled by
