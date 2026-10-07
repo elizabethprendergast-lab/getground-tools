@@ -1,0 +1,390 @@
+{
+ "snapshotAt": "2026-10-07T09:10:00Z",
+ "source": "Mixpanel (New Production), pulled manually",
+ "beforeRange": "2026-09-08..2026-10-05",
+ "afterRange": "2026-10-06..2026-10-07",
+ "daily": [
+  {
+   "date": "2026-09-08",
+   "visitors": 27,
+   "pageViews": 2,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-09",
+   "visitors": 23,
+   "pageViews": 4,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-10",
+   "visitors": 17,
+   "pageViews": 4,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-11",
+   "visitors": 24,
+   "pageViews": 5,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-12",
+   "visitors": 24,
+   "pageViews": 5,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-13",
+   "visitors": 35,
+   "pageViews": 17,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-14",
+   "visitors": 34,
+   "pageViews": 9,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-15",
+   "visitors": 26,
+   "pageViews": 6,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-16",
+   "visitors": 17,
+   "pageViews": 5,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-17",
+   "visitors": 30,
+   "pageViews": 5,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-18",
+   "visitors": 40,
+   "pageViews": 9,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-19",
+   "visitors": 24,
+   "pageViews": 8,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-20",
+   "visitors": 31,
+   "pageViews": 8,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-21",
+   "visitors": 25,
+   "pageViews": 20,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-22",
+   "visitors": 31,
+   "pageViews": 6,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-23",
+   "visitors": 24,
+   "pageViews": 7,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-24",
+   "visitors": 27,
+   "pageViews": 19,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-25",
+   "visitors": 13,
+   "pageViews": 6,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-26",
+   "visitors": 42,
+   "pageViews": 18,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-27",
+   "visitors": 28,
+   "pageViews": 6,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-28",
+   "visitors": 25,
+   "pageViews": 14,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-29",
+   "visitors": 26,
+   "pageViews": 8,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-09-30",
+   "visitors": 26,
+   "pageViews": 10,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-10-01",
+   "visitors": 22,
+   "pageViews": 7,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-10-02",
+   "visitors": 24,
+   "pageViews": 17,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-10-03",
+   "visitors": 20,
+   "pageViews": 5,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-10-04",
+   "visitors": 35,
+   "pageViews": 10,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-10-05",
+   "visitors": 26,
+   "pageViews": 14,
+   "calculatorUsers": 0
+  },
+  {
+   "date": "2026-10-06",
+   "visitors": 56,
+   "pageViews": 57,
+   "calculatorUsers": 5
+  },
+  {
+   "date": "2026-10-07",
+   "visitors": 13,
+   "pageViews": 7,
+   "calculatorUsers": 1
+  }
+ ],
+ "clicks": [
+  {
+   "period": "before",
+   "buttonId": "btl_calc_landing_cta1_hero",
+   "section": "hero",
+   "users": 35,
+   "clicks": 61
+  },
+  {
+   "period": "before",
+   "buttonId": "btl_calc_landing_cta1_header",
+   "section": "header",
+   "users": 24,
+   "clicks": 39
+  },
+  {
+   "period": "before",
+   "buttonId": "footer_company_pricing",
+   "section": "footer",
+   "users": 21,
+   "clicks": 32
+  },
+  {
+   "period": "before",
+   "buttonId": "btl_calc_landing_cta2_hero",
+   "section": "hero",
+   "users": 72,
+   "clicks": 113
+  },
+  {
+   "period": "before",
+   "buttonId": "btl_calc_landing_cta1_final_cta",
+   "section": "final_cta",
+   "users": 11,
+   "clicks": 17
+  },
+  {
+   "period": "before",
+   "buttonId": "btl_calc_landing_cta2_how_it_works",
+   "section": "how_it_works",
+   "users": 33,
+   "clicks": 50
+  },
+  {
+   "period": "before",
+   "buttonId": "btl_calc_quiz_submit",
+   "section": "btl_calculator_quiz",
+   "users": 17,
+   "clicks": 28
+  },
+  {
+   "period": "before",
+   "buttonId": "footer_login",
+   "section": "footer",
+   "users": 4,
+   "clicks": 9
+  },
+  {
+   "period": "before",
+   "buttonId": "footer_expertise_sourcing",
+   "section": "footer",
+   "users": 2,
+   "clicks": 3
+  },
+  {
+   "period": "before",
+   "buttonId": "footer_expertise_mortgages",
+   "section": "footer",
+   "users": 5,
+   "clicks": 8
+  },
+  {
+   "period": "before",
+   "buttonId": "footer_company_contact",
+   "section": "footer",
+   "users": 2,
+   "clicks": 3
+  },
+  {
+   "period": "before",
+   "buttonId": "footer_get_started",
+   "section": "footer",
+   "users": 9,
+   "clicks": 15
+  },
+  {
+   "period": "before",
+   "buttonId": "btl_calc_landing_cta1_how_it_works",
+   "section": "how_it_works",
+   "users": 6,
+   "clicks": 9
+  },
+  {
+   "period": "before",
+   "buttonId": "btl_calc_landing_cta2_final_cta",
+   "section": "final_cta",
+   "users": 14,
+   "clicks": 24
+  },
+  {
+   "period": "before",
+   "buttonId": "footer_platform_mtd",
+   "section": "footer",
+   "users": 1,
+   "clicks": 2
+  },
+  {
+   "period": "after",
+   "buttonId": "mobile_nav_pricing",
+   "section": "mobile_menu",
+   "users": 2,
+   "clicks": 3
+  },
+  {
+   "period": "after",
+   "buttonId": "btl_calc_landing_learn_more_calculator_result",
+   "section": "calculator_result",
+   "users": 4,
+   "clicks": 9
+  },
+  {
+   "period": "after",
+   "buttonId": "btl_calc_landing_setup_today_calculator_result",
+   "section": "calculator_result",
+   "users": 2,
+   "clicks": 6
+  },
+  {
+   "period": "after",
+   "buttonId": "btl_calc_landing_cta1_hero",
+   "section": "hero",
+   "users": 4,
+   "clicks": 6
+  },
+  {
+   "period": "after",
+   "buttonId": "btl_calc_landing_setup_today_hero",
+   "section": "hero",
+   "users": 4,
+   "clicks": 45
+  },
+  {
+   "period": "after",
+   "buttonId": "footer_company_pricing",
+   "section": "footer",
+   "users": 2,
+   "clicks": 3
+  },
+  {
+   "period": "after",
+   "buttonId": "btl_calc_landing_cta1_final_cta",
+   "section": "final_cta",
+   "users": 2,
+   "clicks": 3
+  },
+  {
+   "period": "after",
+   "buttonId": "btl_calc_landing_calculator_hero",
+   "section": "hero",
+   "users": 4,
+   "clicks": 9
+  },
+  {
+   "period": "after",
+   "buttonId": "btl_calc_landing_cta2_hero",
+   "section": "hero",
+   "users": 2,
+   "clicks": 3
+  },
+  {
+   "period": "after",
+   "buttonId": "desktop_nav_company_accounting_and_tax",
+   "section": "desktop_header",
+   "users": 2,
+   "clicks": 3
+  },
+  {
+   "period": "after",
+   "buttonId": "btl_calc_landing_cta1_how_it_works",
+   "section": "how_it_works",
+   "users": 2,
+   "clicks": 3
+  },
+  {
+   "period": "after",
+   "buttonId": "desktop_nav_intelligence",
+   "section": "desktop_header",
+   "users": 2,
+   "clicks": 3
+  }
+ ],
+ "signupLandings": [
+  {
+   "date": "2026-10-07",
+   "users": 2
+  }
+ ],
+ "signups": {
+  "total": 0,
+  "plans": 0,
+  "daily": {}
+ }
+}

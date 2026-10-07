@@ -1505,7 +1505,7 @@ function btlButtonGroup(id) {
   if (id.startsWith("btl_calc_landing_calculator")) return "Calculate my tax savings (scroll)";
   if (id.startsWith("btl_calc_landing_cta1")) return "Old: Set Up My Limited Company (form)";
   if (id.startsWith("btl_calc_landing_cta2")) return "Old: Calculate My Tax Savings (form)";
-  if (id.startsWith("btl_calculator_quiz") || id.includes("see_my_tax")) return "Old: See My Tax Savings (quiz)";
+  if (id.startsWith("btl_calc_quiz") || id.startsWith("btl_calculator_quiz") || id.includes("see_my_tax")) return "Old: See My Tax Savings (quiz)";
   return "Header / footer / other";
 }
 
@@ -1678,7 +1678,35 @@ async function btlCalcReport(url, env, ctx) {
 
   // --- Mixpanel (BigQuery): visits, clicks, calculator, app sign-up landings and sign-ups
   if (!env.GCP_SA_EMAIL || !env.GCP_SA_PRIVATE_KEY) {
-    out.errors.mixpanel = "BigQuery service account not configured";
+    // No warehouse access on this Pages project yet: fall back to a Mixpanel snapshot pulled by
+    // hand (btl-calculator-page/mixpanel-snapshot.json), clearly labelled as such on the page.
+    try {
+      const r = await env.ASSETS.fetch(new Request(`${url.origin}/btl-calculator-page/mixpanel-snapshot.json`));
+      if (!r.ok) throw new Error(`snapshot ${r.status}`);
+      const snap = await r.json();
+      out.mixpanelSnapshotAt = snap.snapshotAt;
+      out.daily = snap.daily;
+      const clicks = {};
+      for (const c of snap.clicks) {
+        const g = btlButtonGroup(c.buttonId);
+        const k = `${g}|${c.section || "—"}`;
+        clicks[k] = clicks[k] || { group: g, section: c.section || "—", before: 0, after: 0, beforeClicks: 0, afterClicks: 0 };
+        clicks[k][c.period] += c.users;
+        clicks[k][`${c.period}Clicks`] += c.clicks;
+      }
+      out.clicks = Object.values(clicks).sort((a, b) => (b.after + b.before) - (a.after + a.before));
+      // Snapshot click ranges are whole London days, so rate them over those days.
+      const [bFrom, bTo] = snap.beforeRange.split("..");
+      const aFrom = snap.afterRange.split("..")[0];
+      out.clickDays = {
+        before: (Date.parse(bTo) - Date.parse(bFrom)) / 864e5 + 1,
+        after: (Date.parse(snap.snapshotAt) - Date.parse(`${aFrom}T00:00:00+01:00`)) / 864e5,
+      };
+      out.signupLandings = snap.signupLandings;
+      out.signups = snap.signups;
+    } catch (e) {
+      out.errors.mixpanel = `BigQuery service account not configured, and no snapshot available (${e})`;
+    }
   } else {
     try {
       const rows = await bqQuery(env, btlMixpanelSql(await mpTimeExpr(env)));
