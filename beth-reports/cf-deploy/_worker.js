@@ -623,6 +623,29 @@ async function batchAssociations(API, H, fromType, toType, ids) {
   return map;
 }
 
+// Task -> contact ids. Some queues (e.g. Non-paying master list) create their call tasks on the
+// contact's Lead, not the contact itself — Iain Park's task sits on lead "Iain Park 2026-10"
+// with no contact association, so his Core Plan deal went unattributed. Tasks with no direct
+// contact fall back to task -> lead -> contact. Fail-soft: if the leads read errors (e.g.
+// missing crm.objects.leads.read scope) those tasks just stay contact-less, as before.
+async function taskContacts(API, H, taskIds) {
+  const map = await batchAssociations(API, H, "tasks", "contacts", taskIds);
+  const orphans = taskIds.filter((id) => !(map[id] || []).length);
+  if (!orphans.length) return map;
+  try {
+    const taskToLeads = await batchAssociations(API, H, "tasks", "leads", orphans);
+    const leadIds = [...new Set(Object.values(taskToLeads).flat())];
+    const leadToContacts = await batchAssociations(API, H, "leads", "contacts", leadIds);
+    for (const id of orphans) {
+      const cids = [...new Set((taskToLeads[id] || []).flatMap((l) => leadToContacts[l] || []))];
+      if (cids.length) map[id] = cids;
+    }
+  } catch (e) {
+    console.log(`taskContacts: lead fallback skipped (${e})`);
+  }
+  return map;
+}
+
 async function batchRead(API, H, objectType, ids, properties) {
   const map = {};
   for (const c of chunk(ids, 100)) {
@@ -844,7 +867,7 @@ async function outcomes(url, env) {
     for (const d of dispositions) dispLabel[d.id] = d.label;
 
     const taskIds = completedTasks.map((p) => p.hs_object_id);
-    const taskToContacts = await batchAssociations(API, H, "tasks", "contacts", taskIds);
+    const taskToContacts = await taskContacts(API, H, taskIds);
     const contactIds = [...new Set(Object.values(taskToContacts).flat())];
     const contactToCalls = await batchAssociations(API, H, "contacts", "calls", contactIds);
     const callIds = [...new Set(Object.values(contactToCalls).flat())];
@@ -1099,7 +1122,7 @@ async function dealAttribution(url, env) {
     const allTasks = results.map((t) => t.properties || {}).filter((p) => p.hs_object_id && p.hs_createdate);
 
     const taskIds = allTasks.map((p) => p.hs_object_id);
-    const taskToContacts = await batchAssociations(API, H, "tasks", "contacts", taskIds);
+    const taskToContacts = await taskContacts(API, H, taskIds);
 
     // key -> Map(contactId -> earliest enrollment ms in this project, i.e. earliest task hs_createdate)
     const projectContacts = {};
