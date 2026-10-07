@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BTL Calculator Page</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --page-plane: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --gridline: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --series-1: #2a78d6;
+    --bar-hover: #1c5fae;
+    --accent-soft: rgba(42,120,214,0.10);
+    --good: #1a7f4b;
+    --critical: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --page-plane: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --gridline: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255,255,255,0.10);
+      --series-1: #3987e5;
+      --bar-hover: #6aa6ee;
+      --accent-soft: rgba(57,135,229,0.14);
+      --good: #3fbf7f;
+      --critical: #e66767;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page-plane); color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 20px clamp(16px, 4vw, 40px); display: flex; align-items: baseline; gap: 14px;
+    flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  header a { font-size: 13px; color: var(--text-secondary); }
+  main { min-width: 0; max-width: 1100px; margin: 0 auto; padding: 20px clamp(16px, 4vw, 40px) 64px; }
+  .meta { font-size: 13px; color: var(--text-secondary); margin: 0 0 18px; line-height: 1.5; }
+  .meta b { color: var(--text-primary); font-weight: 600; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+  .tile .l { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+  .tile .v { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tile .was { font-size: 12px; color: var(--text-secondary); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .delta { font-size: 12px; font-weight: 600; margin-left: 6px; white-space: nowrap; }
+  .early { font-size: 12px; font-weight: 400; color: var(--text-muted); margin-left: 6px; white-space: nowrap; }
+  .delta.up { color: var(--good); } .delta.down { color: var(--critical); }
+
+  section.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; margin-bottom: 20px; min-width: 0; }
+  section.card h2 { font-size: 16px; margin: 0 0 4px; font-weight: 600; }
+  section.card .sub { font-size: 13px; color: var(--text-muted); margin: 0 0 16px; }
+  .err { font-size: 13px; color: var(--critical); background: var(--accent-soft); padding: 8px 10px; border-radius: 8px; }
+
+  .chart-wrap { position: relative; width: 100%; }
+  svg.chart { width: 100%; height: 240px; display: block; overflow: visible; }
+  .tip { position: absolute; pointer-events: none; background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 9px; font-size: 12px; color: var(--text-primary); white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12); display: none; }
+
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--gridline); }
+  th { font-size: 12px; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .funnel { display: grid; gap: 8px; }
+  .funnel .row { display: grid; grid-template-columns: minmax(120px, 34%) minmax(0, 1fr); gap: 12px; align-items: center; }
+  .funnel .lab { font-size: 13px; color: var(--text-secondary); text-align: right; }
+  .funnel .track { display: flex; align-items: center; min-width: 0; border-left: 1px solid var(--baseline); height: 24px; }
+  .funnel .bar { height: 14px; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 2px; }
+  .funnel .num { font-size: 12px; color: var(--text-secondary); margin-left: 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .notes { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+  .notes li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>BTL Calculator Page</h1>
+  <a href="/">← All reports</a>
+  <a href="https://www.getground.co.uk/btl-limited-company-calculator" target="_blank" rel="noopener">Open the page ↗</a>
+</header>
+<main>
+  <p class="meta" id="meta">Loading…</p>
+  <div class="tiles" id="tiles"></div>
+
+  <section class="card">
+    <h2>Visitors per day</h2>
+    <p class="sub">Unique visitors to the page (Mixpanel). The line marks the relaunch.</p>
+    <div id="chart"></div>
+  </section>
+
+  <section class="card">
+    <h2>Set up today: from click to plan</h2>
+    <p class="sub">People since the relaunch. Sign-ups are app accounts created after landing on this page's sign-up link.</p>
+    <div id="funnel"></div>
+  </section>
+
+  <section class="card">
+    <h2>Where people click</h2>
+    <p class="sub">People clicking each button per day, before vs since the relaunch. "Old" buttons only exist in the before period.</p>
+    <div id="clicks"></div>
+  </section>
+
+  <section class="card">
+    <h2>Form leads</h2>
+    <p class="sub">HubSpot form submissions made on this page.</p>
+    <div id="forms"></div>
+  </section>
+
+  <section class="card">
+    <h2>How to read this</h2>
+    <ul class="notes">
+      <li><b>Before</b> = 8 Sep – 6 Oct 14:02 (4 weeks before the relaunch). <b>Since</b> = from the relaunch to now. Averages are per day so the two periods compare fairly.</li>
+      <li>6 Oct 14:02 — new page live (free-setup hero, instant calculator, Set up today → checkout). 7 Oct 09:32 — Set up today now goes through app sign-up first.</li>
+      <li>Visits and clicks come from Mixpanel's warehouse copy, which can be up to a day behind, and only cover people who accepted cookies.</li>
+      <li>Plans bought counts Core/Complete Plans deals marked won in HubSpot: for form leads, bought after they submitted; for sign-ups, bought by the account created from this page.</li>
+      <li>Internal test clicks count too. Use <code>utm_campaign=internal_test</code> when testing so they can be spotted.</li>
+    </ul>
+  </section>
+  <p class="notes" id="footer"></p>
+</main>
+
+<script>
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (n, dp = 1) => n == null || !isFinite(n) ? "—" : (Math.abs(n) >= 100 || dp === 0 ? Math.round(n).toLocaleString("en-GB") : n.toFixed(dp));
+const LAUNCH_DAY = "2026-10-06";
+// Below this many days since the relaunch, per-day changes are noise; show "too early" instead.
+const MIN_DAYS_TO_COMPARE = 3;
+let afterDaysSoFar = 0;
+
+function deltaHtml(before, after) {
+  if (!before || after == null || !isFinite(after)) return "";
+  if (afterDaysSoFar < MIN_DAYS_TO_COMPARE) return `<span class="early">too early to compare</span>`;
+  const pct = ((after - before) / before) * 100;
+  const cls = pct >= 0 ? "up" : "down";
+  return `<span class="delta ${cls}">${pct >= 0 ? "▲" : "▼"} ${Math.abs(pct).toFixed(0)}%</span>`;
+}
+function tile(label, after, before, unit = "/day", dp = 1, note = "", compare = true) {
+  return `<div class="tile"><div class="l">${esc(label)}</div>
+    <div class="v">${fmt(after, dp)}${after != null ? `<span style="font-size:13px;font-weight:400;color:var(--text-muted)"> ${unit}</span>` : ""}${compare ? deltaHtml(before, after) : ""}</div>
+    <div class="was">${before != null ? `Before: ${fmt(before, dp)} ${unit}` : ""}${note ? ` ${esc(note)}` : ""}</div></div>`;
+}
+
+function renderChart(daily) {
+  const el = document.getElementById("chart");
+  if (!daily || !daily.length) { el.innerHTML = `<p class="sub">No visit data yet.</p>`; return; }
+  const W = 1000, H = 240, padL = 36, padB = 26, padT = 10;
+  const max = Math.max(...daily.map((d) => d.visitors), 1);
+  const nice = Math.ceil(max / 5) * 5;
+  const bw = (W - padL) / daily.length;
+  const y = (v) => padT + (H - padT - padB) * (1 - v / nice);
+  let s = "";
+  for (let i = 0; i <= 4; i++) {
+    const v = (nice / 4) * i, yy = y(v);
+    s += `<line x1="${padL}" x2="${W}" y1="${yy}" y2="${yy}" stroke="var(--gridline)" stroke-width="1"/>`;
+    s += `<text x="${padL - 6}" y="${yy + 4}" text-anchor="end" font-size="11" fill="var(--text-muted)">${Math.round(v)}</text>`;
+  }
+  daily.forEach((d, i) => {
+    const x = padL + i * bw + 1, h = (H - padB) - y(d.visitors);
+    s += `<rect class="b" data-i="${i}" x="${x}" y="${y(d.visitors)}" width="${Math.max(bw - 2, 1)}" height="${Math.max(h, 0)}" rx="3" fill="var(--series-1)"/>`;
+    s += `<rect class="hit" data-i="${i}" x="${padL + i * bw}" y="${padT}" width="${bw}" height="${H - padT - padB}" fill="transparent"/>`;
+    if (i % 7 === 0 || i === daily.length - 1) {
+      s += `<text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle" font-size="11" fill="var(--text-muted)">${d.date.slice(8)}/${d.date.slice(5, 7)}</text>`;
+    }
+    if (d.date === LAUNCH_DAY) {
+      s += `<line x1="${x + bw / 2}" x2="${x + bw / 2}" y1="${padT}" y2="${H - padB}" stroke="var(--text-secondary)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+      s += `<text x="${x + bw / 2 + 5}" y="${padT + 10}" font-size="11" fill="var(--text-secondary)">Relaunch</text>`;
+    }
+  });
+  s += `<line x1="${padL}" x2="${W}" y1="${H - padB}" y2="${H - padB}" stroke="var(--baseline)"/>`;
+  el.innerHTML = `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Unique visitors per day">${s}</svg><div class="tip"></div></div>`;
+  const tip = el.querySelector(".tip"), wrap = el.querySelector(".chart-wrap");
+  el.querySelectorAll("rect.hit").forEach((r) => {
+    r.addEventListener("mousemove", (e) => {
+      const d = daily[+r.dataset.i];
+      tip.innerHTML = `<b>${esc(d.date)}</b><br>${d.visitors} visitors · ${d.pageViews} page views${d.calculatorUsers ? ` · ${d.calculatorUsers} used calculator` : ""}`;
+      const box = wrap.getBoundingClientRect();
+      tip.style.display = "block";
+      tip.style.left = Math.min(e.clientX - box.left + 12, box.width - tip.offsetWidth) + "px";
+      tip.style.top = (e.clientY - box.top - 40) + "px";
+      el.querySelectorAll("rect.b").forEach((b) => b.setAttribute("fill", b.dataset.i === r.dataset.i ? "var(--bar-hover)" : "var(--series-1)"));
+    });
+    r.addEventListener("mouseleave", () => { tip.style.display = "none"; el.querySelectorAll("rect.b").forEach((b) => b.setAttribute("fill", "var(--series-1)")); });
+  });
+}
+
+function renderFunnel(d) {
+  const el = document.getElementById("funnel");
+  if (d.errors.mixpanel) { el.innerHTML = `<p class="err">Mixpanel data unavailable: ${esc(d.errors.mixpanel)}</p>`; return; }
+  const clickers = (d.clicks || []).filter((c) => c.group === "Set up today").reduce((a, c) => a + c.after, 0);
+  const landed = (d.signupLandings || []).reduce((a, r) => a + r.users, 0);
+  const steps = [
+    ["Clicked Set up today", clickers],
+    ["Reached sign-up page", landed],
+    ["Created an account", d.signups ? d.signups.total : 0],
+    ["Bought a plan", d.signups ? d.signups.plans : 0],
+  ];
+  const max = Math.max(...steps.map((s) => s[1]), 1);
+  el.innerHTML = `<div class="funnel">${steps.map(([l, v]) => `<div class="row"><div class="lab">${esc(l)}</div><div class="track"><div class="bar" style="width:${(v / max) * 85}%"></div><span class="num">${v}</span></div></div>`).join("")}</div>`;
+}
+
+function renderClicks(d) {
+  const el = document.getElementById("clicks");
+  if (d.errors.mixpanel) { el.innerHTML = `<p class="err">Mixpanel data unavailable: ${esc(d.errors.mixpanel)}</p>`; return; }
+  const rows = (d.clicks || []).map((c) => `<tr><td>${esc(c.group)}</td><td>${esc(c.section)}</td>
+    <td class="n">${fmt(c.before / d.days.before, 2)}</td><td class="n">${fmt(c.after / d.days.after, 2)}</td><td class="n">${c.after}</td></tr>`).join("");
+  el.innerHTML = rows ? `<div class="table-scroll"><table><thead><tr><th>Button</th><th>Position</th><th class="n">Before (people/day)</th><th class="n">Since (people/day)</th><th class="n">Since (people)</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<p class="sub">No clicks recorded.</p>`;
+}
+
+function renderForms(d) {
+  const el = document.getElementById("forms");
+  if (d.errors.formLeads) { el.innerHTML = `<p class="err">HubSpot form data unavailable: ${esc(d.errors.formLeads)}</p>`; return; }
+  const f = d.formLeads;
+  const rows = f.byForm.map((x) => `<tr><td>${esc(x.form)}</td><td class="n">${x.before}</td><td class="n">${fmt(x.before / d.days.before, 2)}</td><td class="n">${x.after}</td><td class="n">${fmt(x.after / d.days.after, 2)}</td></tr>`).join("");
+  el.innerHTML = `<div class="table-scroll"><table><thead><tr><th>Form</th><th class="n">Before</th><th class="n">Before /day</th><th class="n">Since</th><th class="n">Since /day</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="sub" style="margin-top:10px">Unique people: ${f.people.before} before, ${f.people.after} since. Of them, ${f.plans ? f.plans.before : "—"} before and ${f.plans ? f.plans.after : "—"} since went on to buy a plan.</p>`;
+}
+
+function render(d) {
+  const launch = new Date(d.launchIso);
+  afterDaysSoFar = d.days.after;
+  document.getElementById("meta").innerHTML = `Relaunched <b>${launch.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" })}</b> · comparing the 4 weeks before with the <b>${fmt(d.days.after, 1)} days</b> since.`;
+  const daily = d.daily || [];
+  const beforeDays = daily.filter((x) => x.date < LAUNCH_DAY);
+  const afterDays = daily.filter((x) => x.date > LAUNCH_DAY);
+  const avg = (arr, k) => arr.length ? arr.reduce((a, x) => a + x[k], 0) / arr.length : null;
+  const sumGroups = (period, groups) => (d.clicks || []).filter((c) => groups.includes(c.group)).reduce((a, c) => a + c[period], 0);
+  const mainBefore = sumGroups("before", ["Old: Set Up My Limited Company (form)", "Old: Calculate My Tax Savings (form)"]) / d.days.before;
+  const mainAfter = sumGroups("after", ["Set up today", "Learn more (form)", "Calculate my tax savings (scroll)"]) / d.days.after;
+  const fl = d.formLeads;
+  const tiles = [];
+  if (!d.errors.mixpanel) {
+    tiles.push(tile("Visitors", afterDays.length ? avg(afterDays, "visitors") : null, avg(beforeDays, "visitors"), "/day", 1, afterDays.length ? "" : "(first full day pending)"));
+    tiles.push(tile("Main button clicks", mainAfter, mainBefore, "people/day"));
+    tiles.push(tile("Used the calculator", afterDays.length ? avg(afterDays, "calculatorUsers") : null, null, "/day", 1, "new since relaunch"));
+    tiles.push(tile("App sign-ups from page", d.signups ? d.signups.total : 0, null, "since", 0));
+  }
+  if (fl) tiles.push(tile("Form leads", fl.people.after / d.days.after, fl.people.before / d.days.before, "people/day", 2));
+  const plansAfter = (fl && fl.plans ? fl.plans.after : 0) + (d.signups ? d.signups.plans || 0 : 0);
+  tiles.push(`<div class="tile"><div class="l">Plans bought</div><div class="v">${plansAfter}<span style="font-size:13px;font-weight:400;color:var(--text-muted)"> since relaunch</span></div>
+    <div class="was">${fl && fl.plans ? `4 weeks before: ${fl.plans.before} (from form leads)` : ""}</div></div>`);
+  document.getElementById("tiles").innerHTML = tiles.join("");
+  if (d.errors.mixpanel) document.getElementById("chart").innerHTML = `<p class="err">Mixpanel data unavailable: ${esc(d.errors.mixpanel)}</p>`;
+  else renderChart(daily);
+  renderFunnel(d); renderClicks(d); renderForms(d);
+  document.getElementById("footer").textContent = `Updated ${new Date(d.generatedAt).toLocaleString("en-GB", { timeZone: "Europe/London" })} · refreshes every 10 minutes.`;
+}
+
+fetch("/api/btl-calc").then((r) => r.json()).then((d) => {
+  if (d.error) throw new Error(d.error);
+  render(d);
+}).catch((e) => { document.getElementById("meta").innerHTML = `<span class="err">Couldn't load the report: ${esc(e.message)}</span>`; });
+</script>
+</body>
+</html>
