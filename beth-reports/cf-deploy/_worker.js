@@ -1552,7 +1552,7 @@ function btlButtonGroup(id) {
   return "Header / footer / other";
 }
 
-const BTL_CACHE_VERSION = "v13-contact-names";
+const BTL_CACHE_VERSION = "v14-plans-by-lead-date";
 
 let _mpTimeCol = null; // detected once per warm worker
 async function mpTimeExpr(env) {
@@ -1629,7 +1629,7 @@ async function btlPlansForContacts(API, H, contactSince, won) {
       const d = deals[did];
       if (!d || d.pipeline !== BTL.plansPipeline || !won.has(d.dealstage)) continue;
       const ms = Date.parse(d.createdate);
-      if (ms >= contactSince[cid] - 3600e3) out.push({ ms, amount: Number(d.amount) || 0 });
+      if (ms >= contactSince[cid] - 3600e3) out.push({ ms, amount: Number(d.amount) || 0, contactId: cid, leadMs: contactSince[cid] });
     }
   }
   return out;
@@ -1819,9 +1819,11 @@ async function btlCalcReport(url, env, ctx) {
         for (const r of j.results || []) contactSince[r.id] = firstByEmail[(r.properties.email || "").toLowerCase()].ms;
       }
       const plans = await btlPlansForContacts(API, H, contactSince, won);
+      // Attribute each plan to when the person became a lead on this page, not when they bought,
+      // so an old-page lead buying after the relaunch doesn't count as a relaunch result.
       out.formLeads.plans = {
-        before: plans.filter((p) => p.ms < launchMs).length,
-        after: plans.filter((p) => p.ms >= launchMs).length,
+        before: new Set(plans.filter((p) => p.leadMs < launchMs).map((p) => p.contactId)).size,
+        after: new Set(plans.filter((p) => p.leadMs >= launchMs).map((p) => p.contactId)).size,
       };
     }
   } catch (e) { out.errors.formLeads = String(e); }
