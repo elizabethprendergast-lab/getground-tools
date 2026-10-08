@@ -154,7 +154,7 @@
       <li><b>Before</b> = 8 Sep – 6 Oct 14:02 (4 weeks before the relaunch). <b>Since</b> = from the relaunch to now. Averages are per day so the two periods compare fairly.</li>
       <li>6 Oct 14:02 — new page live (free-setup hero, instant calculator, Set up today → checkout). 7 Oct 09:32 — Set up today now goes through app sign-up first.</li>
       <li>Visits and clicks come from Mixpanel's warehouse copy, which can be up to a day behind, and only cover people who accepted cookies.</li>
-      <li>Plans bought counts Core/Complete Plans deals marked won in HubSpot: for form leads, bought after they submitted; for sign-ups, bought by the account created from this page.</li>
+      <li>Plans bought counts Core/Complete Plans deals marked won in HubSpot, credited to the period the person came in through this page (form or sign-up) — not when they bought.</li>
       <li>Internal test clicks count too. Use <code>utm_campaign=internal_test</code> when testing so they can be spotted.</li>
     </ul>
   </section>
@@ -374,7 +374,7 @@ function render(d) {
   if (fl) tiles.push(tile("Form leads", fl.people.after / d.days.after, fl.people.before / d.days.before, "people/day", 2));
   const plansAfter = (fl && fl.plans ? fl.plans.after : 0) + (d.signups ? d.signups.plans || 0 : 0);
   tiles.push(`<div class="tile"><div class="l">Plans bought</div><div class="v">${plansAfter}<span style="font-size:13px;font-weight:400;color:var(--text-muted)"> since relaunch</span></div>
-    <div class="was">${fl && fl.plans ? `4 weeks before: ${fl.plans.before} (from form leads)` : ""}</div></div>`);
+    <div class="was">${fl && fl.plans ? `Before: ${fl.plans.before} (from leads in the 4 weeks before)` : ""}</div></div>`);
   document.getElementById("tiles").innerHTML = tiles.join("");
   if (d.errors.mixpanel) document.getElementById("chart").innerHTML = `<p class="err">Mixpanel data unavailable: ${esc(d.errors.mixpanel)}</p>`;
   else renderChart(daily);
