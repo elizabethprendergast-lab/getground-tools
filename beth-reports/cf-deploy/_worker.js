@@ -419,14 +419,18 @@ async function hsFetch(url, opts, attempt = 0) {
   return j;
 }
 
-async function runTaskSearch(API, H, filterGroups) {
+// maxPages caps pages of 200 (HubSpot's search max). Hitting the cap used to silently truncate:
+// the old fixed 10 x 100 = 1,000 cap dropped every task past the first 1,000 of the combined
+// 5-project search (2,144 by 12 Oct), so Billy/Iglesias/Carlos's new Reengage LTD tasks never
+// showed. Callers now get `truncated` back and must handle it rather than under-count.
+async function runTaskSearch(API, H, filterGroups, maxPages = 50) {
   let after = null, page = 0, total = 0;
   const results = [];
   do {
     const body = {
       filterGroups,
       properties: ["hs_task_subject", "hs_task_status", "hubspot_owner_id", "hs_createdate", "hs_task_completion_date", "hs_task_priority"],
-      limit: 100,
+      limit: 200,
     };
     if (after) body.after = after;
     const j = await hsFetch(`${API}/crm/v3/objects/tasks/search`, { method: "POST", headers: H, body: JSON.stringify(body) });
@@ -434,8 +438,8 @@ async function runTaskSearch(API, H, filterGroups) {
     results.push(...(j.results || []));
     after = j.paging && j.paging.next && j.paging.next.after;
     page++;
-  } while (after && page < 10);
-  return { total, results };
+  } while (after && page < maxPages);
+  return { total, results, truncated: !!after };
 }
 
 // Deal attribution (see dealAttribution below) is meant to answer "did this contact convert,"
@@ -475,15 +479,16 @@ async function searchTasksForAttribution(API, H, report, opts = {}) {
   // no graceful fallback client-side). Batch into groups of <=5 and merge instead of assuming
   // the project count stays under the cap forever.
   const MAX_FILTER_GROUPS = 5;
-  let total = 0;
+  let total = 0, truncated = false;
   const results = [];
   for (let i = 0; i < filterGroups.length; i += MAX_FILTER_GROUPS) {
     const batch = filterGroups.slice(i, i + MAX_FILTER_GROUPS);
-    const r = await runTaskSearch(API, H, batch);
+    const r = await runTaskSearch(API, H, batch, opts.maxPages);
     total += r.total;
+    truncated ||= r.truncated;
     results.push(...r.results);
   }
-  return { total, results };
+  return { total, results, truncated };
 }
 
 // Live owner-name lookup, used so the per-rep breakdown shows whoever actually owns a task
@@ -847,7 +852,11 @@ async function outcomes(url, env) {
   // lets a campaign like ba-closed-won-reengage (6th in the list) get real outcomes data.
   const campaignKey = url.searchParams.get("campaign");
   let report = reportConfig;
-  let searchOpts = { maxProjects: 5 };
+  // maxPages: 5 (x 200) keeps the unscoped batch at the same 1,000-task budget it always had —
+  // the per-task work here is what hits Cloudflare's limit. If that budget truncates the search,
+  // every project is marked computed:false below so the page falls back to its per-campaign
+  // scoped fetch (no cap) instead of showing silently under-counted numbers.
+  let searchOpts = { maxProjects: 5, maxPages: 5 };
   let computedKeys = new Set((reportConfig.projects || []).slice(0, 5).map((p) => p.key));
   if (campaignKey) {
     const proj = (reportConfig.projects || []).find((p) => p.key === campaignKey);
@@ -858,7 +867,8 @@ async function outcomes(url, env) {
   }
 
   try {
-    const { results } = await searchTasksForAttribution(API, H, report, searchOpts);
+    const { results, truncated } = await searchTasksForAttribution(API, H, report, searchOpts);
+    if (truncated) computedKeys = new Set();
     const completedTasks = results
       .map((t) => t.properties || {})
       .filter((p) => p.hs_task_status === "COMPLETED" && p.hs_task_completion_date && p.hs_createdate);
@@ -1105,7 +1115,11 @@ async function dealAttribution(url, env) {
   // needs neither the cap nor a slot among the first 5.
   const campaignKey = url.searchParams.get("campaign");
   let report = reportConfig;
-  let searchOpts = { maxProjects: 5 };
+  // maxPages: 5 (x 200) keeps the unscoped batch at the same 1,000-task budget it always had —
+  // the per-task work here is what hits Cloudflare's limit. If that budget truncates the search,
+  // every project is marked computed:false below so the page falls back to its per-campaign
+  // scoped fetch (no cap) instead of showing silently under-counted numbers.
+  let searchOpts = { maxProjects: 5, maxPages: 5 };
   let computedKeys = new Set((reportConfig.projects || []).slice(0, 5).map((p) => p.key));
   if (campaignKey) {
     const proj = (reportConfig.projects || []).find((p) => p.key === campaignKey);
@@ -1120,7 +1134,8 @@ async function dealAttribution(url, env) {
     // since the question is "did this contact convert," not "did the call happen." Uses
     // searchTasksForAttribution (not searchTasks) so a contact counts regardless of which rep's
     // name is on the task — see that function's comment for why and what was tested.
-    const { results } = await searchTasksForAttribution(API, H, report, searchOpts);
+    const { results, truncated } = await searchTasksForAttribution(API, H, report, searchOpts);
+    if (truncated) computedKeys = new Set();
     const allTasks = results.map((t) => t.properties || {}).filter((p) => p.hs_object_id && p.hs_createdate);
 
     const taskIds = allTasks.map((p) => p.hs_object_id);
