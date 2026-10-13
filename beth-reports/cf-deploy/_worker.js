@@ -106,6 +106,8 @@ const REPORTS = {
         // these leads overlap heavily with live property/mortgage pipelines.
         outcomeMatching: "enrollment",
         campaignRepsOnly: true,
+        // Original reps plus the team the queue was handed to on 8 Oct.
+        campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
         // Call tasks only — no campaign email. A contact self-booking (e.g. Sunny Idahosa, via
         // the follow-up email Asya sent after speaking to her) is the rep's doing, so every
         // meeting here counts as "by rep" — see outcomeForEnrollmentTask.
@@ -896,7 +898,16 @@ async function outcomes(url, env) {
     // a pass-through everywhere else.
     const campaignReps = new Set(report.campaignRepIds || []);
     const repsOnlyKeys = new Set((report.projects || []).filter((p) => p.campaignRepsOnly).map((p) => p.key));
-    const repFilterFor = (key) => (repsOnlyKeys.has(key) ? (a) => campaignReps.has(a.hubspot_owner_id) : () => true);
+    // A project can name its own reps (campaignRepIds on the project) when its queue is worked by
+    // a different team from the report default — e.g. LTD missed leads moved to Billy/Iglesias/
+    // Carlos on 8 Oct, whose calls were otherwise ignored (227 of 270 done tasks showed as
+    // "(no outreach found)" on 13 Oct; 87 once their activity counted).
+    const projectReps = new Map((report.projects || []).filter((p) => p.campaignRepIds).map((p) => [p.key, new Set(p.campaignRepIds)]));
+    const repFilterFor = (key) => {
+      if (!repsOnlyKeys.has(key)) return () => true;
+      const reps = projectReps.get(key) || campaignReps;
+      return (a) => reps.has(a.hubspot_owner_id);
+    };
     const enrollmentKeys = new Set((report.projects || []).filter((p) => p.outcomeMatching === "enrollment").map((p) => p.key));
     const enrolledByTask = new Map(); // task id -> outcomeForEnrollmentTask result (null = unresolved)
     if (enrollmentKeys.size) {
@@ -1071,7 +1082,7 @@ async function outcomes(url, env) {
       portalId: PORTAL_ID,
       projects,
       other,
-      method: "Each completed task is first matched to the nearest OUTBOUND call on the same contact, within -2h/+15min of completion, preferring same-owner calls (no direct task<->call association exists in this account). If no call matches, the task is reclassified by the next non-call outreach on the contact within -3h/+3h of completion, in priority order: a rep note (classified from its text where recognisable, otherwise shown verbatim), then a WhatsApp message, then an email. Only tasks with none of these show as '(no outreach found)'. totalReached counts contact by any channel; totalMatchedToCall counts calls only. EXCEPTION — the Complete plan upsell, LTD freemium, LTD missed leads and BA closed won queues use enrollment-window matching instead: Closed won (same rule as the Deals card) > meeting created since the task was created (split into from email — contact self-booked via the booking link — vs booked by a rep) > the latest outbound/manually-logged call between task creation and completion + 48h, preferring the task owner's calls > the note/WhatsApp/email fallback above. For LTD missed leads and BA closed won, only meetings/calls/notes by the campaign reps (Asya, Chey, Yoana) count — other teams' activity on the same contacts is ignored. LTD missed leads has no campaign email, so all its meetings count as booked by rep. Nonpaying final followup's email went out before its call tasks were created, so its closed-won and meeting window opens at the email send (6 Oct 11:35 UTC) instead.",
+      method: "Each completed task is first matched to the nearest OUTBOUND call on the same contact, within -2h/+15min of completion, preferring same-owner calls (no direct task<->call association exists in this account). If no call matches, the task is reclassified by the next non-call outreach on the contact within -3h/+3h of completion, in priority order: a rep note (classified from its text where recognisable, otherwise shown verbatim), then a WhatsApp message, then an email. Only tasks with none of these show as '(no outreach found)'. totalReached counts contact by any channel; totalMatchedToCall counts calls only. EXCEPTION — the Complete plan upsell, LTD freemium, LTD missed leads and BA closed won queues use enrollment-window matching instead: Closed won (same rule as the Deals card) > meeting created since the task was created (split into from email — contact self-booked via the booking link — vs booked by a rep) > the latest outbound/manually-logged call between task creation and completion + 48h, preferring the task owner's calls > the note/WhatsApp/email fallback above. For LTD missed leads (Asya, Chey, Yoana, Billy, Iglesias, Carlos) and BA closed won (Asya, Chey, Yoana), only meetings/calls/notes by the campaign reps count — other teams' activity on the same contacts is ignored. LTD missed leads has no campaign email, so all its meetings count as booked by rep. Nonpaying final followup's email went out before its call tasks were created, so its closed-won and meeting window opens at the email send (6 Oct 11:35 UTC) instead.",
     }, 200);
   } catch (e) {
     return json({ error: String(e) }, 502);
