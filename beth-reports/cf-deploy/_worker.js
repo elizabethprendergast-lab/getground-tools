@@ -113,7 +113,8 @@ const REPORTS = {
       },
       {
         key: "reengage-nonpaying",
-        closed: true, // Moved under "Closed" on the dashboard (5 Oct) — data still computed/shown.
+        // Reopened 13 Oct (was closed 5 Oct): last few Hoxton Capital non-paying companies
+        // being worked by Yoana.
         label: "Re-engagement — Non-paying customers (old partner leads)",
         match: (s) => s.includes("Non paying customers - old partner leads"),
         // Real subject: "#N | Call | Re-engagement | Non paying customers - old partner leads".
