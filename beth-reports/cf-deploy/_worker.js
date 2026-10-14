@@ -187,7 +187,9 @@ const REPORTS = {
         // this when writing it) — before relying on this campaign's numbers, check the
         // "other"/unmatched count on the dashboard for a jump, or re-run the token combination
         // against the real Tasks Search API the way the other projects above were verified.
-        attributionSearch: { tokens: ["Upsell", "Complete", "mrr"], notTokens: ["Reengagement"], ownerFiltered: false },
+        // "EPC" excluded (14 Oct): the EPC experiment's "Complete upsell - EPC list mrr" tasks
+        // carry all three tokens too, so without it they'd come back here and land in "other".
+        attributionSearch: { tokens: ["Upsell", "Complete", "mrr"], notTokens: ["Reengagement", "EPC"], ownerFiltered: false },
         // This queue runs alongside the complete_0926 email, and reps often tick the task off
         // before/after the actual call (or a colleague covers it), so the live -2h/+15min
         // completion anchor mis-attributed 7 of the first 34 done tasks vs a manual audit.
@@ -234,6 +236,40 @@ const REPORTS = {
         // The attribution window opens at the send so a sign-up or self-booked meeting from the
         // email in that gap still counts — see attributionStartMs.
         campaignEmail: { id: 485822676194, sentAt: "2026-10-06T11:35:51Z" },
+      },
+      {
+        key: "experiment-epc",
+        label: "Experiment — EPC list Complete upsell",
+        // Real subject: "#1 |  Call | Experiment | Complete upsell - EPC list mrr" (double space
+        // after "#1 |"), from workflow 5096773821. Doesn't collide with Upsell-Complete's match
+        // ("Call | Upsell | Complete ...") — that project's search excludes "EPC" instead.
+        match: (s) => s.includes("Complete upsell - EPC list"),
+        namePattern: "Call | Experiment | Complete upsell - EPC list mrr",
+        searchTerm: "Complete upsell - EPC list",
+        context: "279 customers who lodged a rental EPC between Apr 2025 and Jun 2026, split into 5 buckets by how long ago (4–6, 7–9, 10–12, 13–15, 16–18 months) to see whether timing changes how open they are to Complete. Everyone gets the same email from their owner, then 3 call tasks.",
+        // Verified against real data (2026-10-14): "EPC" AND "mrr" returns exactly 110 tasks since
+        // the sprint start, every one of them this campaign.
+        attributionSearch: { tokens: ["EPC", "mrr"], ownerFiltered: false },
+        // Email + calls, same as Upsell-Complete — see outcomeForEnrollmentTask.
+        outcomeMatching: "enrollment",
+        // "EPC list complete plan - 1026" goes out in hourly batches from 13 Oct 20:30 UTC, each
+        // contact's #1 task created ~10 min after their email. The window opens at the first send
+        // for tasks created within 24h of it (see attributionStartMs), so a reply to the email in
+        // that 10-min gap still counts.
+        // emailCampaignIds/subject drive the per-bucket email columns (see fetchEmailEngagement).
+        // 148129104 is the send id for this automated email as of 14 Oct. If the email is edited
+        // and republished HubSpot gives it a new one, which must be added here. Its subject is
+        // shared with the 12 Oct complete-upsell emails, so replies only count from enrollment.
+        campaignEmail: {
+          id: 489962820831, sentAt: "2026-10-13T20:30:04Z",
+          emailCampaignIds: [148129104], subject: "Quick question about your letting agent",
+        },
+        // Outcomes and deals are also broken down by this contact property (see segmentRows).
+        segmentBy: {
+          property: "epc_bucket",
+          label: "EPC bucket",
+          order: ["4-6 months", "7-9 months", "10-12 months", "13-15 months", "16-18 months"],
+        },
       },
     ],
   },
@@ -485,12 +521,19 @@ async function searchTasksForAttribution(API, H, report, opts = {}) {
   const MAX_FILTER_GROUPS = 5;
   let total = 0, truncated = false;
   const results = [];
+  // Filter groups are ORed within one request, but not across batches — a task matched by
+  // projects in two different batches would otherwise be counted twice.
+  const seen = new Set();
   for (let i = 0; i < filterGroups.length; i += MAX_FILTER_GROUPS) {
     const batch = filterGroups.slice(i, i + MAX_FILTER_GROUPS);
     const r = await runTaskSearch(API, H, batch, opts.maxPages);
     total += r.total;
     truncated ||= r.truncated;
-    results.push(...r.results);
+    for (const t of r.results) {
+      if (seen.has(t.id)) continue;
+      seen.add(t.id);
+      results.push(t);
+    }
   }
   return { total, results, truncated };
 }
@@ -703,6 +746,126 @@ function contactLabel(props) {
   return name || props.email || "(unnamed contact)";
 }
 
+// ---- Per-segment breakdown (projects with segmentBy) -------------------------------------
+// An experiment can split its contacts by a contact property (e.g. the EPC campaign's
+// epc_bucket) so its outcomes and deals can be compared across groups. Rows follow
+// segmentBy.order, then any unexpected value, then "(not set)".
+const SEGMENT_NOT_SET = "(not set)";
+const POSITIVE_OUTCOMES = new Set(["Positive", "Progress to deal"]);
+const SPOKE_TO_CATEGORIES = new Set(["converted", "meeting", "answered", "unclassified_connected"]);
+
+function segmentProperties(report) {
+  return [...new Set((report.projects || []).filter((p) => p.segmentBy).map((p) => p.segmentBy.property))];
+}
+
+// A task can have more than one contact — use the first one that has the property set.
+function segmentValue(cfg, contactIds, contacts) {
+  for (const cid of contactIds) {
+    const v = contacts[cid] && contacts[cid][cfg.segmentBy.property];
+    if (v) return v;
+  }
+  return SEGMENT_NOT_SET;
+}
+
+function orderedSegments(cfg, map) {
+  const order = cfg.segmentBy.order || [];
+  const extra = [...map.keys()].filter((v) => !order.includes(v) && v !== SEGMENT_NOT_SET).sort();
+  return [...order, ...extra, ...(map.has(SEGMENT_NOT_SET) ? [SEGMENT_NOT_SET] : [])]
+    .map((value) => ({ value, ...(map.get(value) || {}) }));
+}
+
+function segmentOutcomes(cfg, tallied, contacts) {
+  const map = new Map();
+  for (const t of tallied) {
+    const v = segmentValue(cfg, t.contactIds, contacts);
+    const s = map.get(v) || { tasksDone: 0, spokeTo: 0, positive: 0, meetings: 0 };
+    s.tasksDone++;
+    if (SPOKE_TO_CATEGORIES.has(t.category)) s.spokeTo++;
+    if (POSITIVE_OUTCOMES.has(t.outcome)) s.positive++;
+    if (t.category === "meeting") s.meetings++;
+    map.set(v, s);
+  }
+  return { property: cfg.segmentBy.property, label: cfg.segmentBy.label, rows: orderedSegments(cfg, map) };
+}
+
+// ---- Campaign email engagement (projects whose campaignEmail has emailCampaignIds) ---------
+// Per contact: was the email delivered, opened, clicked, replied to. Opens/clicks come from the
+// legacy email events API, filtered to this email's send ids — exact per recipient, but it needs
+// the private app's `content` scope. If that read fails, fall back to the contact's "last
+// marketing email open/click date" on or after enrollment, which can also pick up a different
+// marketing email sent since — the result says which source was used. Replies are incoming
+// emails logged on the contact (the reply-to is the contact owner's connected inbox) whose
+// subject contains every word of the campaign subject, on or after the contact's enrollment.
+const EMAIL_FALLBACK_PROPS = ["hs_email_last_open_date", "hs_email_last_click_date"];
+
+async function fetchEmailEvents(API, H, emailCampaignIds, type, sinceMs) {
+  const out = []; // { recipient (lowercased), ms }
+  for (const campaignId of emailCampaignIds) {
+    let offset;
+    do {
+      const params = new URLSearchParams({ campaignId: String(campaignId), eventType: type, startTimestamp: String(sinceMs), limit: "1000" });
+      if (offset) params.set("offset", offset);
+      const j = await hsFetch(`${API}/email/public/v1/events?${params}`, { headers: H });
+      for (const e of j.events || []) if (e.recipient) out.push({ recipient: e.recipient.toLowerCase(), ms: e.created });
+      offset = j.hasMore ? j.offset : null;
+    } while (offset);
+  }
+  return out;
+}
+
+async function fetchEmailEngagement(API, H, cfg, contactMap, contacts) {
+  const ce = cfg.campaignEmail;
+  const sinceMs = Date.parse(ce.sentAt);
+  const byEmail = new Map();
+  for (const cid of contactMap.keys()) {
+    const email = (contacts[cid] && contacts[cid].email || "").toLowerCase();
+    if (email) byEmail.set(email, cid);
+  }
+  const result = {}; // contactId -> { delivered, opened, clicked, replied }
+  const mark = (cid, field) => { if (cid) (result[cid] ||= {})[field] = true; };
+
+  let source = "events";
+  try {
+    for (const [type, field] of [["DELIVERED", "delivered"], ["OPEN", "opened"], ["CLICK", "clicked"]]) {
+      for (const e of await fetchEmailEvents(API, H, ce.emailCampaignIds, type, sinceMs)) mark(byEmail.get(e.recipient), field);
+    }
+  } catch (err) {
+    console.log(`email events unavailable, using contact properties (${err})`);
+    source = "contact-properties";
+    for (const [cid, enrolledMs] of contactMap) {
+      const c = contacts[cid] || {};
+      if (Date.parse(c.hs_email_last_open_date) >= enrolledMs) mark(cid, "opened");
+      if (Date.parse(c.hs_email_last_click_date) >= enrolledMs) mark(cid, "clicked");
+    }
+  }
+
+  try {
+    const words = ce.subject.split(/\s+/).filter((w) => w.length > 3);
+    const filters = words.map((w) => ({ propertyName: "hs_email_subject", operator: "CONTAINS_TOKEN", value: w }));
+    filters.push({ propertyName: "hs_email_direction", operator: "EQ", value: "INCOMING_EMAIL" });
+    filters.push({ propertyName: "hs_timestamp", operator: "GTE", value: String(sinceMs) });
+    const replies = [];
+    let after;
+    do {
+      const body = { filterGroups: [{ filters }], properties: ["hs_timestamp"], limit: 200 };
+      if (after) body.after = after;
+      const j = await hsFetch(`${API}/crm/v3/objects/emails/search`, { method: "POST", headers: H, body: JSON.stringify(body) });
+      replies.push(...(j.results || []));
+      after = j.paging && j.paging.next && j.paging.next.after;
+    } while (after);
+    const emailToContacts = await batchAssociations(API, H, "emails", "contacts", replies.map((r) => r.id));
+    for (const r of replies) {
+      const ms = Date.parse(r.properties.hs_timestamp);
+      for (const cid of emailToContacts[r.id] || []) {
+        if (contactMap.has(cid) && ms >= contactMap.get(cid)) mark(cid, "replied");
+      }
+    }
+  } catch (err) {
+    console.log(`email replies skipped (${err})`);
+  }
+  return { source, byContact: result };
+}
+
 // ---- Non-call outreach (WhatsApp / email / note) ----------------------------------------
 // Reps also work these tasks by WhatsApp, email, or by just leaving a note — none of which is
 // a Call object, so without this a task worked that way was mislabelled "(no matching call
@@ -888,7 +1051,7 @@ async function outcomes(url, env) {
     const contactToCalls = await batchAssociations(API, H, "contacts", "calls", contactIds);
     const callIds = [...new Set(Object.values(contactToCalls).flat())];
     const calls = await batchRead(API, H, "calls", callIds, ["hs_timestamp", "hs_call_disposition", "hs_call_direction", "hubspot_owner_id"]);
-    const contacts = await batchRead(API, H, "contacts", contactIds, ["firstname", "lastname", "email"]);
+    const contacts = await batchRead(API, H, "contacts", contactIds, ["firstname", "lastname", "email", ...segmentProperties(report)]);
 
     // Meetings + deals are only needed for enrollment-matched projects (see
     // outcomeForEnrollmentTask), so skip the extra reads when none is in this request. Fetched
@@ -976,6 +1139,7 @@ async function outcomes(url, env) {
 
     // project key -> { totalCompleted, matched, byOutcome: { outcome: { count, category, contacts:[{id,name,taskId}] } } }
     const buckets = {};
+    const tallied = []; // { key, outcome, category, contactIds } per task, for segmentOutcomes()
     for (const p of completedTasks) {
       const key = classifyProject(report, p.hs_task_subject);
       const b = (buckets[key] ||= { totalCompleted: 0, matched: 0, byOutcome: {} });
@@ -996,6 +1160,7 @@ async function outcomes(url, env) {
         const o = (b.byOutcome[enrolled.outcome] ||= { count: 0, category: enrolled.category, contacts: [] });
         o.count++;
         for (const cid of contactsForTask) o.contacts.push({ id: cid, name: contactLabel(contacts[cid]), taskId: p.hs_object_id, note: null });
+        tallied.push({ key, outcome: enrolled.outcome, category: enrolled.category, contactIds: contactsForTask });
         continue;
       }
       // Enrollment-matched task with no deal/meeting/call: fall through to the note/WhatsApp/
@@ -1060,6 +1225,7 @@ async function outcomes(url, env) {
       for (const cid of contactsForTask) {
         o.contacts.push({ id: cid, name: contactLabel(contacts[cid]), taskId: p.hs_object_id, note: noteText });
       }
+      tallied.push({ key, outcome, category, contactIds: contactsForTask });
     }
 
     const toRows = (b) => Object.entries(b.byOutcome)
@@ -1071,7 +1237,8 @@ async function outcomes(url, env) {
       // `computed: false` marks a project that fell outside this request's search (only possible
       // without ?campaign=, i.e. beyond the maxProjects:5 cap) — its zeros are "not fetched yet",
       // not a real "no data", so the client knows to fetch it scoped rather than trust them.
-      return { key: cfg.key, label: cfg.label, computed: computedKeys.has(cfg.key), totalCompleted: b.totalCompleted, totalMatchedToCall: b.matched, totalReached: (b.matched || 0) + (b.reached || 0), dispositions: toRows(b) };
+      const segments = cfg.segmentBy ? segmentOutcomes(cfg, tallied.filter((t) => t.key === cfg.key), contacts) : undefined;
+      return { key: cfg.key, label: cfg.label, computed: computedKeys.has(cfg.key), totalCompleted: b.totalCompleted, totalMatchedToCall: b.matched, totalReached: (b.matched || 0) + (b.reached || 0), dispositions: toRows(b), segments };
     });
     const otherB = buckets.other || { totalCompleted: 0, matched: 0, byOutcome: {} };
     const other = { totalCompleted: otherB.totalCompleted, totalMatchedToCall: otherB.matched, totalReached: (otherB.matched || 0) + (otherB.reached || 0), dispositions: toRows(otherB) };
@@ -1083,7 +1250,7 @@ async function outcomes(url, env) {
       portalId: PORTAL_ID,
       projects,
       other,
-      method: "Each completed task is first matched to the nearest OUTBOUND call on the same contact, within -2h/+15min of completion, preferring same-owner calls (no direct task<->call association exists in this account). If no call matches, the task is reclassified by the next non-call outreach on the contact within -3h/+3h of completion, in priority order: a rep note (classified from its text where recognisable, otherwise shown verbatim), then a WhatsApp message, then an email. Only tasks with none of these show as '(no outreach found)'. totalReached counts contact by any channel; totalMatchedToCall counts calls only. EXCEPTION — the Complete plan upsell, LTD freemium, LTD missed leads and BA closed won queues use enrollment-window matching instead: Closed won (same rule as the Deals card) > meeting created since the task was created (split into from email — contact self-booked via the booking link — vs booked by a rep) > the latest outbound/manually-logged call between task creation and completion + 48h, preferring the task owner's calls > the note/WhatsApp/email fallback above. For LTD missed leads (Asya, Chey, Yoana, Billy, Iglesias, Carlos) and BA closed won (Asya, Chey, Yoana), only meetings/calls/notes by the campaign reps count — other teams' activity on the same contacts is ignored. LTD missed leads has no campaign email, so all its meetings count as booked by rep. Nonpaying final followup's email went out before its call tasks were created, so its closed-won and meeting window opens at the email send (6 Oct 11:35 UTC) instead.",
+      method: "Each completed task is first matched to the nearest OUTBOUND call on the same contact, within -2h/+15min of completion, preferring same-owner calls (no direct task<->call association exists in this account). If no call matches, the task is reclassified by the next non-call outreach on the contact within -3h/+3h of completion, in priority order: a rep note (classified from its text where recognisable, otherwise shown verbatim), then a WhatsApp message, then an email. Only tasks with none of these show as '(no outreach found)'. totalReached counts contact by any channel; totalMatchedToCall counts calls only. EXCEPTION — the Complete plan upsell, EPC list experiment, LTD freemium, LTD missed leads and BA closed won queues use enrollment-window matching instead: Closed won (same rule as the Deals card) > meeting created since the task was created (split into from email — contact self-booked via the booking link — vs booked by a rep) > the latest outbound/manually-logged call between task creation and completion + 48h, preferring the task owner's calls > the note/WhatsApp/email fallback above. For LTD missed leads (Asya, Chey, Yoana, Billy, Iglesias, Carlos) and BA closed won (Asya, Chey, Yoana), only meetings/calls/notes by the campaign reps count — other teams' activity on the same contacts is ignored. LTD missed leads has no campaign email, so all its meetings count as booked by rep. Nonpaying final followup's email went out before its call tasks were created, so its closed-won and meeting window opens at the email send (6 Oct 11:35 UTC) instead. The EPC list experiment's email goes out in hourly batches from 13 Oct 20:30 UTC, ~10 minutes before each contact's call task, so its window opens at the first send for tasks created within 24h of it. Its outcomes are also split by the contact's epc_bucket: spoke to = answered, meeting or closed won; positive = a Positive or Progress to deal call.",
     }, 200);
   } catch (e) {
     return json({ error: String(e) }, 502);
@@ -1172,7 +1339,8 @@ async function dealAttribution(url, env) {
     const dealIds = [...new Set(Object.values(contactToDeals).flat())];
     const deals = await batchRead(API, H, "deals", dealIds, ["pipeline", "dealstage", "plans___product_type", "p_p___upsell", "closedate"]);
     const contacts = await batchRead(API, H, "contacts", allContactIds, [
-      "firstname", "lastname", "email", "hs_active_contracts_mrr",
+      "firstname", "lastname", "email", "hs_active_contracts_mrr", ...segmentProperties(report),
+      ...((report.projects || []).some((p) => p.campaignEmail && p.campaignEmail.emailCampaignIds) ? EMAIL_FALLBACK_PROPS : []),
     ]);
     // Migrations (old paywall-off pricing -> a current plan) never create a Plans-pipeline
     // deal — confirmed with the team: attribution for these runs off the contact owner field
@@ -1223,11 +1391,35 @@ async function dealAttribution(url, env) {
       return { totalContacts: contactMap.size, contactsWithClosedDeal: contactsWithDeal, rows };
     };
 
-    const projects = (report.projects || []).map((cfg) => {
+    // Same deal/migration rule as buildProject, per segment value (projects with segmentBy).
+    // Email engagement by segment, for projects that name their email's send ids.
+    const segmentDeals = async (cfg, contactMap) => {
+      const withEmail = !!(cfg.campaignEmail && cfg.campaignEmail.emailCampaignIds);
+      const engagement = withEmail ? await fetchEmailEngagement(API, H, cfg, contactMap, contacts) : null;
+      const map = new Map();
+      for (const [cid, enrolledMs] of contactMap) {
+        const v = segmentValue(cfg, [cid], contacts);
+        const s = map.get(v) || { contacts: 0, closedWon: 0 };
+        s.contacts++;
+        const won = (contactToDeals[cid] || []).some((did) => isClosedPlansDeal(deals[did]) && Date.parse(deals[did].closedate) >= enrolledMs);
+        const migration = migrationEvents[cid];
+        if (won || (migration && migration.occurredMs >= enrolledMs)) s.closedWon++;
+        if (engagement) {
+          const e = engagement.byContact[cid] || {};
+          for (const f of ["delivered", "opened", "clicked", "replied"]) s[f] = (s[f] || 0) + (e[f] ? 1 : 0);
+        }
+        map.set(v, s);
+      }
+      return { property: cfg.segmentBy.property, label: cfg.segmentBy.label, rows: orderedSegments(cfg, map), emailSource: engagement ? engagement.source : undefined };
+    };
+
+    const projects = [];
+    for (const cfg of report.projects || []) {
       const contactMap = projectContacts[cfg.key] || new Map();
+      const segments = cfg.segmentBy ? await segmentDeals(cfg, contactMap) : undefined;
       // See outcomes() for what `computed: false` means (project outside this request's search).
-      return { key: cfg.key, label: cfg.label, computed: computedKeys.has(cfg.key), ...buildProject(contactMap) };
-    });
+      projects.push({ key: cfg.key, label: cfg.label, computed: computedKeys.has(cfg.key), ...buildProject(contactMap), segments });
+    }
     const other = buildProject(projectContacts.other || new Map());
 
     return json({
@@ -1236,7 +1428,7 @@ async function dealAttribution(url, env) {
       portalId: PORTAL_ID,
       projects,
       other,
-      method: "Every contact ever associated with a task in this sequence (any task status) is checked for a Closed Won deal in the \"Plans\" HubSpot pipeline that closed ON OR AFTER the date they were first enrolled in that sequence (their earliest task's creation date there) — a deal that closed before they were ever put into the sequence doesn't count. Where the campaign email went out before the call tasks (Nonpaying final followup: 6 Oct 11:35 UTC, for the first 22 contacts), enrollment is the email send instead. Bucketed by plan type (plans___product_type: Core/Complete) and whether it was flagged an upsell (p_p___upsell). A contact can appear in more than one bucket if they closed more than one qualifying deal (e.g. closed Core shortly after enrolling, then upsold to Complete later) — both are real outcomes. SEPARATELY, contacts with no qualifying deal are checked against the \"Packs and Plans confirmed\" behavioral event (is_migration=true) — migrations never create a Plans deal, per the team, so they'd otherwise be invisible here. This event carries a real timestamp, so — same as deals — only an event that fired ON OR AFTER enrollment counts. Migration rows show whether MRR has actually started (hs_active_contracts_mrr) since these customers are usually still on trial.",
+      method: "Every contact ever associated with a task in this sequence (any task status) is checked for a Closed Won deal in the \"Plans\" HubSpot pipeline that closed ON OR AFTER the date they were first enrolled in that sequence (their earliest task's creation date there) — a deal that closed before they were ever put into the sequence doesn't count. Where the campaign email went out before the call tasks (Nonpaying final followup: 6 Oct 11:35 UTC, for the first 22 contacts; EPC list experiment: first send 13 Oct 20:30 UTC), enrollment is the email send instead. The EPC list experiment's contacts and conversions are also split by epc_bucket, with email engagement per bucket: delivered/opened/clicked from HubSpot's email events for that email (falling back to the contact's last marketing email open/click date on or after enrollment if those events can't be read), and replied = an incoming email on the contact with the campaign's subject, on or after enrollment. Bucketed by plan type (plans___product_type: Core/Complete) and whether it was flagged an upsell (p_p___upsell). A contact can appear in more than one bucket if they closed more than one qualifying deal (e.g. closed Core shortly after enrolling, then upsold to Complete later) — both are real outcomes. SEPARATELY, contacts with no qualifying deal are checked against the \"Packs and Plans confirmed\" behavioral event (is_migration=true) — migrations never create a Plans deal, per the team, so they'd otherwise be invisible here. This event carries a real timestamp, so — same as deals — only an event that fired ON OR AFTER enrollment counts. Migration rows show whether MRR has actually started (hs_active_contracts_mrr) since these customers are usually still on trial.",
     }, 200);
   } catch (e) {
     return json({ error: String(e) }, 502);
