@@ -518,14 +518,23 @@ async function searchTasksForAttribution(API, H, report, opts = {}) {
   // — one group per project here, so a 6th project broke every endpoint at once (blank page,
   // no graceful fallback client-side). Batch into groups of <=5 and merge instead of assuming
   // the project count stays under the cap forever.
+  // It also caps filters at 18 per request across all groups: adding the EPC project (14 Oct)
+  // made the second batch 19 and HubSpot rejected it, blanking every campaign. So a batch
+  // closes at 5 groups or before it would pass 18 filters, whichever comes first.
   const MAX_FILTER_GROUPS = 5;
+  const MAX_FILTERS = 18;
+  const batches = [];
+  for (const g of filterGroups) {
+    const cur = batches[batches.length - 1];
+    if (cur && cur.length < MAX_FILTER_GROUPS && cur.reduce((n, x) => n + x.filters.length, 0) + g.filters.length <= MAX_FILTERS) cur.push(g);
+    else batches.push([g]);
+  }
   let total = 0, truncated = false;
   const results = [];
   // Filter groups are ORed within one request, but not across batches — a task matched by
   // projects in two different batches would otherwise be counted twice.
   const seen = new Set();
-  for (let i = 0; i < filterGroups.length; i += MAX_FILTER_GROUPS) {
-    const batch = filterGroups.slice(i, i + MAX_FILTER_GROUPS);
+  for (const batch of batches) {
     const r = await runTaskSearch(API, H, batch, opts.maxPages);
     total += r.total;
     truncated ||= r.truncated;
