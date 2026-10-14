@@ -196,6 +196,7 @@ const REPORTS = {
       },
       {
         key: "reengage-ltd-freemium",
+        closed: true, // Moved under "Closed" on the dashboard (14 Oct) — data still computed/shown.
         label: "Reengage — LTD freemium",
         // Real subjects: "#1 |  Call | Reengage | LTD freemium mrr" and "#2 | Call | Reengage |
         // LTD freemium mrr (Nurture)" — match the fixed phrase so later call numbers/suffixes
