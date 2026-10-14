@@ -214,6 +214,7 @@ const REPORTS = {
       },
       {
         key: "reengage-nonpaying-master",
+        closed: true, // Moved under "Closed" on the dashboard (14 Oct) — data still computed/shown.
         label: "Reengage — Nonpaying customers final followup",
         // Real subject: "#1 | Call | Reengage | Nonpaying customers final followup" (some have a
         // double space after "#1 |"). Renamed 7 Oct from "Non paying customers (master list) mrr"
