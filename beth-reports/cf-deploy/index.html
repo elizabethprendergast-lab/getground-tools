@@ -535,6 +535,41 @@ function wireDealHovers(label, portalId) {
   });
 }
 
+// Experiments with segmentBy (e.g. EPC list by epc_bucket): one row per segment, joining the
+// deals card's contacts/conversions with the outcomes card's per-task results.
+function segmentCardHtml(o, d, loading) {
+  const seg = (d && d.segments) || (o && o.segments);
+  if (!seg) return "";
+  if (loading && !(d && d.segments && o && o.segments)) {
+    return `
+      <section class="card">
+        <h2>By ${esc(seg.label)}</h2>
+        <div class="empty-state">Loading the ${esc(seg.label)} breakdown…</div>
+      </section>`;
+  }
+  const byValue = (s) => Object.fromEntries(((s && s.rows) || []).map(r => [r.value, r]));
+  const dRows = byValue(d && d.segments), oRows = byValue(o && o.segments);
+  const values = [...new Set([...((d && d.segments && d.segments.rows) || []), ...((o && o.segments && o.segments.rows) || [])].map(r => r.value))];
+  const n = (v) => v || 0;
+  const pct = (a, b) => (b ? `${Math.round(100 * a / b)}%` : "–");
+  return `
+    <section class="card">
+      <h2>By ${esc(seg.label)}</h2>
+      <p class="sub">Same rules as the outcomes and deal cards above, split by the contact's <code>${esc(seg.property)}</code> — live. Spoke to = answered call, meeting or closed won; positive = a Positive or Progress to deal call.</p>
+      <div class="overflow-x">
+        <table class="outcomes-table">
+          <thead><tr><th>${esc(seg.label)}</th><th>Contacts</th><th>Closed won</th><th>Conversion</th><th>Tasks done</th><th>Spoke to</th><th>Positive</th><th>Meetings</th></tr></thead>
+          <tbody>
+            ${values.map(v => {
+              const dr = dRows[v] || {}, or = oRows[v] || {};
+              return `<tr><td>${esc(v)}</td><td>${n(dr.contacts)}</td><td>${n(dr.closedWon)}</td><td>${pct(n(dr.closedWon), n(dr.contacts))}</td><td>${n(or.tasksDone)}</td><td>${n(or.spokeTo)}</td><td>${n(or.positive)}</td><td>${n(or.meetings)}</td></tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>`;
+}
+
 function campaignPageHtml(proj, sprintStart, hubspot) {
   return `
     <div class="meta-row">
@@ -545,6 +580,7 @@ function campaignPageHtml(proj, sprintStart, hubspot) {
     ${completionCardHtml(proj, sprintStart, hubspot)}
     <div id="outcomes-slot"></div>
     <div id="deals-slot"></div>
+    <div id="segments-slot"></div>
     <footer id="footer-line"></footer>`;
 }
 
@@ -777,6 +813,8 @@ function render() {
     const { data: dealData, loading: dealsLoading } = resolveScoped("deals", key, dealsByKey);
     document.getElementById("deals-slot").innerHTML = dealCardHtml(proj.label, dealData, portalId, dealsLoading);
     wireDealHovers(proj.label, portalId);
+
+    document.getElementById("segments-slot").innerHTML = segmentCardHtml(outcomeData, dealData, outcomesLoading || dealsLoading);
   }
 
   document.getElementById("meta-line").textContent = key === REFERRAL_TAB_KEY
