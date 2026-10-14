@@ -567,7 +567,35 @@ function segmentCardHtml(o, d, loading) {
           </tbody>
         </table>
       </div>
+      ${segmentEmailTableHtml(d && d.segments, values, dRows)}
     </section>`;
+}
+
+// Email engagement per segment (deals endpoint, projects whose campaign email has send ids).
+// Rates are out of delivered when HubSpot's email events could be read, else out of contacts.
+function segmentEmailTableHtml(seg, values, dRows) {
+  if (!seg || !seg.emailSource) return "";
+  const exact = seg.emailSource === "events";
+  const n = (v) => v || 0;
+  const cell = (a, b) => (b ? `${a} <span style="color:var(--text-muted)">(${Math.round(100 * a / b)}%)</span>` : `${a}`);
+  return `
+      <h3 style="margin:18px 0 4px; font-size:14px">Campaign email</h3>
+      <p class="sub">${exact
+        ? "From HubSpot's email events for this email — % of delivered."
+        : "HubSpot's email events couldn't be read, so opens and clicks use each contact's last marketing email open/click date since enrolling — this can include a different marketing email. % of contacts."}
+        Replied = an email back from the contact with this subject, logged in HubSpot.</p>
+      <div class="overflow-x">
+        <table class="outcomes-table">
+          <thead><tr><th>${esc(seg.label)}</th>${exact ? "<th>Delivered</th>" : ""}<th>Opened</th><th>Clicked</th><th>Replied</th></tr></thead>
+          <tbody>
+            ${values.map(v => {
+              const r = dRows[v] || {};
+              const base = exact ? n(r.delivered) : n(r.contacts);
+              return `<tr><td>${esc(v)}</td>${exact ? `<td>${n(r.delivered)}</td>` : ""}<td>${cell(n(r.opened), base)}</td><td>${cell(n(r.clicked), base)}</td><td>${cell(n(r.replied), base)}</td></tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>`;
 }
 
 function campaignPageHtml(proj, sprintStart, hubspot) {
