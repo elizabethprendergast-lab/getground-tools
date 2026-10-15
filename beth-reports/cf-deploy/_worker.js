@@ -565,6 +565,27 @@ async function fetchOwnerNames(API, H) {
   return map;
 }
 
+// Optional ?from=YYYY-MM-DD&to=YYYY-MM-DD (both inclusive, UK calendar days) narrows the
+// report to work done in that window: done tasks and outcomes by task completion date, deals
+// by close date. Open tasks are a live backlog, so they always count whatever the range.
+function londonMidnightMs(day) {
+  const utc = Date.parse(`${day}T00:00:00Z`);
+  if (Number.isNaN(utc)) return null;
+  // Europe/London is UTC+0 or +1 — read the offset for that day rather than hardcoding BST.
+  const tz = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", timeZoneName: "shortOffset" })
+    .formatToParts(new Date(utc + 12 * 3600 * 1000)).find((x) => x.type === "timeZoneName")?.value || "GMT";
+  const m = tz.match(/GMT([+-]\d+)?/);
+  return utc - Number((m && m[1]) || 0) * 3600 * 1000;
+}
+function dateRange(url) {
+  const from = url.searchParams.get("from"), to = url.searchParams.get("to");
+  const fromMs = from ? londonMidnightMs(from) : null;
+  const toMs = to ? londonMidnightMs(to) : null;
+  if (fromMs == null && toMs == null) return null;
+  const endMs = toMs == null ? null : toMs + 24 * 3600 * 1000; // exclusive end of the "to" day
+  return { from, to, has: (ms) => !Number.isNaN(ms) && (fromMs == null || ms >= fromMs) && (endMs == null || ms < endMs) };
+}
+
 async function stats(url, env) {
   const [reportKey, report] = getReport(url);
   if (!report) return json({ error: `unknown report '${reportKey}'` }, 404);
@@ -580,6 +601,7 @@ async function stats(url, env) {
     // owner-filtered search never even fetched her tasks, not just excluded her from the rep
     // breakdown). Active Lead still stays owner-filtered per its attributionSearch config.
     const { results } = await searchTasksForAttribution(API, H, report);
+    const range = dateRange(url);
     // Rep names are resolved live from HubSpot rather than a fixed list, so whoever actually
     // owns a task shows up correctly instead of being lumped in as unnamed/invisible.
     const ownerNameMap = await fetchOwnerNames(API, H);
@@ -599,15 +621,19 @@ async function stats(url, env) {
       const key = classifyProject(report, p.hs_task_subject);
       const b = (buckets[key] ||= emptyBucket());
       const done = p.hs_task_status === "COMPLETED";
+      // Outside the date range: drop done tasks completed outside it (open ones always count).
+      if (done && range && !range.has(Date.parse(p.hs_task_completion_date))) continue;
       b.total++;
       if (done) b.done++;
+      const num = callNumber(p.hs_task_subject) || "?";
       if (p.hubspot_owner_id) {
         seenOwnerIds.add(p.hubspot_owner_id);
         const name = report.ownerNames[p.hubspot_owner_id] || ownerNameMap[p.hubspot_owner_id] || `Owner ${p.hubspot_owner_id}`;
         const rep = (b.reps[name] ||= { created: 0, done: 0 });
         rep.created++; if (done) rep.done++;
+        // Open tasks by call number, for the rep hover ("3 left at #1, 2 at #2").
+        if (!done) { rep.openByCall ||= {}; rep.openByCall[num] = (rep.openByCall[num] || 0) + 1; }
       }
-      const num = callNumber(p.hs_task_subject) || "?";
       const cn = (b.callNumbers[num] ||= { total: 0, done: 0 });
       cn.total++; if (done) cn.done++;
       const pri = p.hs_task_priority || "NONE";
@@ -642,6 +668,7 @@ async function stats(url, env) {
       report: reportKey,
       name: report.name,
       sprintStart: report.sprintStart,
+      range: range ? { from: range.from, to: range.to } : null,
       projects,
       other,
       hubspot: {
@@ -1045,9 +1072,22 @@ async function outcomes(url, env) {
   try {
     const { results, truncated } = await searchTasksForAttribution(API, H, report, searchOpts);
     if (truncated) computedKeys = new Set();
+    const range = dateRange(url);
     const completedTasks = results
       .map((t) => t.properties || {})
-      .filter((p) => p.hs_task_status === "COMPLETED" && p.hs_task_completion_date && p.hs_createdate);
+      .filter((p) => p.hs_task_status === "COMPLETED" && p.hs_task_completion_date && p.hs_createdate)
+      .filter((p) => !range || range.has(Date.parse(p.hs_task_completion_date)));
+    // Owner names for the per-rep outcome split (rep hover on the completion card). Fail-soft:
+    // without them reps show as "Owner <id>", same fallback as stats().
+    let ownerNameMap = {};
+    try { ownerNameMap = await fetchOwnerNames(API, H); } catch (e) { console.log(`outcomes: owner names skipped (${e})`); }
+    const repName = (id) => (reportConfig.ownerNames || {})[id] || ownerNameMap[id] || `Owner ${id}`;
+    const tallyRep = (b, p, outcome) => {
+      if (!p.hubspot_owner_id) return;
+      const r = ((b.byRep ||= {})[repName(p.hubspot_owner_id)] ||= { total: 0, outcomes: {} });
+      r.total++;
+      r.outcomes[outcome] = (r.outcomes[outcome] || 0) + 1;
+    };
 
     // Disposition GUID -> human label, straight from this account's configured list.
     const dispositions = await hsFetch(`${API}/calling/v1/dispositions`, { headers: H });
@@ -1170,6 +1210,7 @@ async function outcomes(url, env) {
         o.count++;
         for (const cid of contactsForTask) o.contacts.push({ id: cid, name: contactLabel(contacts[cid]), taskId: p.hs_object_id, note: null });
         tallied.push({ key, outcome: enrolled.outcome, category: enrolled.category, contactIds: contactsForTask });
+        tallyRep(b, p, enrolled.outcome);
         continue;
       }
       // Enrollment-matched task with no deal/meeting/call: fall through to the note/WhatsApp/
@@ -1235,6 +1276,7 @@ async function outcomes(url, env) {
         o.contacts.push({ id: cid, name: contactLabel(contacts[cid]), taskId: p.hs_object_id, note: noteText });
       }
       tallied.push({ key, outcome, category, contactIds: contactsForTask });
+      tallyRep(b, p, outcome);
     }
 
     const toRows = (b) => Object.entries(b.byOutcome)
@@ -1247,7 +1289,7 @@ async function outcomes(url, env) {
       // without ?campaign=, i.e. beyond the maxProjects:5 cap) — its zeros are "not fetched yet",
       // not a real "no data", so the client knows to fetch it scoped rather than trust them.
       const segments = cfg.segmentBy ? segmentOutcomes(cfg, tallied.filter((t) => t.key === cfg.key), contacts) : undefined;
-      return { key: cfg.key, label: cfg.label, computed: computedKeys.has(cfg.key), totalCompleted: b.totalCompleted, totalMatchedToCall: b.matched, totalReached: (b.matched || 0) + (b.reached || 0), dispositions: toRows(b), segments };
+      return { key: cfg.key, label: cfg.label, computed: computedKeys.has(cfg.key), totalCompleted: b.totalCompleted, totalMatchedToCall: b.matched, totalReached: (b.matched || 0) + (b.reached || 0), dispositions: toRows(b), byRep: b.byRep || {}, segments };
     });
     const otherB = buckets.other || { totalCompleted: 0, matched: 0, byOutcome: {} };
     const other = { totalCompleted: otherB.totalCompleted, totalMatchedToCall: otherB.matched, totalReached: (otherB.matched || 0) + (otherB.reached || 0), dispositions: toRows(otherB) };
@@ -1326,6 +1368,9 @@ async function dealAttribution(url, env) {
     const { results, truncated } = await searchTasksForAttribution(API, H, report, searchOpts);
     if (truncated) computedKeys = new Set();
     const allTasks = results.map((t) => t.properties || {}).filter((p) => p.hs_object_id && p.hs_createdate);
+    // Date range (see dateRange): only deals closed / migrations confirmed inside it count.
+    const range = dateRange(url);
+    const inRange = (ms) => !range || range.has(ms);
 
     const taskIds = allTasks.map((p) => p.hs_object_id);
     const taskToContacts = await taskContacts(API, H, taskIds);
@@ -1368,10 +1413,10 @@ async function dealAttribution(url, env) {
         const dealsForContact = (contactToDeals[cid] || [])
           .map((did) => deals[did])
           .filter(isClosedPlansDeal)
-          .filter((d) => Date.parse(d.closedate) >= enrolledMs);
+          .filter((d) => Date.parse(d.closedate) >= enrolledMs && inRange(Date.parse(d.closedate)));
         const c = contacts[cid];
         const migration = migrationEvents[cid];
-        const validMigration = migration && migration.occurredMs >= enrolledMs;
+        const validMigration = migration && migration.occurredMs >= enrolledMs && inRange(migration.occurredMs);
         if (dealsForContact.length) {
           contactsWithDeal++;
           for (const d of dealsForContact) {
@@ -1410,9 +1455,9 @@ async function dealAttribution(url, env) {
         const v = segmentValue(cfg, [cid], contacts);
         const s = map.get(v) || { contacts: 0, closedWon: 0 };
         s.contacts++;
-        const won = (contactToDeals[cid] || []).some((did) => isClosedPlansDeal(deals[did]) && Date.parse(deals[did].closedate) >= enrolledMs);
+        const won = (contactToDeals[cid] || []).some((did) => isClosedPlansDeal(deals[did]) && Date.parse(deals[did].closedate) >= enrolledMs && inRange(Date.parse(deals[did].closedate)));
         const migration = migrationEvents[cid];
-        if (won || (migration && migration.occurredMs >= enrolledMs)) s.closedWon++;
+        if (won || (migration && migration.occurredMs >= enrolledMs && inRange(migration.occurredMs))) s.closedWon++;
         if (engagement) {
           const e = engagement.byContact[cid] || {};
           for (const f of ["delivered", "opened", "clicked", "replied"]) s[f] = (s[f] || 0) + (e[f] ? 1 : 0);

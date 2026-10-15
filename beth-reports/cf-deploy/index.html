@@ -193,7 +193,20 @@
   .outcome-bar-row .name, .outcome-bar-row .count { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .outcome-bar-row .track { flex: 1; height: 10px; border-radius: 5px; background: var(--gridline); overflow: hidden; }
   .outcome-bar-row .fill { height: 100%; border-radius: 5px; }
-  .outcome-bar-row .count { flex: 0 0 40px; text-align: right; font-size: 13px; color: var(--text-secondary); }
+  .outcome-bar-row .count { flex: 0 0 84px; text-align: right; font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .outcome-bar-row .count .share { color: var(--text-muted); margin-left: 6px; display: inline-block; min-width: 34px; }
+  .meta-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .range-ctl { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  .range-ctl select, .range-ctl input {
+    font: inherit; font-size: 13px; padding: 6px 8px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary);
+  }
+  .range-note { font-size: 12px; color: var(--text-muted); margin: -8px 0 16px; }
+  .rep-bar-wrap[data-rep] .rep-bar-head span:first-child { cursor: help; border-bottom: 1px dashed var(--baseline); }
+  #contact-popover.rep-pop { max-width: 300px; max-height: 360px; }
+  #contact-popover .rp-row { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; color: var(--text-secondary); }
+  #contact-popover .rp-row b { color: var(--text-primary); font-weight: 600; font-variant-numeric: tabular-nums; }
+  #contact-popover .rp-sec { margin-top: 8px; }
   #contact-popover {
     position: fixed; z-index: 50; max-width: 260px; max-height: 260px; overflow-y: auto;
     background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
@@ -365,15 +378,18 @@ function completionCardHtml(proj, sprintStart, hubspot) {
         <div class="empty-state">No matching call tasks yet in this project since ${fmtDate(sprintStart)}.</div>
       </section>`;
   }
-  const reps = Object.entries(t.reps || {});
+  // The report's fixed reps are listed even with no tasks; in a date range that leaves "0 / 0" rows.
+  const reps = Object.entries(t.reps || {}).filter(([, r]) => r.created || !rangeIsSet());
+  window.__repStats = Object.fromEntries(reps);
   return `
     <section class="card">
       <h2>${esc(proj.label)}</h2>
       <p class="sub">Call task completion — assigned after ${fmtDate(sprintStart)}</p>
       ${contextLine}
       ${namePattern}
+      ${rangeIsSet() ? `<p class="range-note">Showing ${esc(rangeLabel())}: done = tasks completed in that window; not done = tasks still open now.</p>` : ""}
       <div class="stat-row">
-        <div class="stat-tile"><div class="label">Total assigned</div><div class="value">${t.total}</div></div>
+        <div class="stat-tile"><div class="label">${rangeIsSet() ? "Done + still open" : "Total assigned"}</div><div class="value">${t.total}</div></div>
         <div class="stat-tile done"><div class="label">Done</div><div class="value">${t.done}</div></div>
         <div class="stat-tile"><div class="label">Not done</div><div class="value">${t.notDone}</div></div>
         ${priorityTileHtml(t.priorityBreakdown)}
@@ -381,7 +397,7 @@ function completionCardHtml(proj, sprintStart, hubspot) {
       ${reps.map(([name, r]) => {
         const link = hubspotTaskLink(hubspot, hubspot && hubspot.ownerViews && hubspot.ownerViews[name], proj.taskViewQuery);
         return `
-        <div class="rep-bar-wrap">
+        <div class="rep-bar-wrap" data-rep="${esc(name)}">
           <div class="rep-bar-head">
             <span>${esc(name)}</span>
             <span>${r.done} / ${r.created} done</span>
@@ -403,6 +419,7 @@ let popoverHideTimer = null;
 function showContactPopover(anchorEl, contacts, portalId) {
   clearTimeout(popoverHideTimer);
   const pop = document.getElementById("contact-popover");
+  pop.classList.remove("rep-pop");
   const unique = [];
   const seen = new Set();
   for (const c of contacts) { if (!seen.has(c.id)) { seen.add(c.id); unique.push(c); } }
@@ -434,6 +451,13 @@ function showUserIdPopover(anchorEl, ids, note) {
   pop.style.left = Math.min(rect.left, window.innerWidth - 280) + "px";
 }
 
+// "<1%" rather than a misleading "0%" for a real but tiny share.
+function sharePct(n, total) {
+  if (!total) return "–";
+  const p = 100 * n / total;
+  return n && p < 1 ? "<1%" : `${Math.round(p)}%`;
+}
+
 function outcomeCardHtml(label, o, portalId, loading) {
   const rows = (o && o.dispositions) || [];
   if (!rows.length) {
@@ -448,22 +472,14 @@ function outcomeCardHtml(label, o, portalId, loading) {
   const html = `
     <section class="card">
       <h2>Outcomes — ${esc(label)}</h2>
-      <p class="sub">Call outcomes — live. Hover an outcome to see who's behind it, click a name to open them in HubSpot.</p>
+      <p class="sub">Call outcomes — live${rangeIsSet() ? `, tasks completed ${esc(rangeLabel())}` : ""}. Hover an outcome to see who's behind it, click a name to open them in HubSpot.</p>
       ${rows.map((r, i) => `
         <div class="outcome-bar-row" data-outcome-index="${i}">
           <span class="name" data-outcome-index="${i}">${esc(r.outcome)}</span>
           <div class="track"><div class="fill" style="width:${100 * r.tasks / max}%; background:${SERIES[i % SERIES.length]}"></div></div>
-          <span class="count">${r.tasks}</span>
+          <span class="count">${r.tasks}<span class="share">${sharePct(r.tasks, o.totalCompleted)}</span></span>
         </div>
       `).join("")}
-      <div class="overflow-x">
-        <table class="outcomes-table">
-          <thead><tr><th>Outcome</th><th>Tasks</th><th>Share</th></tr></thead>
-          <tbody>
-            ${rows.map(r => `<tr><td>${esc(r.outcome)}</td><td>${r.tasks}</td><td>${Math.round(100 * r.tasks / o.totalCompleted)}%</td></tr>`).join("")}
-          </tbody>
-        </table>
-      </div>
       <p class="sub" style="margin-top:12px">${o.totalMatchedToCall} of ${o.totalCompleted} completed tasks matched to a call.</p>
     </section>`;
   // Stash rows on a data attribute-free closure via a global lookup keyed by label (simple,
@@ -501,22 +517,14 @@ function dealCardHtml(label, d, portalId, loading) {
   const html = `
     <section class="card">
       <h2>Deal attribution — ${esc(label)}</h2>
-      <p class="sub">Contacts put into this sequence who closed a Plans deal (Core/Complete, new or upsell) — live. Hover a row to see who, click a name to open them in HubSpot.</p>
+      <p class="sub">Contacts put into this sequence who closed a Plans deal (Core/Complete, new or upsell) — live${rangeIsSet() ? `, deals closed ${esc(rangeLabel())}` : ""}. Hover a row to see who, click a name to open them in HubSpot.</p>
       ${rows.map((r, i) => `
         <div class="outcome-bar-row" data-deal-index="${i}">
           <span class="name" data-deal-index="${i}">${esc(r.label)}</span>
           <div class="track"><div class="fill" style="width:${100 * r.count / max}%; background:${SERIES[i % SERIES.length]}"></div></div>
-          <span class="count">${r.count}</span>
+          <span class="count">${r.count}<span class="share">${sharePct(r.count, d.totalContacts)}</span></span>
         </div>
       `).join("")}
-      <div class="overflow-x">
-        <table class="outcomes-table">
-          <thead><tr><th>Outcome</th><th>Contacts</th><th>Share</th></tr></thead>
-          <tbody>
-            ${rows.map(r => `<tr><td>${esc(r.label)}</td><td>${r.count}</td><td>${Math.round(100 * r.count / d.totalContacts)}%</td></tr>`).join("")}
-          </tbody>
-        </table>
-      </div>
       <p class="sub" style="margin-top:12px">${d.contactsWithClosedDeal} of ${d.totalContacts} contacts put into this sequence have closed a Plans deal.</p>
     </section>`;
   window.__dealRowsByLabel = window.__dealRowsByLabel || {};
@@ -602,7 +610,7 @@ function campaignPageHtml(proj, sprintStart, hubspot) {
   return `
     <div class="meta-row">
       <p id="meta-line">Loading…</p>
-      <button id="update-btn">Update</button>
+      <div class="meta-actions">${rangeControlHtml()}<button id="update-btn">Update</button></div>
     </div>
     ${isClosed(proj) ? `<div class="closed-banner">This campaign is closed — kept here for reference. Any tasks still open in HubSpot are shown below.</div>` : ""}
     ${completionCardHtml(proj, sprintStart, hubspot)}
@@ -676,7 +684,7 @@ function landingHtml(stats) {
   return `
     <div class="meta-row">
       <p id="meta-line">Loading…</p>
-      <button id="update-btn">Update</button>
+      <div class="meta-actions">${rangeControlHtml()}<button id="update-btn">Update</button></div>
     </div>
     <h2 class="section-heading">Active campaigns</h2>
     <div class="landing-grid">
@@ -717,7 +725,7 @@ function referralPageHtml() {
   return `
     <div class="meta-row">
       <p id="meta-line">Loading…</p>
-      <button id="update-btn">Update</button>
+      <div class="meta-actions">${rangeControlHtml()}<button id="update-btn">Update</button></div>
     </div>
     ${referralCardHtml()}
     <footer id="footer-line"></footer>`;
@@ -745,6 +753,98 @@ document.addEventListener("click", (e) => {
   if (d && !d.contains(e.target)) d.removeAttribute("open");
 });
 
+// Date range — "all" (since the sprint start), the last N days, or a custom from/to. Kept per
+// viewer in localStorage; every /api call carries it as ?from=&to= (see dateRange in _worker.js).
+const RANGE_KEY = "beth-reports:range";
+let range = { preset: "all" };
+try { range = JSON.parse(localStorage.getItem(RANGE_KEY) || "null") || range; } catch (_) { /* storage blocked */ }
+const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+function rangeDates() {
+  if (range.preset === "custom") return { from: range.from || "", to: range.to || "" };
+  const days = Number(range.preset);
+  if (!days) return { from: "", to: "" };
+  const start = new Date(); start.setDate(start.getDate() - (days - 1));
+  return { from: isoDay(start), to: isoDay(new Date()) };
+}
+function rangeIsSet() { const r = rangeDates(); return !!(r.from || r.to); }
+function rangeParams() {
+  const r = rangeDates();
+  return (r.from ? `&from=${r.from}` : "") + (r.to ? `&to=${r.to}` : "");
+}
+function rangeLabel() {
+  if (range.preset !== "custom" && Number(range.preset)) return `in the last ${range.preset} days`;
+  const r = rangeDates();
+  const f = (d) => fmtDate(d);
+  if (r.from && r.to) return `${f(r.from)} – ${f(r.to)}`;
+  return r.from ? `from ${f(r.from)}` : `up to ${f(r.to)}`;
+}
+function rangeControlHtml() {
+  const opt = (v, l) => `<option value="${v}"${String(range.preset) === v ? " selected" : ""}>${l}</option>`;
+  const r = rangeDates();
+  const custom = range.preset === "custom";
+  return `<span class="range-ctl">
+    <select id="range-select" aria-label="Date range">${opt("all", "All time")}${opt("7", "Last 7 days")}${opt("14", "Last 14 days")}${opt("30", "Last 30 days")}${opt("custom", "Custom…")}</select>
+    ${custom ? `<input type="date" id="range-from" value="${r.from}" aria-label="From"><span>–</span><input type="date" id="range-to" value="${r.to}" aria-label="To">` : ""}
+  </span>`;
+}
+function setRange(next) {
+  range = next;
+  try { localStorage.setItem(RANGE_KEY, JSON.stringify(range)); } catch (_) { /* storage blocked */ }
+  cache = { stats: null, outcomes: null, deals: null, referrals: null };
+  scopedOutcomes = {}; scopedDeals = {};
+  document.getElementById("main").innerHTML = "Loading…";
+  load({ force: true });
+}
+function wireRangeControl() {
+  const sel = document.getElementById("range-select");
+  if (!sel) return;
+  sel.addEventListener("change", () => {
+    if (sel.value === "custom") {
+      const r = rangeDates();
+      const today = isoDay(new Date());
+      range = { preset: "custom", from: r.from || today, to: r.to || today };
+      setRange(range);
+    } else setRange({ preset: sel.value });
+  });
+  for (const id of ["range-from", "range-to"]) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", () => setRange({ preset: "custom", from: document.getElementById("range-from").value, to: document.getElementById("range-to").value }));
+  }
+}
+
+// Rep hover on the completion card: that rep's call outcomes (share of their completed tasks)
+// and their open tasks by call number. Outcomes come from the outcomes fetch, so they may still
+// be loading when the completion card is already up.
+function showRepPopover(anchorEl, name) {
+  clearTimeout(popoverHideTimer);
+  const pop = document.getElementById("contact-popover");
+  const r = (window.__repStats || {})[name] || { created: 0, done: 0 };
+  const ro = (window.__repOutcomes || {})[name];
+  const open = Object.entries(r.openByCall || {}).sort((a, b) => (a[0] === "?" ? 1 : b[0] === "?" ? -1 : Number(a[0]) - Number(b[0])));
+  const outcomeRows = ro ? Object.entries(ro.outcomes).sort((a, b) => b[1] - a[1]) : [];
+  pop.classList.add("rep-pop");
+  pop.innerHTML = `<p class="ph-title">${esc(name)} · ${r.done} / ${r.created} done</p>
+    <div class="rp-sec"><p class="ph-title">Call outcomes</p>${
+      window.__repOutcomes === undefined ? `<span class="ph-note">Loading…</span>`
+      : outcomeRows.length ? outcomeRows.map(([o, n]) => `<div class="rp-row"><span>${esc(o)}</span><b>${Math.round(100 * n / ro.total)}% <span style="color:var(--text-muted);font-weight:400">(${n})</span></b></div>`).join("")
+      : `<span class="ph-note">No completed tasks${rangeIsSet() ? " in this range" : ""}.</span>`}</div>
+    <div class="rp-sec"><p class="ph-title">Tasks left</p>${
+      open.length ? open.map(([num, n]) => `<div class="rp-row"><span>${num === "?" ? "No call number" : `#${num} call`}</span><b>${n}</b></div>`).join("")
+      : `<span class="ph-note">None left.</span>`}</div>`;
+  const rect = anchorEl.getBoundingClientRect();
+  pop.style.display = "block";
+  const top = Math.min(rect.bottom + 6, window.innerHeight - pop.offsetHeight - 12);
+  pop.style.top = Math.max(8, top) + "px";
+  pop.style.left = Math.min(rect.left, window.innerWidth - 320) + "px";
+}
+function wireRepHovers() {
+  document.querySelectorAll(".rep-bar-wrap[data-rep] .rep-bar-head, .rep-bar-wrap[data-rep] .rep-bar").forEach((el) => {
+    const name = el.closest(".rep-bar-wrap").getAttribute("data-rep");
+    el.addEventListener("mouseenter", () => showRepPopover(el, name));
+    el.addEventListener("mouseleave", scheduleHidePopover);
+  });
+}
+
 function currentCampaignKey() {
   return new URLSearchParams(location.search).get("campaign");
 }
@@ -771,7 +871,7 @@ async function fetchScoped(kind, key) {
   scopedInFlight.add(flightKey);
   const store = kind === "outcomes" ? scopedOutcomes : scopedDeals;
   try {
-    const res = await fetch(`/api/${kind}?report=${REPORT_KEY}&campaign=${encodeURIComponent(key)}`).then(r => r.json());
+    const res = await fetch(`/api/${kind}?report=${REPORT_KEY}&campaign=${encodeURIComponent(key)}${rangeParams()}`).then(r => r.json());
     store[key] = (res && res.projects && res.projects[0]) || null;
   } catch (e) {
     store[key] = null;
@@ -796,9 +896,9 @@ function resolveScoped(kind, key, batchByKey) {
 
 async function fetchData() {
   const [statsRes, outcomesRes, dealsRes, referralsRes] = await Promise.all([
-    fetch(`/api/stats?report=${REPORT_KEY}`).then(r => r.json()),
-    fetch(`/api/outcomes?report=${REPORT_KEY}`).then(r => r.json()).catch(() => null),
-    fetch(`/api/deals?report=${REPORT_KEY}`).then(r => r.json()).catch(() => null),
+    fetch(`/api/stats?report=${REPORT_KEY}${rangeParams()}`).then(r => r.json()),
+    fetch(`/api/outcomes?report=${REPORT_KEY}${rangeParams()}`).then(r => r.json()).catch(() => null),
+    fetch(`/api/deals?report=${REPORT_KEY}${rangeParams()}`).then(r => r.json()).catch(() => null),
     fetch(`/api/referrals`).then(r => r.json()).catch(() => null),
   ]);
   cache = { stats: statsRes, outcomes: outcomesRes, deals: dealsRes, referrals: referralsRes };
@@ -806,9 +906,11 @@ async function fetchData() {
   scopedDeals = {};
   // Keep the last good load for this tab, so coming back (e.g. the back button from another
   // report) can paint instantly instead of waiting on the live HubSpot fetch again.
-  try { sessionStorage.setItem(LAST_LOAD_KEY, JSON.stringify(cache)); } catch (_) { /* quota / disabled */ }
+  try { sessionStorage.setItem(lastLoadKey(), JSON.stringify(cache)); } catch (_) { /* quota / disabled */ }
 }
-const LAST_LOAD_KEY = "beth-reports:last-load";
+// Keyed by date range, so a saved "last 7 days" load never paints under "All time".
+const LAST_LOAD_PREFIX = "beth-reports:last-load";
+const lastLoadKey = () => `${LAST_LOAD_PREFIX}${rangeParams()}`;
 
 function render() {
   const key = currentCampaignKey();
@@ -836,6 +938,8 @@ function render() {
     const { data: outcomeData, loading: outcomesLoading } = resolveScoped("outcomes", key, outcomesByKey);
     document.getElementById("outcomes-slot").innerHTML = outcomeCardHtml(proj.label, outcomeData, portalId, outcomesLoading);
     wireOutcomeHovers(proj.label, portalId);
+    window.__repOutcomes = outcomesLoading ? undefined : ((outcomeData && outcomeData.byRep) || {});
+    wireRepHovers();
 
     const dealsByKey = Object.fromEntries((dealsRes && dealsRes.projects || []).map(p => [p.key, p]));
     const { data: dealData, loading: dealsLoading } = resolveScoped("deals", key, dealsByKey);
@@ -856,6 +960,7 @@ function render() {
       : "";
   }
   document.getElementById("update-btn").addEventListener("click", () => load({ force: true }));
+  wireRangeControl();
 }
 
 async function load({ force = false } = {}) {
@@ -863,7 +968,7 @@ async function load({ force = false } = {}) {
     if (!force && !cache.stats) {
       // Paint the previous load straight away (if this tab has one), then refresh it below.
       try {
-        const saved = JSON.parse(sessionStorage.getItem(LAST_LOAD_KEY) || "null");
+        const saved = JSON.parse(sessionStorage.getItem(lastLoadKey()) || "null");
         if (saved && saved.stats) { cache = saved; render(); force = true; }
       } catch (_) { /* unreadable — fall through to a normal load */ }
     }
