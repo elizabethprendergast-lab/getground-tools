@@ -34,6 +34,29 @@ const REPORTS = {
     // Ordered by priority (highest first) — drives both the nav bar and the landing grid.
     projects: [
       {
+        key: "reengage-nonpaying-master",
+        // Reopened 15 Oct as top priority (moved back out of "Closed", first in the list).
+        label: "Reengage — Nonpaying customers final followup",
+        // Real subject: "#1 | Call | Reengage | Nonpaying customers final followup" (some have a
+        // double space after "#1 |"). Renamed 7 Oct from "Non paying customers (master list) mrr"
+        // — the original 22 tasks (6 Oct) were renamed, plus 56 new ones created 7 Oct.
+        // Key kept so the tab's URL doesn't change.
+        match: (s) => s.includes("Call | Reengage | Nonpaying customers final followup"),
+        namePattern: "Call | Reengage | Nonpaying customers final followup",
+        searchTerm: "Call | Reengage | Nonpaying customers final followup",
+        context: "Final follow-up with non-paying customers, called to move them onto a paid plan.",
+        // Verified against real data (2026-10-07): "Nonpaying" AND "followup" returns exactly
+        // 78 tasks portal-wide, every one of them this campaign — clean without an owner filter.
+        attributionSearch: { tokens: ["Nonpaying", "followup"], ownerFiltered: false },
+        // Same attribution rules as Upsell-Complete — see outcomeForEnrollmentTask.
+        outcomeMatching: "enrollment",
+        // "Action needed by 16th October" (nonpaying customer (master list) - 1026) went to 23
+        // contacts at 11:35 UTC on 6 Oct, ~2.5h before the call tasks were created (14:03 UTC).
+        // The attribution window opens at the send so a sign-up or self-booked meeting from the
+        // email in that gap still counts — see attributionStartMs.
+        campaignEmail: { id: 485822676194, sentAt: "2026-10-06T11:35:51Z" },
+      },
+      {
         key: "active-lead",
         closed: true, // Moved under "Closed" on the dashboard (5 Oct) — data still computed/shown.
         label: "Active Lead — Ltd Company Set-up",
@@ -213,29 +236,6 @@ const REPORTS = {
         attributionSearch: { tokens: ["LTD", "freemium"], ownerFiltered: false },
         // Email can book a meeting directly, same as Upsell-Complete — see outcomeForEnrollmentTask.
         outcomeMatching: "enrollment",
-      },
-      {
-        key: "reengage-nonpaying-master",
-        closed: true, // Moved under "Closed" on the dashboard (14 Oct) — data still computed/shown.
-        label: "Reengage — Nonpaying customers final followup",
-        // Real subject: "#1 | Call | Reengage | Nonpaying customers final followup" (some have a
-        // double space after "#1 |"). Renamed 7 Oct from "Non paying customers (master list) mrr"
-        // — the original 22 tasks (6 Oct) were renamed, plus 56 new ones created 7 Oct.
-        // Key kept so the tab's URL doesn't change.
-        match: (s) => s.includes("Call | Reengage | Nonpaying customers final followup"),
-        namePattern: "Call | Reengage | Nonpaying customers final followup",
-        searchTerm: "Call | Reengage | Nonpaying customers final followup",
-        context: "Final follow-up with non-paying customers, called to move them onto a paid plan.",
-        // Verified against real data (2026-10-07): "Nonpaying" AND "followup" returns exactly
-        // 78 tasks portal-wide, every one of them this campaign — clean without an owner filter.
-        attributionSearch: { tokens: ["Nonpaying", "followup"], ownerFiltered: false },
-        // Same attribution rules as Upsell-Complete — see outcomeForEnrollmentTask.
-        outcomeMatching: "enrollment",
-        // "Action needed by 16th October" (nonpaying customer (master list) - 1026) went to 23
-        // contacts at 11:35 UTC on 6 Oct, ~2.5h before the call tasks were created (14:03 UTC).
-        // The attribution window opens at the send so a sign-up or self-booked meeting from the
-        // email in that gap still counts — see attributionStartMs.
-        campaignEmail: { id: 485822676194, sentAt: "2026-10-06T11:35:51Z" },
       },
       {
         key: "experiment-epc",
