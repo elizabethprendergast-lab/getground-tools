@@ -812,6 +812,24 @@ function wireRangeControl() {
   }
 }
 
+// Rep hover groups outcomes into five buckets (Beth's grouping, 15 Oct). Anything else (e.g.
+// contacted via note/WhatsApp/email, Connected) lands in "Other" so the shares still add to 100%.
+const REP_OUTCOME_GROUPS = [
+  ["Positive", (o) => /^(positive|progress to deal|thinking about it)$/i.test(o) || /^meeting booked|^closed won/i.test(o)],
+  ["Follow up", (o) => /^(follow up|busy|ring back later)$/i.test(o)],
+  ["Negative", (o) => /^(uninterested|not a fit|wrong number)$/i.test(o)],
+  ["No answer", (o) => /^(no answer|left voicemail)$/i.test(o)],
+  ["No outreach found", (o) => o === "(no outreach found)"],
+];
+function groupRepOutcomes(outcomes) {
+  const totals = new Map(REP_OUTCOME_GROUPS.map(([g]) => [g, 0]));
+  for (const [o, n] of Object.entries(outcomes)) {
+    const g = (REP_OUTCOME_GROUPS.find(([, test]) => test(o)) || ["Other"])[0];
+    totals.set(g, (totals.get(g) || 0) + n);
+  }
+  return [...totals].filter(([g, n]) => n || g !== "Other");
+}
+
 // Rep hover on the completion card: that rep's call outcomes (share of their completed tasks)
 // and their open tasks by call number. Outcomes come from the outcomes fetch, so they may still
 // be loading when the completion card is already up.
@@ -821,7 +839,7 @@ function showRepPopover(anchorEl, name) {
   const r = (window.__repStats || {})[name] || { created: 0, done: 0 };
   const ro = (window.__repOutcomes || {})[name];
   const open = Object.entries(r.openByCall || {}).sort((a, b) => (a[0] === "?" ? 1 : b[0] === "?" ? -1 : Number(a[0]) - Number(b[0])));
-  const outcomeRows = ro ? Object.entries(ro.outcomes).sort((a, b) => b[1] - a[1]) : [];
+  const outcomeRows = ro ? groupRepOutcomes(ro.outcomes) : [];
   pop.classList.add("rep-pop");
   pop.innerHTML = `<p class="ph-title">${esc(name)} · ${r.done} / ${r.created} done</p>
     <div class="rp-sec"><p class="ph-title">Call outcomes</p>${
