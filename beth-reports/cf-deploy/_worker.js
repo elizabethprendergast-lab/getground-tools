@@ -1107,6 +1107,17 @@ async function outcomes(url, env) {
     const taskToContacts = await taskContacts(API, H, taskIds);
     const contactIds = [...new Set(Object.values(taskToContacts).flat())];
     const contactToCalls = await batchAssociations(API, H, "contacts", "calls", contactIds);
+    // Only read calls created around or after the earliest task: every match window starts at
+    // task creation or later, and HubSpot ids rise over time (see ACTIVITY_IDS_PER_CONTACT
+    // below), so older calls can never match. LTD missed leads' contacts have 2,685 calls but only
+    // 556 are recent; reading them all took 27 of Cloudflare's 50 subrequests, so the
+    // meetings/deals read after it failed and every meeting went missing from the card (16 Oct).
+    // The margin is ~4-5 days of ids, well over the overlap between weeks.
+    const CALL_ID_MARGIN = 1000000000n;
+    const minTaskId = taskIds.reduce((m, id) => (BigInt(id) < m ? BigInt(id) : m), BigInt(taskIds[0] || 0));
+    for (const cid of Object.keys(contactToCalls)) {
+      contactToCalls[cid] = contactToCalls[cid].filter((id) => BigInt(id) >= minTaskId - CALL_ID_MARGIN);
+    }
     const callIds = [...new Set(Object.values(contactToCalls).flat())];
     const calls = await batchRead(API, H, "calls", callIds, ["hs_timestamp", "hs_call_disposition", "hs_call_direction", "hubspot_owner_id"]);
     const contacts = await batchRead(API, H, "contacts", contactIds, ["firstname", "lastname", "email", ...segmentProperties(report)]);
