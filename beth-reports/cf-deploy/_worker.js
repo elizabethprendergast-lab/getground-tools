@@ -135,6 +135,9 @@ const REPORTS = {
         // the follow-up email Asya sent after speaking to her) is the rep's doing, so every
         // meeting here counts as "by rep" — see outcomeForEnrollmentTask.
         noCampaignEmail: true,
+        // Count meetings booked into anyone's calendar during the call window, not just the
+        // campaign reps' own (15 Oct: 7 of ~28 meetings were counted) — see outcomeForEnrollmentTask.
+        meetingsAnyHost: true,
       },
       {
         key: "reengage-nonpaying",
@@ -934,6 +937,10 @@ const ASYNC_WINDOW_AFTER_MS = 3 * 60 * 60 * 1000;  // completion + 3h
 // team's work on the same contact never lands in the queue's outcomes. Closed won is unchanged.
 // Projects with noCampaignEmail: true have no email for a contact to book from, so a self-booked
 // meeting (booking link sent by the rep after a call) is labelled "by rep" too.
+// Projects with meetingsAnyHost: true count a meeting whoever hosts it, but only if it was
+// created between task creation and completion + 48h (the call window). Reps book contacts into
+// consultants' calendars (Ryan Welby, Tristan Webel, the consultation round-robin), so the
+// meeting owner is rarely the rep; the tighter window keeps those teams' later follow-ups out.
 const ENROLLMENT_CALL_AFTER_MS = 48 * 60 * 60 * 1000; // completion + 48h
 
 // Where a project's campaign email went out before its call tasks were created
@@ -960,12 +967,15 @@ function outcomeForEnrollmentTask(p, ctx) {
     }
   }
 
+  const hi = Date.parse(p.hs_task_completion_date) + ENROLLMENT_CALL_AFTER_MS;
   let meeting = null;
   for (const cid of contactsForTask) {
     for (const id of contactToMeetings[cid] || []) {
       const m = meetings[id];
       if (!m || !m.hs_createdate || Date.parse(m.hs_createdate) < startMs) continue;
-      if (!repOk(m)) continue;
+      if (projectCfg?.meetingsAnyHost) {
+        if (Date.parse(m.hs_createdate) > hi) continue;
+      } else if (!repOk(m)) continue;
       if (!meeting || m.hs_meeting_source === "MEETINGS_PUBLIC") meeting = m; // self-booked wins: the call didn't cause it
     }
   }
@@ -975,7 +985,6 @@ function outcomeForEnrollmentTask(p, ctx) {
       : { outcome: "Meeting booked — by rep", category: "meeting" };
   }
 
-  const hi = Date.parse(p.hs_task_completion_date) + ENROLLMENT_CALL_AFTER_MS;
   const candidates = [];
   for (const cid of contactsForTask) {
     for (const id of contactToCalls[cid] || []) {
@@ -1098,6 +1107,17 @@ async function outcomes(url, env) {
     const taskToContacts = await taskContacts(API, H, taskIds);
     const contactIds = [...new Set(Object.values(taskToContacts).flat())];
     const contactToCalls = await batchAssociations(API, H, "contacts", "calls", contactIds);
+    // Only read calls created around or after the earliest task: every match window starts at
+    // task creation or later, and HubSpot ids rise over time (see ACTIVITY_IDS_PER_CONTACT
+    // below), so older calls can never match. LTD missed leads' contacts have 2,685 calls but only
+    // 556 are recent; reading them all took 27 of Cloudflare's 50 subrequests, so the
+    // meetings/deals read after it failed and every meeting went missing from the card (16 Oct).
+    // The margin is ~4-5 days of ids, well over the overlap between weeks.
+    const CALL_ID_MARGIN = 1000000000n;
+    const minTaskId = taskIds.reduce((m, id) => (BigInt(id) < m ? BigInt(id) : m), BigInt(taskIds[0] || 0));
+    for (const cid of Object.keys(contactToCalls)) {
+      contactToCalls[cid] = contactToCalls[cid].filter((id) => BigInt(id) >= minTaskId - CALL_ID_MARGIN);
+    }
     const callIds = [...new Set(Object.values(contactToCalls).flat())];
     const calls = await batchRead(API, H, "calls", callIds, ["hs_timestamp", "hs_call_disposition", "hs_call_direction", "hubspot_owner_id"]);
     const contacts = await batchRead(API, H, "contacts", contactIds, ["firstname", "lastname", "email", ...segmentProperties(report)]);
@@ -1301,7 +1321,7 @@ async function outcomes(url, env) {
       portalId: PORTAL_ID,
       projects,
       other,
-      method: "Each completed task is first matched to the nearest OUTBOUND call on the same contact, within -2h/+15min of completion, preferring same-owner calls (no direct task<->call association exists in this account). If no call matches, the task is reclassified by the next non-call outreach on the contact within -3h/+3h of completion, in priority order: a rep note (classified from its text where recognisable, otherwise shown verbatim), then a WhatsApp message, then an email. Only tasks with none of these show as '(no outreach found)'. totalReached counts contact by any channel; totalMatchedToCall counts calls only. EXCEPTION — the Complete plan upsell, EPC list experiment, LTD freemium, LTD missed leads and BA closed won queues use enrollment-window matching instead: Closed won (same rule as the Deals card) > meeting created since the task was created (split into from email — contact self-booked via the booking link — vs booked by a rep) > the latest outbound/manually-logged call between task creation and completion + 48h, preferring the task owner's calls > the note/WhatsApp/email fallback above. For LTD missed leads (Asya, Chey, Yoana, Billy, Iglesias, Carlos) and BA closed won (Asya, Chey, Yoana), only meetings/calls/notes by the campaign reps count — other teams' activity on the same contacts is ignored. LTD missed leads has no campaign email, so all its meetings count as booked by rep. Nonpaying final followup's email went out before its call tasks were created, so its closed-won and meeting window opens at the email send (6 Oct 11:35 UTC) instead. The EPC list experiment's email goes out in hourly batches from 13 Oct 20:30 UTC, ~10 minutes before each contact's call task, so its window opens at the first send for tasks created within 24h of it. Its outcomes are also split by the contact's epc_bucket: spoke to = answered, meeting or closed won; positive = a Positive or Progress to deal call.",
+      method: "Each completed task is first matched to the nearest OUTBOUND call on the same contact, within -2h/+15min of completion, preferring same-owner calls (no direct task<->call association exists in this account). If no call matches, the task is reclassified by the next non-call outreach on the contact within -3h/+3h of completion, in priority order: a rep note (classified from its text where recognisable, otherwise shown verbatim), then a WhatsApp message, then an email. Only tasks with none of these show as '(no outreach found)'. totalReached counts contact by any channel; totalMatchedToCall counts calls only. EXCEPTION — the Complete plan upsell, EPC list experiment, LTD freemium, LTD missed leads and BA closed won queues use enrollment-window matching instead: Closed won (same rule as the Deals card) > meeting created since the task was created (split into from email — contact self-booked via the booking link — vs booked by a rep) > the latest outbound/manually-logged call between task creation and completion + 48h, preferring the task owner's calls > the note/WhatsApp/email fallback above. For LTD missed leads (Asya, Chey, Yoana, Billy, Iglesias, Carlos) and BA closed won (Asya, Chey, Yoana), only meetings/calls/notes by the campaign reps count — other teams' activity on the same contacts is ignored. LTD missed leads also counts a meeting booked with anyone (e.g. a consultant's calendar) if it was created between task creation and completion + 48h. LTD missed leads has no campaign email, so all its meetings count as booked by rep. Nonpaying final followup's email went out before its call tasks were created, so its closed-won and meeting window opens at the email send (6 Oct 11:35 UTC) instead. The EPC list experiment's email goes out in hourly batches from 13 Oct 20:30 UTC, ~10 minutes before each contact's call task, so its window opens at the first send for tasks created within 24h of it. Its outcomes are also split by the contact's epc_bucket: spoke to = answered, meeting or closed won; positive = a Positive or Progress to deal call.",
     }, 200);
   } catch (e) {
     return json({ error: String(e) }, 502);
