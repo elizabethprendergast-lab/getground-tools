@@ -34,6 +34,25 @@ const REPORTS = {
     // Ordered by priority (highest first) — drives both the nav bar and the landing grid.
     projects: [
       {
+        key: "plan-close-month-end",
+        label: "Active Lead — Plan close (month end)",
+        // Real subject: "#1 | Call | Active Lead | Plan close - month end Oct 26". A new wave is
+        // created in the second-last week of every month with only the month changed ("Nov 26",
+        // "Dec 26", ...), so every wave lands here and is split by that month (breakdownBy).
+        // Listed before active-lead, whose match also excludes this phrase.
+        match: (s) => s.includes("Plan close - month end"),
+        namePattern: "Call | Active Lead | Plan close - month end",
+        searchTerm: "Plan close - month end",
+        context: "Leads the Investment Consultants have already spoken to who said they'd buy a plan but never finished the self-serve sign-up, re-called before month end. A new wave is added each month.",
+        // Verified against real data (2026-10-21): "Plan" AND "close" AND "month" returns exactly
+        // the 20 Oct 26 tasks since the sprint start, nothing else.
+        attributionSearch: { tokens: ["Plan", "close", "month"], ownerFiltered: false },
+        // A self-serve sign-up can land any time after the call, so attribute from task creation.
+        outcomeMatching: "enrollment",
+        // Tasks are split by the month in the title instead of by call attempt (see monthOfSubject).
+        breakdownBy: "month",
+      },
+      {
         key: "reengage-nonpaying-master",
         closed: true, // Moved under "Closed" on the dashboard (21 Oct) — data still computed/shown.
         // Reopened 15 Oct as top priority (moved back out of "Closed", first in the list).
@@ -61,7 +80,7 @@ const REPORTS = {
         key: "active-lead",
         closed: true, // Moved under "Closed" on the dashboard (5 Oct) — data still computed/shown.
         label: "Active Lead — Ltd Company Set-up",
-        match: (s) => s.includes("Active Lead"),
+        match: (s) => s.includes("Active Lead") && !s.includes("Plan close - month end"),
         // Real naming convention (verified live against actual task subjects, not guessed):
         // "#N | Call | Active Lead | <subcategory>" — subcategory varies (A&T, BA Website
         // Enquiry, BA Property Forms Backlog | ..., etc.), so the fixed/searchable part
@@ -284,6 +303,18 @@ const REPORTS = {
 function callNumber(subject) {
   const m = /#(\d+)\s*\|/.exec(subject || "");
   return m ? m[1] : null;
+}
+
+// Month in a "... month end Oct 26" title, as "Oct 2026" plus a sortable key (projects with
+// breakdownBy: "month").
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function monthOfSubject(subject) {
+  const m = /month end\s+([A-Za-z]{3})[a-z]*\s+(\d{2,4})/i.exec(subject || "");
+  if (!m) return null;
+  const mi = MONTHS.findIndex((x) => x.toLowerCase() === m[1].slice(0, 3).toLowerCase());
+  if (mi < 0) return null;
+  const year = m[2].length === 2 ? 2000 + Number(m[2]) : Number(m[2]);
+  return { label: `${MONTHS[mi]} ${year}`, sort: year * 100 + mi };
 }
 
 function classifyProject(report, subject) {
@@ -615,6 +646,7 @@ async function stats(url, env) {
       total: 0, done: 0,
       reps: Object.fromEntries(Object.values(report.ownerNames).map((n) => [n, { created: 0, done: 0 }])),
       callNumbers: {},
+      months: {},
       priority: {},
     });
 
@@ -640,6 +672,9 @@ async function stats(url, env) {
       }
       const cn = (b.callNumbers[num] ||= { total: 0, done: 0 });
       cn.total++; if (done) cn.done++;
+      const month = monthOfSubject(p.hs_task_subject);
+      const mo = (b.months[month ? month.label : "?"] ||= { total: 0, done: 0, sort: month ? month.sort : Infinity });
+      mo.total++; if (done) mo.done++;
       const pri = p.hs_task_priority || "NONE";
       b.priority[pri] = (b.priority[pri] || 0) + 1;
     }
@@ -649,6 +684,12 @@ async function stats(url, env) {
       const byCallNumber = Object.entries(b.callNumbers)
         .map(([number, v]) => ({ number, ...v, notDone: v.total - v.done }))
         .sort((a, b2) => (a.number === "?" ? 1 : b2.number === "?" ? -1 : Number(a.number) - Number(b2.number)));
+      const byMonth = cfg.breakdownBy === "month"
+        ? Object.entries(b.months)
+          .map(([month, v]) => ({ month, total: v.total, done: v.done, notDone: v.total - v.done, sort: v.sort }))
+          .sort((a, b2) => a.sort - b2.sort)
+          .map(({ sort, ...r }) => r)
+        : undefined;
       const priorityBreakdown = Object.entries(b.priority)
         .map(([level, count]) => ({ level, count }))
         .sort((a, b2) => b2.count - a.count);
@@ -659,7 +700,7 @@ async function stats(url, env) {
         closed: !!cfg.closed,
         taskViewQuery: cfg.searchTerm || "",
         taskNamePattern: cfg.namePattern || "",
-        tasks: { total: b.total, done: b.done, notDone: b.total - b.done, reps: b.reps, byCallNumber, priorityBreakdown },
+        tasks: { total: b.total, done: b.done, notDone: b.total - b.done, reps: b.reps, byCallNumber, byMonth, priorityBreakdown },
       };
     });
 
