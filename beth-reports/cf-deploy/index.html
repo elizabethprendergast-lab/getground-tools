@@ -332,6 +332,28 @@ function priorityTileHtml(breakdown) {
   return `<div class="stat-tile priority ${cls}"><div class="label">Priority</div><div class="value">${label}${mixed}</div></div>`;
 }
 
+// Projects run as monthly waves (breakdownBy: "month") get a month table instead of attempts.
+function monthTableHtml(byMonth) {
+  if (!byMonth || !byMonth.length) return "";
+  return `
+    <p class="sub" style="margin-top:18px; margin-bottom:10px">Breakdown by month — left to do</p>
+    <div class="overflow-x">
+      <table class="number-table">
+        <thead><tr><th>Month</th><th>Total</th><th>Done</th><th>Left to do</th></tr></thead>
+        <tbody>
+          ${byMonth.map((m) => `
+            <tr>
+              <td>${m.month === "?" ? "(no month)" : m.month}</td>
+              <td>${m.total}</td>
+              <td>${m.done}</td>
+              <td class="left-to-do ${m.notDone > 0 ? "has-left" : ""}">${m.notDone}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+
 function callNumberTableHtml(byCallNumber) {
   if (!byCallNumber || !byCallNumber.length) return "";
   return `
@@ -411,7 +433,7 @@ function completionCardHtml(proj, sprintStart, hubspot) {
         <span><span class="legend-swatch" style="background:var(--good)"></span>Done</span>
         <span><span class="legend-swatch" style="background:var(--not-done)"></span>Not done</span>
       </div>
-      ${callNumberTableHtml(t.byCallNumber)}
+      ${t.byMonth ? monthTableHtml(t.byMonth) : callNumberTableHtml(t.byCallNumber)}
     </section>`;
 }
 
