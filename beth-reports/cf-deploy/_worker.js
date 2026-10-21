@@ -35,6 +35,7 @@ const REPORTS = {
     projects: [
       {
         key: "reengage-nonpaying-master",
+        closed: true, // Moved under "Closed" on the dashboard (21 Oct) — data still computed/shown.
         // Reopened 15 Oct as top priority (moved back out of "Closed", first in the list).
         label: "Reengage — Nonpaying customers final followup",
         // Real subject: "#1 | Call | Reengage | Nonpaying customers final followup" (some have a
