@@ -49,6 +49,10 @@
   main { min-width: 0; max-width: 1100px; margin: 0 auto; padding: 20px clamp(16px, 4vw, 40px) 64px; }
   .meta { font-size: 13px; color: var(--text-secondary); margin: 0 0 18px; line-height: 1.5; }
   .meta b { color: var(--text-primary); font-weight: 600; }
+  .period { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 0 0 12px; max-width: 100%; }
+  .period button { font: inherit; font-size: 13px; padding: 6px 12px; border: 0; background: var(--surface-1); color: var(--text-secondary); cursor: pointer; }
+  .period button + button { border-left: 1px solid var(--border); }
+  .period button[aria-pressed="true"] { background: var(--accent-soft); color: var(--text-primary); font-weight: 600; }
 
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px; }
   .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; min-width: 0; }
@@ -121,18 +125,22 @@
   <a href="https://www.getground.co.uk/btl-limited-company-calculator" target="_blank" rel="noopener">Open the page ↗</a>
 </header>
 <main>
+  <div class="period" role="group" aria-label="Compare before with">
+    <button type="button" data-since="forms">Since lead forms (16 Oct)</button>
+    <button type="button" data-since="relaunch">Since relaunch (6 Oct)</button>
+  </div>
   <p class="meta" id="meta">Loading…</p>
   <div class="tiles" id="tiles"></div>
 
   <section class="card">
     <h2>Visitors per day</h2>
-    <p class="sub">Unique visitors to the page (Mixpanel). The line marks the relaunch.</p>
+    <p class="sub">Unique visitors to the page (Mixpanel). The lines mark the relaunch and the lead forms going back on.</p>
     <div id="chart"></div>
   </section>
 
   <section class="card">
     <h2>Set up today: from click to plan</h2>
-    <p class="sub">People since the relaunch. Sign-ups are app accounts created after landing on this page's sign-up link.</p>
+    <p class="sub">People in the "since" period. Sign-ups are app accounts created after landing on this page's sign-up link.</p>
     <div id="funnel"></div>
   </section>
 
@@ -151,9 +159,10 @@
   <section class="card">
     <h2>How to read this</h2>
     <ul class="notes">
-      <li><b>Before</b> = 8 Sep – 6 Oct 14:02 (4 weeks before the relaunch). <b>Since</b> = from the relaunch to now. Averages are per day so the two periods compare fairly.</li>
-      <li>6 Oct 14:02 — new page live (free-setup hero, instant calculator, Set up today → checkout). 7 Oct 09:32 — Set up today now goes through app sign-up first.</li>
-      <li>Visits and clicks come from Mixpanel's warehouse copy, which can be up to a day behind, and only cover people who accepted cookies.</li>
+      <li><b>Before</b> = 8 Sep – 6 Oct 14:02 (4 weeks before the relaunch). <b>Since</b> = from the date picked at the top to now. Averages are per day so the periods compare fairly.</li>
+      <li>6 Oct 14:02 — new page live (free-setup hero, instant calculator, Set up today → checkout). 7 Oct 09:32 — Set up today now goes through app sign-up first. 16 Oct 11:53 — lead forms back: Set up today opens the Set Up form, Calculate my tax savings opens the Calculate form.</li>
+      <li>Visits and clicks come from Mixpanel, only cover people who accepted cookies, and include today so far.</li>
+      <li>Form submissions from getground.co.uk emails (our own tests) are left out.</li>
       <li>Plans bought counts Core/Complete Plans deals marked won in HubSpot, credited to the period the person came in through this page (form or sign-up) — not when they bought.</li>
       <li>Internal test clicks count too. Use <code>utm_campaign=internal_test</code> when testing so they can be spotted.</li>
     </ul>
@@ -166,6 +175,9 @@
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = (n, dp = 1) => n == null || !isFinite(n) ? "—" : (Math.abs(n) >= 100 || dp === 0 ? Math.round(n).toLocaleString("en-GB") : n.toFixed(dp));
 const LAUNCH_DAY = "2026-10-06";
+const FORMS_DAY = "2026-10-16";
+const SINCE_LABEL = { forms: "since the lead forms went back on", relaunch: "since the relaunch" };
+let sinceDay = LAUNCH_DAY;
 // Below this many days since the relaunch, per-day changes are noise; show "too early" instead.
 const MIN_DAYS_TO_COMPARE = 3;
 let afterDaysSoFar = 0;
@@ -204,9 +216,10 @@ function renderChart(daily) {
     if (i % 7 === 0 || i === daily.length - 1) {
       s += `<text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle" font-size="11" fill="var(--text-muted)">${d.date.slice(8)}/${d.date.slice(5, 7)}</text>`;
     }
-    if (d.date === LAUNCH_DAY) {
+    const mark = { [LAUNCH_DAY]: "Relaunch", [FORMS_DAY]: "Lead forms" }[d.date];
+    if (mark) {
       s += `<line x1="${x + bw / 2}" x2="${x + bw / 2}" y1="${padT}" y2="${H - padB}" stroke="var(--text-secondary)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
-      s += `<text x="${x + bw / 2 + 5}" y="${padT + 10}" font-size="11" fill="var(--text-secondary)">Relaunch</text>`;
+      s += `<text x="${x + bw / 2 + 5}" y="${padT + 10}" font-size="11" fill="var(--text-secondary)">${mark}</text>`;
     }
   });
   s += `<line x1="${padL}" x2="${W}" y1="${H - padB}" y2="${H - padB}" stroke="var(--baseline)"/>`;
@@ -285,7 +298,7 @@ function renderClicks(d) {
   // Old-button clicks in the since period are 6 Oct morning (pre-relaunch), so they're left out.
   const JOBS = [
     { key: "Set up my company", before: ["Old: Set Up My Limited Company (form)"], since: ["Set up today"] },
-    { key: "Calculate tax savings", before: ["Old: Calculate My Tax Savings (form)", "Old: See My Tax Savings (quiz)"], since: ["Calculate my tax savings (scroll)"] },
+    { key: "Calculate tax savings", before: ["Old: Calculate My Tax Savings (form)", "Old: See My Tax Savings (quiz)"], since: ["Calculate my tax savings"] },
     { key: "Learn more (form)", before: [], since: ["Learn more (form)"] },
     { key: "Header / footer / menu", before: ["Header / footer / other"], since: ["Header / footer / other"] },
   ];
@@ -301,7 +314,7 @@ function renderClicks(d) {
   if (!rows.length) { el.innerHTML = `<p class="sub">No clicks recorded.</p>`; return; }
   const max = Math.max(...rows.flatMap((r) => [r.a, r.b]), 0.01);
   const w = (v) => `${Math.max((v / max) * 80, v > 0 ? 1 : 0)}%`;
-  const chart = `<div class="legend"><span><i style="background:var(--before)"></i>Before: average people per day (8 Sep – 5 Oct)</span><span><i style="background:var(--since)"></i>Since relaunch: average people per day</span></div>
+  const chart = `<div class="legend"><span><i style="background:var(--before)"></i>Before: average people per day (8 Sep – 5 Oct)</span><span><i style="background:var(--since)"></i>Since: average people per day</span></div>
     <div class="chart-wrap"><div class="cchart">${rows.map((r, i) => `
       <div class="lab">${esc(r.group)}${r.noBefore ? "<small>new on the relaunched page</small>" : ""}</div>
       <div class="bars" data-i="${i}">
@@ -335,26 +348,27 @@ function renderForms(d) {
   const f = d.formLeads;
   const FORM_LABELS = {
     "Set Up / Learn more form": "Set Up form — before: Set Up button · now: Learn more",
-    "Old Calculate form": "Calculate form — removed in the relaunch",
+    "Old Calculate form": "Calculate form — removed in the relaunch, back from 16 Oct",
   };
-  const rows = f.byForm.map((x) => `<tr><td>${esc(FORM_LABELS[x.form] || x.form)}</td><td class="n">${x.before}</td><td class="n">${fmt(x.before / d.days.before, 2)}</td>${x.form === "Old Calculate form" && !x.after ? `<td class="n">—</td><td class="n">—</td>` : `<td class="n">${x.after}</td><td class="n">${fmt(x.after / d.days.after, 2)}</td>`}</tr>`).join("");
+  const rows = f.byForm.map((x) => `<tr><td>${esc(FORM_LABELS[x.form] || x.form)}</td><td class="n">${x.before}</td><td class="n">${fmt(x.before / d.days.before, 2)}</td><td class="n">${x.after}</td><td class="n">${fmt(x.after / d.days.after, 2)}</td></tr>`).join("");
   el.innerHTML = `<div class="table-scroll"><table><thead><tr><th>Form</th><th class="n">Before</th><th class="n">Before /day</th><th class="n">Since</th><th class="n">Since /day</th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="sub" style="margin-top:10px">Unique people: ${f.people.before} before, ${f.people.after} since. Of them, ${f.plans ? f.plans.before : "—"} before and ${f.plans ? f.plans.after : "—"} since went on to buy a plan.</p>`;
 }
 
 function render(d) {
-  const launch = new Date(d.launchIso);
+  const since = new Date(d.sinceIso);
+  sinceDay = d.sinceIso.slice(0, 10);
   afterDaysSoFar = d.days.after;
   const src = d.mixpanelSource || {};
   const srcNote = d.mixpanelLive ? `<br><span style="color:var(--text-muted)">Visits, clicks and sign-ups: <b>live from Mixpanel</b>.</span>`
     : `<br><span style="color:var(--text-muted)">Mixpanel login on this site: username ${src.usernameSet ? "found" : "not found"}, secret ${src.secretSet ? "found" : "not found"}.</span>`;
   const snapNote = (d.mixpanelSnapshotAt ? srcNote : "") + (d.mixpanelSnapshotAt ? `<br><span style="color:var(--text-muted)">Visits, clicks and sign-ups are a <b>Mixpanel snapshot taken ${new Date(d.mixpanelSnapshotAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" })}</b> (the site has no live Mixpanel connection yet). Form leads and plans are live from HubSpot.</span>` : "") + (d.mixpanelLive ? srcNote : "");
-  document.getElementById("meta").innerHTML = `Relaunched <b>${launch.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" })}</b> · comparing the 4 weeks before with the <b>${fmt(d.days.after, 1)} days</b> since.${snapNote}`;
+  document.getElementById("meta").innerHTML = `Comparing the 4 weeks before the relaunch with the <b>${fmt(d.days.after, 1)} days</b> ${SINCE_LABEL[d.since]} (<b>${since.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" })}</b>).${snapNote}`;
   const daily = d.daily || [];
   const beforeDays = daily.filter((x) => x.date < LAUNCH_DAY);
   // Complete days only: the launch day is split old/new, and today is still in progress.
   const todayLondon = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
-  const afterDays = daily.filter((x) => x.date > LAUNCH_DAY && x.date < todayLondon);
+  const afterDays = daily.filter((x) => x.date > sinceDay && x.date < todayLondon);
   const avg = (arr, k) => arr.length ? arr.reduce((a, x) => a + x[k], 0) / arr.length : null;
   const sumGroups = (period, groups) => (d.clicks || []).filter((c) => groups.includes(c.group)).reduce((a, c) => a + c[period], 0);
   const cd = d.clickDays || d.days;
@@ -366,14 +380,14 @@ function render(d) {
   if (!d.errors.mixpanel) {
     tiles.push(tile("Visitors", afterDays.length ? avg(afterDays, "visitors") : null, avg(beforeDays, "visitors"), "/day", 1, afterDays.length ? "" : "(first full day pending)"));
     tiles.push(tile("Clicked to set up", setupAfter, setupBefore, "people/day", 1, "", false));
-    // Calculator users since relaunch (launch day onward), rated over the same window as clicks.
-    const calcSince = daily.filter((x) => x.date >= LAUNCH_DAY).reduce((t, x) => t + x.calculatorUsers, 0) / cd.after;
+    // Calculator users in the "since" period (its first day onward), rated over the same window as clicks.
+    const calcSince = daily.filter((x) => x.date >= sinceDay).reduce((t, x) => t + x.calculatorUsers, 0) / cd.after;
     tiles.push(`<div class="tile"><div class="l">Used the calculator</div><div class="v">${fmt(calcSince, 1)}<span style="font-size:13px;font-weight:400;color:var(--text-muted)"> people/day</span></div><div class="was">Before: none</div></div>`);
     tiles.push(tile("App sign-ups from page", d.signups ? d.signups.total : 0, null, "since", 0));
   }
   if (fl) tiles.push(tile("Form leads", fl.people.after / d.days.after, fl.people.before / d.days.before, "people/day", 2));
   const plansAfter = (fl && fl.plans ? fl.plans.after : 0) + (d.signups ? d.signups.plans || 0 : 0);
-  tiles.push(`<div class="tile"><div class="l">Plans bought</div><div class="v">${plansAfter}<span style="font-size:13px;font-weight:400;color:var(--text-muted)"> since relaunch</span></div>
+  tiles.push(`<div class="tile"><div class="l">Plans bought</div><div class="v">${plansAfter}<span style="font-size:13px;font-weight:400;color:var(--text-muted)"> since</span></div>
     <div class="was">${fl && fl.plans ? `Before: ${fl.plans.before} (from leads in the 4 weeks before)` : ""}</div></div>`);
   document.getElementById("tiles").innerHTML = tiles.join("");
   if (d.errors.mixpanel) document.getElementById("chart").innerHTML = `<p class="err">Mixpanel data unavailable: ${esc(d.errors.mixpanel)}</p>`;
@@ -382,10 +396,19 @@ function render(d) {
   document.getElementById("footer").textContent = `Updated ${new Date(d.generatedAt).toLocaleString("en-GB", { timeZone: "Europe/London" })} · refreshes every 10 minutes.`;
 }
 
-fetch("/api/btl-calc").then((r) => r.json()).then((d) => {
-  if (d.error) throw new Error(d.error);
-  render(d);
-}).catch((e) => { document.getElementById("meta").innerHTML = `<span class="err">Couldn't load the report: ${esc(e.message)}</span>`; });
+function load(sinceKey) {
+  document.querySelectorAll(".period button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.since === sinceKey)));
+  document.getElementById("meta").textContent = "Loading…";
+  fetch(`/api/btl-calc?since=${sinceKey}`).then((r) => r.json()).then((d) => {
+    if (d.error) throw new Error(d.error);
+    render(d);
+  }).catch((e) => { document.getElementById("meta").innerHTML = `<span class="err">Couldn't load the report: ${esc(e.message)}</span>`; });
+}
+document.querySelectorAll(".period button").forEach((b) => b.addEventListener("click", () => {
+  const u = new URL(location.href); u.searchParams.set("since", b.dataset.since); history.replaceState(null, "", u);
+  load(b.dataset.since);
+}));
+load(new URLSearchParams(location.search).get("since") === "relaunch" ? "relaunch" : "forms");
 </script>
 </body>
 </html>

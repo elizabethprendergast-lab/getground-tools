@@ -1861,6 +1861,8 @@ const BTL = {
   pagePath: "/btl-limited-company-calculator",
   launchIso: "2026-10-06T13:02:00Z",      // #1623 merged (14:02 BST)
   signupFirstIso: "2026-10-07T08:32:00Z", // #1629 merged (09:32 BST)
+  // "Since" can start at the relaunch or at the lead forms going back on (#1694, 11:53 BST).
+  periods: { forms: "2026-10-16T10:53:00Z", relaunch: "2026-10-06T13:02:00Z" },
   baselineStartIso: "2026-09-07T23:00:00Z", // 8 Sep 00:00 BST — 4 weeks before launch day
   // Both forms this page has embedded, so the old and new versions are counted alike.
   forms: {
@@ -1881,14 +1883,14 @@ function btlButtonGroup(id) {
   if (!id) return "Other";
   if (id.startsWith("btl_calc_landing_setup_today")) return "Set up today";
   if (id.startsWith("btl_calc_landing_learn_more")) return "Learn more (form)";
-  if (id.startsWith("btl_calc_landing_calculator")) return "Calculate my tax savings (scroll)";
+  if (id.startsWith("btl_calc_landing_calculator")) return "Calculate my tax savings";
   if (id.startsWith("btl_calc_landing_cta1")) return "Old: Set Up My Limited Company (form)";
   if (id.startsWith("btl_calc_landing_cta2")) return "Old: Calculate My Tax Savings (form)";
   if (id.startsWith("btl_calc_quiz") || id.startsWith("btl_calculator_quiz") || id.includes("see_my_tax")) return "Old: See My Tax Savings (quiz)";
   return "Header / footer / other";
 }
 
-const BTL_CACHE_VERSION = "v14-plans-by-lead-date";
+const BTL_CACHE_VERSION = "v15-since-period";
 
 let _mpTimeCol = null; // detected once per warm worker
 async function mpTimeExpr(env) {
@@ -1982,7 +1984,8 @@ async function btlFormLeads(API, H) {
         if (r.submittedAt < since) continue;
         if (!(r.pageUrl || "").includes(BTL.pagePath)) continue;
         const email = ((r.values || []).find((v) => v.name === "email") || {}).value;
-        if (email) subs.push({ formId, form: name, ms: r.submittedAt, email: email.toLowerCase().trim() });
+        // Skip our own test submissions.
+        if (email && !/@getground\.co\.uk$/i.test(email.trim())) subs.push({ formId, form: name, ms: r.submittedAt, email: email.toLowerCase().trim() });
       }
       after = j.paging && j.paging.next && j.paging.next.after;
       // Results come newest first; stop paging once a whole page is older than the window.
@@ -2018,25 +2021,55 @@ async function mpExport(env, { from, to, events, where }) {
   return text.split("\n").filter(Boolean).map((l) => JSON.parse(l));
 }
 
-async function btlMixpanelLive(env, out, launchMs) {
+// Re-downloading every raw event since 8 Sep on each refresh got slow enough that the report
+// never loaded (22 Oct). Days up to last Sunday are downloaded once and kept in the cache,
+// trimmed to the properties the report reads; only the current week is fetched fresh.
+const MP_KEEP = ["time", "distinct_id", "$device_id", "$user_id", "button_id", "page_section", "option_group"];
+const addDay = (day, n) => new Date(Date.parse(`${day}T12:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
+async function mpExportCached(env, origin, opts) {
+  const slim = (rows) => rows.map((e) => ({ event: e.event, properties: Object.fromEntries(MP_KEEP.filter((k) => e.properties[k] !== undefined).map((k) => [k, e.properties[k]])) }));
+  const today = opts.to;
+  const dow = new Date(`${today}T12:00:00Z`).getUTCDay();
+  const lastSunday = addDay(today, -(dow || 7));
+  const parts = [];
+  if (opts.from <= lastSunday) {
+    const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(JSON.stringify([opts.events, opts.where, MP_KEEP])));
+    const h = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+    const key = new Request(`${origin}/__cache/mp-export/${h}/${opts.from}_${lastSunday}`);
+    parts.push((async () => {
+      const hit = await caches.default.match(key);
+      if (hit) return hit.json();
+      const rows = slim(await mpExport(env, { ...opts, to: lastSunday }));
+      await caches.default.put(key, new Response(JSON.stringify(rows), { headers: { "Content-Type": "application/json", "Cache-Control": "max-age=1209600" } }));
+      return rows;
+    })());
+  }
+  const liveFrom = opts.from > lastSunday ? opts.from : addDay(lastSunday, 1);
+  parts.push(mpExport(env, { ...opts, from: liveFrom }).then(slim));
+  return (await Promise.all(parts)).flat();
+}
+
+async function btlMixpanelLive(env, out, launchMs, sinceMs, origin) {
   const today = londonDay(Date.now());
-  const page = await mpExport(env, {
-    from: londonDay(Date.parse(BTL.baselineStartIso) + 3600e3), to: today,
-    where: `defined(properties["$current_url"]) and "getground.co.uk${BTL.pagePath}" in properties["$current_url"]`,
-  });
-  const launchDay = londonDay(launchMs);
-  const landingEvents = await mpExport(env, {
-    from: launchDay, to: today, events: ["page_viewed"],
-    where: `defined(properties["$current_url"]) and "app.getground.co.uk/" in properties["$current_url"] and "plan_short_id" in properties["$current_url"] and "redirect=packs-and-plans" in properties["$current_url"]`,
-  });
-  const creations = await mpExport(env, { from: launchDay, to: today, events: ["user_creation_succeeded", "web_session_user_creation_succeeded"] });
+  const sinceDay = londonDay(sinceMs);
   // Raw export doesn't resolve identity: the landing is recorded against the anonymous
   // $device_id, the account creation against $user_id only. Events after sign-up on the
   // checkout path carry both, so use them to map device -> user.
-  const linking = await mpExport(env, {
-    from: launchDay, to: today,
-    where: `defined(properties["$device_id"]) and defined(properties["$user_id"]) and defined(properties["$current_url"]) and "app.getground.co.uk/" in properties["$current_url"] and "packs-and-plans" in properties["$current_url"]`,
-  });
+  const [page, landingEvents, creations, linking] = await Promise.all([
+    mpExportCached(env, origin, {
+      from: londonDay(Date.parse(BTL.baselineStartIso) + 3600e3), to: today,
+      where: `defined(properties["$current_url"]) and "getground.co.uk${BTL.pagePath}" in properties["$current_url"]`,
+    }),
+    mpExportCached(env, origin, {
+      from: sinceDay, to: today, events: ["page_viewed"],
+      where: `defined(properties["$current_url"]) and "app.getground.co.uk/" in properties["$current_url"] and "plan_short_id" in properties["$current_url"] and "redirect=packs-and-plans" in properties["$current_url"]`,
+    }),
+    mpExportCached(env, origin, { from: sinceDay, to: today, events: ["user_creation_succeeded", "web_session_user_creation_succeeded"] }),
+    mpExportCached(env, origin, {
+      from: sinceDay, to: today,
+      where: `defined(properties["$device_id"]) and defined(properties["$user_id"]) and defined(properties["$current_url"]) and "app.getground.co.uk/" in properties["$current_url"] and "packs-and-plans" in properties["$current_url"]`,
+    }),
+  ]);
 
   const ms = (e) => (e.properties.time || 0) * 1000;
   const days = {};
@@ -2049,7 +2082,8 @@ async function btlMixpanelLive(env, out, launchMs) {
     if (e.event === "page_viewed") days[d].pageViews++;
     if (e.event === "option_selected" && p.option_group === "btl_tax_savings_calculator") uniq(d, "calc").add(p.distinct_id);
     if (e.event === "button_clicked") {
-      const period = t >= launchMs ? "after" : "before";
+      const period = t < launchMs ? "before" : t >= sinceMs ? "after" : null;
+      if (!period) continue; // between the relaunch and a later "since" start
       const k = `${btlButtonGroup(p.button_id)}|${p.page_section || "—"}`;
       clicks[k] = clicks[k] || { group: btlButtonGroup(p.button_id), section: p.page_section || "—", beforeSet: new Set(), afterSet: new Set(), beforeClicks: 0, afterClicks: 0 };
       clicks[k][`${period}Set`].add(p.distinct_id);
@@ -2066,7 +2100,7 @@ async function btlMixpanelLive(env, out, launchMs) {
   const landDays = {}, landUids = new Set();
   for (const e of landingEvents) {
     const p = e.properties, t = ms(e);
-    if (t < launchMs) continue;
+    if (t < sinceMs) continue;
     for (const id of [p.$device_id, p.$user_id].filter(Boolean)) firstLanding[id] = Math.min(firstLanding[id] ?? Infinity, t);
     const d = londonDay(t);
     (landDays[d] = landDays[d] || new Set()).add(p.$device_id || p.distinct_id);
@@ -2101,7 +2135,8 @@ async function btlCalcReport(url, env, ctx) {
   const cache = caches.default;
   // Versioned so a deploy that changes the response shape never serves a stale cached copy —
   // bump BTL_CACHE_VERSION whenever btlCalcReport's output changes.
-  const cacheKey = new Request(`${url.origin}/__cache/btl-calc-${BTL_CACHE_VERSION}`);
+  const sinceKey = BTL.periods[url.searchParams.get("since")] ? url.searchParams.get("since") : "forms";
+  const cacheKey = new Request(`${url.origin}/__cache/btl-calc-${BTL_CACHE_VERSION}-${sinceKey}`);
   if (url.searchParams.get("refresh") !== "1") {
     const hit = await cache.match(cacheKey);
     if (hit) return hit;
@@ -2110,11 +2145,13 @@ async function btlCalcReport(url, env, ctx) {
   const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
   const nowMs = Date.now();
   const launchMs = Date.parse(BTL.launchIso), baseMs = Date.parse(BTL.baselineStartIso);
+  const sinceMs = Date.parse(BTL.periods[sinceKey]);
   const out = {
     page: `https://www.getground.co.uk${BTL.pagePath}`,
     launchIso: BTL.launchIso, signupFirstIso: BTL.signupFirstIso, baselineStartIso: BTL.baselineStartIso,
+    since: sinceKey, sinceIso: BTL.periods[sinceKey], periods: BTL.periods,
     generatedAt: new Date(nowMs).toISOString(),
-    days: { before: (launchMs - baseMs) / 864e5, after: (nowMs - launchMs) / 864e5 },
+    days: { before: (launchMs - baseMs) / 864e5, after: (nowMs - sinceMs) / 864e5 },
     errors: {},
   };
 
@@ -2137,11 +2174,11 @@ async function btlCalcReport(url, env, ctx) {
       byForm: Object.values(BTL.forms).map((f) => ({
         form: f,
         before: subs.filter((s) => s.form === f && s.ms < launchMs).length,
-        after: subs.filter((s) => s.form === f && s.ms >= launchMs).length,
+        after: subs.filter((s) => s.form === f && s.ms >= sinceMs).length,
       })),
       people: {
         before: Object.values(firstByEmail).filter((s) => s.ms < launchMs).length,
-        after: Object.values(firstByEmail).filter((s) => s.ms >= launchMs).length,
+        after: Object.values(firstByEmail).filter((s) => s.ms >= sinceMs).length,
       },
     };
     if (won) {
@@ -2159,7 +2196,7 @@ async function btlCalcReport(url, env, ctx) {
       // so an old-page lead buying after the relaunch doesn't count as a relaunch result.
       out.formLeads.plans = {
         before: new Set(plans.filter((p) => p.leadMs < launchMs).map((p) => p.contactId)).size,
-        after: new Set(plans.filter((p) => p.leadMs >= launchMs).map((p) => p.contactId)).size,
+        after: new Set(plans.filter((p) => p.leadMs >= sinceMs).map((p) => p.contactId)).size,
       };
     }
   } catch (e) { out.errors.formLeads = String(e); }
@@ -2173,7 +2210,7 @@ async function btlCalcReport(url, env, ctx) {
   };
   // --- Mixpanel: live via service account if configured, else BigQuery, else the snapshot
   if (mpCreds(env)) {
-    try { await btlMixpanelLive(env, out, launchMs); } catch (e) { out.errors.mixpanel = String(e); }
+    try { await btlMixpanelLive(env, out, launchMs, sinceMs, url.origin); } catch (e) { out.errors.mixpanel = String(e); }
   } else if (!env.GCP_SA_EMAIL || !env.GCP_SA_PRIVATE_KEY) {
     // No warehouse access on this Pages project yet: fall back to a Mixpanel snapshot pulled by
     // hand (btl-calculator-page/mixpanel-snapshot.json), clearly labelled as such on the page.
@@ -2279,11 +2316,11 @@ async function btlCalcReport(url, env, ctx) {
     out.funnelPeople = { landed: landedUids.map(person), signedUp: signedUids.map(person), boughtPlan: [] };
     if (won && out.signups) {
       const since = {};
-      for (const p of out.funnelPeople.signedUp) if (p.contactId) since[p.contactId] = launchMs;
+      for (const p of out.funnelPeople.signedUp) if (p.contactId) since[p.contactId] = sinceMs;
       const c2d = Object.keys(since).length ? await batchAssociations(API, H, "contacts", "deals", Object.keys(since)) : {};
       const deals = await batchRead(API, H, "deals", [...new Set(Object.values(c2d).flat())], ["pipeline", "dealstage", "createdate"]);
       for (const p of out.funnelPeople.signedUp) {
-        const bought = (c2d[p.contactId] || []).some((did) => { const d = deals[did]; return d && d.pipeline === BTL.plansPipeline && won.has(d.dealstage) && Date.parse(d.createdate) >= launchMs - 3600e3; });
+        const bought = (c2d[p.contactId] || []).some((did) => { const d = deals[did]; return d && d.pipeline === BTL.plansPipeline && won.has(d.dealstage) && Date.parse(d.createdate) >= sinceMs - 3600e3; });
         if (bought) out.funnelPeople.boughtPlan.push(p);
       }
       out.signups.plans = out.funnelPeople.boughtPlan.length;
