@@ -49,10 +49,6 @@
   main { min-width: 0; max-width: 1100px; margin: 0 auto; padding: 20px clamp(16px, 4vw, 40px) 64px; }
   .meta { font-size: 13px; color: var(--text-secondary); margin: 0 0 18px; line-height: 1.5; }
   .meta b { color: var(--text-primary); font-weight: 600; }
-  .period { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 0 0 12px; max-width: 100%; }
-  .period button { font: inherit; font-size: 13px; padding: 6px 12px; border: 0; background: var(--surface-1); color: var(--text-secondary); cursor: pointer; }
-  .period button + button { border-left: 1px solid var(--border); }
-  .period button[aria-pressed="true"] { background: var(--accent-soft); color: var(--text-primary); font-weight: 600; }
 
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px; }
   .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; min-width: 0; }
@@ -125,10 +121,6 @@
   <a href="https://www.getground.co.uk/btl-limited-company-calculator" target="_blank" rel="noopener">Open the page ↗</a>
 </header>
 <main>
-  <div class="period" role="group" aria-label="Compare before with">
-    <button type="button" data-since="forms">Since lead forms (16 Oct)</button>
-    <button type="button" data-since="relaunch">Since relaunch (6 Oct)</button>
-  </div>
   <p class="meta" id="meta">Loading…</p>
   <div class="tiles" id="tiles"></div>
 
@@ -159,7 +151,7 @@
   <section class="card">
     <h2>How to read this</h2>
     <ul class="notes">
-      <li><b>Before</b> = 8 Sep – 6 Oct 14:02 (4 weeks before the relaunch). <b>Since</b> = from the date picked at the top to now. Averages are per day so the periods compare fairly.</li>
+      <li><b>Before</b> = 8 Sep – 6 Oct 14:02 (4 weeks before the relaunch). <b>Since</b> = 16 Oct 11:53 (lead forms back on) to now. 6–16 Oct is left out. Averages are per day so the periods compare fairly.</li>
       <li>6 Oct 14:02 — new page live (free-setup hero, instant calculator, Set up today → checkout). 7 Oct 09:32 — Set up today now goes through app sign-up first. 16 Oct 11:53 — lead forms back: Set up today opens the Set Up form, Calculate my tax savings opens the Calculate form.</li>
       <li>Visits and clicks come from Mixpanel, only cover people who accepted cookies, and include today so far.</li>
       <li>Form submissions from getground.co.uk emails (our own tests) are left out.</li>
@@ -397,18 +389,13 @@ function render(d) {
 }
 
 function load(sinceKey) {
-  document.querySelectorAll(".period button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.since === sinceKey)));
   document.getElementById("meta").textContent = "Loading…";
   fetch(`/api/btl-calc?since=${sinceKey}`).then((r) => r.json()).then((d) => {
     if (d.error) throw new Error(d.error);
     render(d);
   }).catch((e) => { document.getElementById("meta").innerHTML = `<span class="err">Couldn't load the report: ${esc(e.message)}</span>`; });
 }
-document.querySelectorAll(".period button").forEach((b) => b.addEventListener("click", () => {
-  const u = new URL(location.href); u.searchParams.set("since", b.dataset.since); history.replaceState(null, "", u);
-  load(b.dataset.since);
-}));
-load(new URLSearchParams(location.search).get("since") === "relaunch" ? "relaunch" : "forms");
+load("forms");
 </script>
 </body>
 </html>
