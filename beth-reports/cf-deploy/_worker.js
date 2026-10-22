@@ -1890,7 +1890,7 @@ function btlButtonGroup(id) {
   return "Header / footer / other";
 }
 
-const BTL_CACHE_VERSION = "v15-since-period";
+const BTL_CACHE_VERSION = "v16-mp-sequential";
 
 let _mpTimeCol = null; // detected once per warm worker
 async function mpTimeExpr(env) {
@@ -2009,7 +2009,7 @@ function mpCreds(env) {
   const secret = env.MIXPANEL_SA_SECRET || env[" MIXPANEL_SA_SECRET"];
   return user && secret ? { user: String(user).trim(), secret: String(secret).trim() } : null;
 }
-async function mpExport(env, { from, to, events, where }) {
+async function mpExport(env, { from, to, events, where }, attempt = 0) {
   const q = new URLSearchParams({ project_id: MP_PROJECT_ID, from_date: from, to_date: to });
   if (events) q.set("event", JSON.stringify(events));
   if (where) q.set("where", where);
@@ -2017,6 +2017,11 @@ async function mpExport(env, { from, to, events, where }) {
     headers: { Authorization: "Basic " + btoa(`${mpCreds(env).user}:${mpCreds(env).secret}`), Accept: "text/plain" },
   });
   const text = await r.text();
+  // Raw export allows ~3 queries/second and 60/hour; a short wait covers the per-second limit.
+  if (r.status === 429 && attempt < 2) {
+    await new Promise((res) => setTimeout(res, 2000 * (attempt + 1)));
+    return mpExport(env, { from, to, events, where }, attempt + 1);
+  }
   if (!r.ok) throw new Error(`Mixpanel export ${r.status}: ${text.slice(0, 200)}`);
   return text.split("\n").filter(Boolean).map((l) => JSON.parse(l));
 }
@@ -2032,21 +2037,22 @@ async function mpExportCached(env, origin, opts) {
   const dow = new Date(`${today}T12:00:00Z`).getUTCDay();
   const lastSunday = addDay(today, -(dow || 7));
   const parts = [];
+  // One request at a time: running them together hit Mixpanel's 3/second limit (22 Oct).
   if (opts.from <= lastSunday) {
     const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(JSON.stringify([opts.events, opts.where, MP_KEEP])));
     const h = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
     const key = new Request(`${origin}/__cache/mp-export/${h}/${opts.from}_${lastSunday}`);
-    parts.push((async () => {
-      const hit = await caches.default.match(key);
-      if (hit) return hit.json();
+    const hit = await caches.default.match(key);
+    if (hit) parts.push(await hit.json());
+    else {
       const rows = slim(await mpExport(env, { ...opts, to: lastSunday }));
       await caches.default.put(key, new Response(JSON.stringify(rows), { headers: { "Content-Type": "application/json", "Cache-Control": "max-age=1209600" } }));
-      return rows;
-    })());
+      parts.push(rows);
+    }
   }
   const liveFrom = opts.from > lastSunday ? opts.from : addDay(lastSunday, 1);
-  parts.push(mpExport(env, { ...opts, from: liveFrom }).then(slim));
-  return (await Promise.all(parts)).flat();
+  parts.push(slim(await mpExport(env, { ...opts, from: liveFrom })));
+  return parts.flat();
 }
 
 async function btlMixpanelLive(env, out, launchMs, sinceMs, origin) {
@@ -2055,21 +2061,19 @@ async function btlMixpanelLive(env, out, launchMs, sinceMs, origin) {
   // Raw export doesn't resolve identity: the landing is recorded against the anonymous
   // $device_id, the account creation against $user_id only. Events after sign-up on the
   // checkout path carry both, so use them to map device -> user.
-  const [page, landingEvents, creations, linking] = await Promise.all([
-    mpExportCached(env, origin, {
-      from: londonDay(Date.parse(BTL.baselineStartIso) + 3600e3), to: today,
-      where: `defined(properties["$current_url"]) and "getground.co.uk${BTL.pagePath}" in properties["$current_url"]`,
-    }),
-    mpExportCached(env, origin, {
-      from: sinceDay, to: today, events: ["page_viewed"],
-      where: `defined(properties["$current_url"]) and "app.getground.co.uk/" in properties["$current_url"] and "plan_short_id" in properties["$current_url"] and "redirect=packs-and-plans" in properties["$current_url"]`,
-    }),
-    mpExportCached(env, origin, { from: sinceDay, to: today, events: ["user_creation_succeeded", "web_session_user_creation_succeeded"] }),
-    mpExportCached(env, origin, {
-      from: sinceDay, to: today,
-      where: `defined(properties["$device_id"]) and defined(properties["$user_id"]) and defined(properties["$current_url"]) and "app.getground.co.uk/" in properties["$current_url"] and "packs-and-plans" in properties["$current_url"]`,
-    }),
-  ]);
+  const page = await mpExportCached(env, origin, {
+    from: londonDay(Date.parse(BTL.baselineStartIso) + 3600e3), to: today,
+    where: `defined(properties["$current_url"]) and "getground.co.uk${BTL.pagePath}" in properties["$current_url"]`,
+  });
+  const landingEvents = await mpExportCached(env, origin, {
+    from: sinceDay, to: today, events: ["page_viewed"],
+    where: `defined(properties["$current_url"]) and "app.getground.co.uk/" in properties["$current_url"] and "plan_short_id" in properties["$current_url"] and "redirect=packs-and-plans" in properties["$current_url"]`,
+  });
+  const creations = await mpExportCached(env, origin, { from: sinceDay, to: today, events: ["user_creation_succeeded", "web_session_user_creation_succeeded"] });
+  const linking = await mpExportCached(env, origin, {
+    from: sinceDay, to: today,
+    where: `defined(properties["$device_id"]) and defined(properties["$user_id"]) and defined(properties["$current_url"]) and "app.getground.co.uk/" in properties["$current_url"] and "packs-and-plans" in properties["$current_url"]`,
+  });
 
   const ms = (e) => (e.properties.time || 0) * 1000;
   const days = {};
@@ -2210,7 +2214,23 @@ async function btlCalcReport(url, env, ctx) {
   };
   // --- Mixpanel: live via service account if configured, else BigQuery, else the snapshot
   if (mpCreds(env)) {
-    try { await btlMixpanelLive(env, out, launchMs, sinceMs, url.origin); } catch (e) { out.errors.mixpanel = String(e); }
+    // Keep the last good Mixpanel result so a refused export (rate limit) shows slightly older
+    // numbers, labelled, instead of an error.
+    const lastGoodKey = new Request(`${url.origin}/__cache/btl-mp-last-good-${BTL_CACHE_VERSION}-${sinceKey}`);
+    const MP_FIELDS = ["daily", "clicks", "signupLandings", "signups", "_linkedUsers"];
+    try {
+      await btlMixpanelLive(env, out, launchMs, sinceMs, url.origin);
+      const keep = Object.fromEntries(MP_FIELDS.map((k) => [k, out[k]]));
+      keep.at = out.generatedAt;
+      await cache.put(lastGoodKey, new Response(JSON.stringify(keep), { headers: { "Content-Type": "application/json", "Cache-Control": "max-age=604800" } }));
+    } catch (e) {
+      const hit = await cache.match(lastGoodKey);
+      if (hit) {
+        const keep = await hit.json();
+        for (const k of MP_FIELDS) out[k] = keep[k];
+        out.mixpanelStaleAt = keep.at;
+      } else out.errors.mixpanel = String(e);
+    }
   } else if (!env.GCP_SA_EMAIL || !env.GCP_SA_PRIVATE_KEY) {
     // No warehouse access on this Pages project yet: fall back to a Mixpanel snapshot pulled by
     // hand (btl-calculator-page/mixpanel-snapshot.json), clearly labelled as such on the page.
