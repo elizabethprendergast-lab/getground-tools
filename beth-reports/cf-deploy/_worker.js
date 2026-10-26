@@ -334,6 +334,14 @@ const REPORTS = {
         // completion anchor mis-attributed 7 of the first 34 done tasks vs a manual audit.
         // See outcomeForEnrollmentTask() for the enrollment-window rules used instead.
         outcomeMatching: "enrollment",
+        // Display only (the "Campaign emails" card) — doesn't change attribution. Each contact got
+        // one of three versions at the moment their #1 task was created (matched via BigQuery
+        // email_events, 26 Oct): imputed fee data 214, solid fee data 51, free users 3.
+        emails: [
+          { id: 478310806731, label: "Imputed fee data" },
+          { id: 478067884226, label: "Solid fee data" },
+          { id: 480337566950, label: "Free users" },
+        ],
       },
       {
         key: "reengage-ltd-freemium",
@@ -430,6 +438,9 @@ const REPORTS = {
         campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
         noCampaignEmail: true,
         meetingsAnyHost: true,
+        // Display only. Sent at the same moment as each #1 task (7 of 7 contacts, 26 Oct). It has
+        // no meeting-booking button, so noCampaignEmail stays true (self-booked = "by rep").
+        emails: [{ id: 495692031170 }],
       },
     ],
   },
@@ -590,6 +601,7 @@ export default {
     if (url.pathname === "/api/stats") return stats(url, env);
     if (url.pathname === "/api/outcomes") return outcomes(url, env);
     if (url.pathname === "/api/deals") return dealAttribution(url, env);
+    if (url.pathname === "/api/emails") return campaignEmails(url, env);
     if (url.pathname === "/api/referrals") return referrals(url, env);
     if (url.pathname === "/api/meetings") return meetingsBooked(url, env);
     if (url.pathname === "/api/btl-calc") return btlCalcReport(url, env, ctx);
@@ -856,6 +868,7 @@ async function stats(url, env) {
         closed: !!cfg.closed,
         taskViewQuery: cfg.searchTerm || "",
         taskNamePattern: cfg.namePattern || "",
+        hasEmails: projectEmails(cfg).length > 0,
         tasks: { total: b.total, done: b.done, notDone: b.total - b.done, reps: b.reps, byCallNumber, byMonth, priorityBreakdown },
       };
     });
@@ -1101,6 +1114,84 @@ async function fetchEmailEngagement(API, H, cfg, contactMap, contacts) {
     console.log(`email replies skipped (${err})`);
   }
   return { source, byContact: result };
+}
+
+// ---- Campaign emails card (/api/emails?campaign=<key>) -------------------------------------
+// The email(s) a campaign's workflow sends alongside its call tasks, so a good open rate can be
+// read next to the copy that earned it. Display only — attribution still runs off campaignEmail.
+// A project lists them in `emails` ({ id: content id from the HubSpot email URL, label? });
+// otherwise its campaignEmail.id is used. Stats are HubSpot's all-time counters for the email,
+// which is fine because these workflow emails only go to the campaign's own contacts. One
+// subrequest per email, on its own endpoint so it never eats into /api/outcomes' 50-call cap.
+// Needs the private app's `content` scope — without it each email still shows a HubSpot link.
+function projectEmails(cfg) {
+  if (cfg.emails) return cfg.emails;
+  return cfg.campaignEmail && cfg.campaignEmail.id ? [{ id: cfg.campaignEmail.id }] : [];
+}
+
+// "{{ personalization_token('contact.firstname', 'Hi there') }}" -> "[firstname]"
+function prettyTokens(s) {
+  return String(s || "")
+    .replace(/\{\{\s*personalization_token\(\s*'[\w]+\.([\w.]+)'[^}]*\}\}/g, (_, f) => `[${f.split(".").pop()}]`)
+    .replace(/\{\{\s*(?:contact|custom|company)\.([\w.]+)\s*\}\}/g, (_, f) => `[${f.split(".").pop()}]`);
+}
+
+function htmlToText(html) {
+  return String(html || "")
+    .replace(/<(br|\/p|\/h\d|\/li|\/div)[^>]*>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#39;|&rsquo;/g, "'").replace(/&quot;/g, '"')
+    .replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
+}
+
+// Body copy in layout order: flexAreas gives the drag-and-drop order; anything left (coded
+// templates) follows in object order. Footer/unsubscribe modules are skipped.
+function emailBodyText(email) {
+  const widgets = (email.content && email.content.widgets) || {};
+  const order = [];
+  const walk = (o) => {
+    if (!o || typeof o !== "object") return;
+    if (Array.isArray(o.widgets)) for (const w of o.widgets) if (typeof w === "string") order.push(w);
+    for (const v of Object.values(o)) if (v && typeof v === "object") walk(v);
+  };
+  walk(email.content && email.content.flexAreas);
+  for (const k of Object.keys(widgets)) if (!order.includes(k)) order.push(k);
+  const parts = [];
+  for (const k of order) {
+    const w = widgets[k];
+    if (!w || /footer|social|unsubscribe/i.test(`${k} ${w.type || ""} ${w.module_id || ""}`)) continue;
+    const body = w.body || {};
+    const text = htmlToText(body.html || (body.text && body.text.value) || "");
+    if (text) parts.push(text);
+    else if (body.button_text || (body.text && typeof body.text === "string")) parts.push(`[Button: ${body.button_text || body.text}]`);
+  }
+  return prettyTokens(parts.join("\n\n")).slice(0, 4000);
+}
+
+async function campaignEmails(url, env) {
+  const API = "https://api.hubapi.com";
+  const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
+  const report = REPORTS[url.searchParams.get("report") || "mrr-nov-sprint"];
+  const cfg = report && (report.projects || []).find((p) => p.key === url.searchParams.get("campaign"));
+  if (!cfg) return json({ error: "unknown report or campaign" }, 400);
+  const subdomain = report.hubspotSubdomain || "app.hubspot.com";
+  const emails = await Promise.all(projectEmails(cfg).map(async ({ id, label }) => {
+    const link = `https://${subdomain}/email/25516403/details/${id}/performance`;
+    try {
+      const e = await hsFetch(`${API}/marketing/v3/emails/${id}?includeStats=true`, { headers: H });
+      const c = (e.stats && e.stats.counters) || {};
+      return {
+        id, label: label || "", link,
+        name: e.name || "", subject: prettyTokens(e.subject), previewText: prettyTokens(e.previewText || (e.content && e.content.previewText) || ""),
+        fromName: prettyTokens(e.from && e.from.fromName), publishedAt: e.publishDate || e.publishedAt || null,
+        stats: { sent: c.sent || 0, delivered: c.delivered || 0, opened: c.open || 0, clicked: c.click || 0, replied: c.reply || 0, unsubscribed: c.unsubscribed || 0, bounced: c.bounce || 0 },
+        body: emailBodyText(e),
+      };
+    } catch (err) {
+      return { id, label: label || "", link, error: String(err).slice(0, 200) };
+    }
+  }));
+  return json({ generatedAt: new Date().toISOString(), campaign: cfg.key, emails });
 }
 
 // ---- Non-call outreach (WhatsApp / email / note) ----------------------------------------
