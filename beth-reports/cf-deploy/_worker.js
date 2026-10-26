@@ -3,6 +3,11 @@
 //   GET /api/outcomes  -> live call-outcome breakdown, matched task -> contact -> call
 //   everything else    -> static assets (the reports page); /campaign/* rewrites to index.html (SPA)
 
+// The 15 Oct batch of "LTD missed leads - Core Plan" #1 tasks came from the test version of the
+// workflow and counts as the old LTD missed leads queue; everything else with that subject
+// (the "Always on" workflow's #1s and every #2/#3 follow-up) is reengage-ltd-core-plan.
+const LTD_CORE_TESTING_WF = "Testing | Growth | LTD missed leads reengage MRR | Calls only - 1026";
+
 const REPORTS = {
   "mrr-nov-sprint": {
     name: "MRR Nov Sprint",
@@ -136,7 +141,8 @@ const REPORTS = {
         label: "Reengage — LTD missed leads",
         // "LTD missed leads - Core Plan" tasks (a separate workflow, from 15 Oct) have their own
         // project below — they tripled this one's volume and broke its outcomes card (26 Oct).
-        match: (s) => s.includes("LTD missed leads") && !s.includes("Core Plan"),
+        // Only the 286 Core Plan #1s the test workflow created stay here (see LTD_CORE_TESTING_WF).
+        match: (s, t) => s.includes("LTD missed leads") && (!s.includes("Core Plan") || t.hs_object_source_detail_1 === LTD_CORE_TESTING_WF),
         // Real subject: "#N | Call | Reengage | LTD missed leads". "LTD" alone collides
         // heavily with dozens of unrelated LTD-setup/mortgage tasks — use the full phrase.
         namePattern: "Call | Reengage | LTD missed leads",
@@ -146,8 +152,12 @@ const REPORTS = {
         // real matches for this project ("LTD" + "missed" alone isn't enough — collides with
         // unrelated meeting-followup tasks — the third token is needed) — clean without an
         // owner filter.
-        // "Core" excluded (26 Oct): leaves the 592 tasks of this campaign, without the Core Plan ones.
-        attributionSearch: { tokens: ["Reengage", "LTD", "missed"], notTokens: ["Core"], ownerFiltered: false },
+        // "Core" excluded (26 Oct): leaves the 592 tasks of this campaign, without the Core Plan
+        // ones; orGroups adds back the test workflow's 286 Core Plan #1s. 878 in all, checked live.
+        attributionSearch: {
+          tokens: ["Reengage", "LTD", "missed"], notTokens: ["Core"], ownerFiltered: false,
+          orGroups: [{ tokens: ["LTD", "missed", "Core", "Plan"], filters: [{ propertyName: "hs_object_source_detail_1", operator: "EQ", value: LTD_CORE_TESTING_WF }] }],
+        },
         // Enrollment-window rules (see outcomeForEnrollmentTask), restricted to campaignRepIds —
         // these leads overlap heavily with live property/mortgage pipelines.
         outcomeMatching: "enrollment",
@@ -169,14 +179,19 @@ const REPORTS = {
         // "#1 |"), from "Always on | Growth | LTD missed leads reengage MRR | Calls only - 1026",
         // first tasks 15 Oct. Split out of reengage-ltd on 26 Oct: 1,187 tasks in 11 days, too many
         // to compute alongside the original queue under Cloudflare's 50-subrequest cap.
-        match: (s) => s.includes("LTD missed leads - Core Plan"),
+        // #1s from the "Always on" workflow plus every #2/#3 follow-up (created by "Call Automation |
+        // Task Creation"), but not the test workflow's 15 Oct #1s, which stay in reengage-ltd.
+        match: (s, t) => s.includes("LTD missed leads - Core Plan") && t.hs_object_source_detail_1 !== LTD_CORE_TESTING_WF,
         namePattern: "Call | Reengage | LTD missed leads - Core Plan",
         searchTerm: "LTD missed leads - Core Plan",
         context: "LTD missed leads offered the Core Plan — a calls-only re-engagement queue worked by Billy, Iglesias and Carlos.",
         // Verified against real data (2026-10-26): "LTD" AND "missed" AND "Core" AND "Plan" returns
-        // exactly the 1,187 tasks of this campaign ("missed" + "Core" alone also picks up a free-text
-        // "catch up on missed meeting and chase core sign up" task).
-        attributionSearch: { tokens: ["LTD", "missed", "Core", "Plan"], ownerFiltered: false },
+        // the 1,187 Core Plan tasks ("missed" + "Core" alone also picks up a free-text "catch up on
+        // missed meeting and chase core sign up" task); without the test workflow's 286, 901.
+        attributionSearch: {
+          tokens: ["LTD", "missed", "Core", "Plan"], ownerFiltered: false,
+          filters: [{ propertyName: "hs_object_source_detail_1", operator: "NEQ", value: LTD_CORE_TESTING_WF }],
+        },
         // Same team, same rules as reengage-ltd — see that project's comments.
         outcomeMatching: "enrollment",
         campaignRepsOnly: true,
@@ -364,8 +379,10 @@ function monthOfSubject(subject) {
   return { label: `${MONTHS[mi]} ${year}`, sort: year * 100 + mi };
 }
 
-function classifyProject(report, subject) {
-  const p = (report.projects || []).find((p) => p.match(subject || ""));
+// Takes the task's properties: match() gets the subject plus the props, for projects that also
+// split on the workflow that created the task (hs_object_source_detail_1).
+function classifyProject(report, task) {
+  const p = (report.projects || []).find((p) => p.match(task.hs_task_subject || "", task));
   return p ? p.key : "other";
 }
 
@@ -551,7 +568,7 @@ async function runTaskSearch(API, H, filterGroups, maxPages = 50) {
   do {
     const body = {
       filterGroups,
-      properties: ["hs_task_subject", "hs_task_status", "hubspot_owner_id", "hs_createdate", "hs_task_completion_date", "hs_task_priority"],
+      properties: ["hs_task_subject", "hs_task_status", "hubspot_owner_id", "hs_createdate", "hs_task_completion_date", "hs_task_priority", "hs_object_source_detail_1"],
       limit: 200,
     };
     if (after) body.after = after;
@@ -585,17 +602,20 @@ async function searchTasksForAttribution(API, H, report, opts = {}) {
   // until outcomes/deals attribution's batching is proven safe under real concurrent load, not
   // just in isolated testing.
   const projects = opts.maxProjects ? (report.projects || []).slice(0, opts.maxProjects) : (report.projects || []);
-  const filterGroups = projects.map((p) => {
-    const cfg = p.attributionSearch;
+  // A project's search is one filter group, plus one per orGroups entry (ORed) for projects that
+  // need two word combinations — e.g. reengage-ltd also takes the Core Plan tasks of one workflow.
+  const filterGroups = projects.flatMap((p) => [p.attributionSearch, ...(p.attributionSearch.orGroups || [])].map((cfg) => {
     const filters = cfg.tokens.map((token) => ({ propertyName: "hs_task_subject", operator: "CONTAINS_TOKEN", value: token }));
     // Optional exclusions (NOT_CONTAINS_TOKEN) for when the positive tokens collide with another
     // campaign — e.g. "Upsell"+"Complete" also matches the older "Complete Plan Upsell" tasks,
     // so that project excludes "Plan"/"Reengagement".
     (cfg.notTokens || []).forEach((token) => filters.push({ propertyName: "hs_task_subject", operator: "NOT_CONTAINS_TOKEN", value: token }));
+    // Optional extra property filters, e.g. on the workflow that created the task.
+    (cfg.filters || []).forEach((f) => filters.push(f));
     if (cfg.ownerFiltered) filters.push({ propertyName: "hubspot_owner_id", operator: "IN", values: report.ownerIds });
     filters.push({ propertyName: "hs_createdate", operator: "GTE", value: String(sprintStartMs) });
     return { filters };
-  });
+  }));
   // HubSpot's Search API hard-caps filterGroups at 5 per request ("too many filterGroups")
   // — one group per project here, so a 6th project broke every endpoint at once (blank page,
   // no graceful fallback client-side). Batch into groups of <=5 and merge instead of assuming
@@ -701,7 +721,7 @@ async function stats(url, env) {
 
     for (const t of results) {
       const p = t.properties || {};
-      const key = classifyProject(report, p.hs_task_subject);
+      const key = classifyProject(report, p);
       const b = (buckets[key] ||= emptyBucket());
       const done = p.hs_task_status === "COMPLETED";
       // Outside the date range: drop done tasks completed outside it (open ones always count).
@@ -1233,7 +1253,7 @@ async function outcomes(url, env) {
     const enrollmentKeys = new Set((report.projects || []).filter((p) => p.outcomeMatching === "enrollment").map((p) => p.key));
     const enrolledByTask = new Map(); // task id -> outcomeForEnrollmentTask result (null = unresolved)
     if (enrollmentKeys.size) {
-      const enrollTasks = completedTasks.filter((p) => enrollmentKeys.has(classifyProject(report, p.hs_task_subject)));
+      const enrollTasks = completedTasks.filter((p) => enrollmentKeys.has(classifyProject(report, p)));
       const enrollContactIds = [...new Set(enrollTasks.flatMap((p) => taskToContacts[p.hs_object_id] || []))];
       let contactToMeetings = {}, meetings = {}, contactToDeals = {}, deals = {};
       try {
@@ -1249,12 +1269,12 @@ async function outcomes(url, env) {
       const enrolledMs = {};
       const cfgFor = (key) => (report.projects || []).find((c) => c.key === key);
       for (const p of enrollTasks) {
-        const ms = attributionStartMs(cfgFor(classifyProject(report, p.hs_task_subject)), Date.parse(p.hs_createdate));
+        const ms = attributionStartMs(cfgFor(classifyProject(report, p)), Date.parse(p.hs_createdate));
         for (const cid of taskToContacts[p.hs_object_id] || []) if (!(enrolledMs[cid] <= ms)) enrolledMs[cid] = ms;
       }
       const ctx = { enrolledMs, contactToCalls, calls, contactToMeetings, meetings, contactToDeals, deals, isClosedPlansDeal, dispLabel };
       for (const p of enrollTasks) {
-        const key = classifyProject(report, p.hs_task_subject);
+        const key = classifyProject(report, p);
         const projectCfg = cfgFor(key);
         enrolledByTask.set(p.hs_object_id, outcomeForEnrollmentTask(p, { ...ctx, repOk: repFilterFor(key), noCampaignEmail: !!projectCfg?.noCampaignEmail, projectCfg, contactsForTask: taskToContacts[p.hs_object_id] || [] }));
       }
@@ -1299,7 +1319,7 @@ async function outcomes(url, env) {
     const buckets = {};
     const tallied = []; // { key, outcome, category, contactIds } per task, for segmentOutcomes()
     for (const p of completedTasks) {
-      const key = classifyProject(report, p.hs_task_subject);
+      const key = classifyProject(report, p);
       const b = (buckets[key] ||= { totalCompleted: 0, matched: 0, byOutcome: {} });
       b.totalCompleted++;
 
@@ -1487,7 +1507,7 @@ async function dealAttribution(url, env) {
     // key -> Map(contactId -> earliest enrollment ms in this project, i.e. earliest task hs_createdate)
     const projectContacts = {};
     for (const p of allTasks) {
-      const key = classifyProject(report, p.hs_task_subject);
+      const key = classifyProject(report, p);
       const map = (projectContacts[key] ||= new Map());
       // Opens at the campaign email's send where it preceded the tasks — see attributionStartMs.
       const createdMs = attributionStartMs((report.projects || []).find((c) => c.key === key), Date.parse(p.hs_createdate));
