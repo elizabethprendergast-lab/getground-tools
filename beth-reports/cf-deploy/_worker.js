@@ -4,9 +4,58 @@
 //   everything else    -> static assets (the reports page); /campaign/* rewrites to index.html (SPA)
 
 // The 15 Oct batch of "LTD missed leads - Core Plan" #1 tasks came from the test version of the
-// workflow and counts as the old LTD missed leads queue; everything else with that subject
-// (the "Always on" workflow's #1s and every #2/#3 follow-up) is reengage-ltd-core-plan.
+// workflow and counts as the old LTD missed leads queue, as do those contacts' #2/#3 follow-ups:
+// a follow-up stays in the tab its #1 went to. Follow-ups are all created by "Call Automation |
+// Task Creation", so they can't be told apart by workflow, only by contact. The test workflow ran
+// once (renamed to "Always on" since), so its contacts are a fixed list: the 287 contacts on its
+// 286 Core Plan #1s, from raw_hubspot on 26 Oct. See tagLtdCoreTesting().
 const LTD_CORE_TESTING_WF = "Testing | Growth | LTD missed leads reengage MRR | Calls only - 1026";
+const LTD_CORE_TESTING_CONTACTS = [
+  "10046951", "102868038872", "103296", "103758", "103791", "10419351", "104558", "10903669223",
+  "10911519951", "11104878271", "11122810062", "11545959612", "115648", "118801", "12154351",
+  "1222753", "12278901", "12307401", "123176", "1239251", "1239401", "124880", "12574801",
+  "126110", "126356", "126385", "126946482382", "13043651", "13161202158", "132152900852",
+  "132972", "13459502", "13462395860", "134876", "1379201", "1390452", "139511868652", "140433",
+  "141401", "141419", "146251", "14979048661", "1501351", "153163", "154166", "154189", "15446501",
+  "154498", "15540453", "157073848544", "16643764929", "169008975061", "16923838671",
+  "171308904694", "17256428260", "17361173716", "17661801", "17754201", "178785321194",
+  "18007904738", "18324831709", "186101", "19037520350", "19055701", "19150201", "19797701",
+  "19963301", "2010901", "2099201", "2131401", "215428980977", "21776801", "21893551",
+  "220696899783", "222742676679", "225219507413", "225762610375", "22581878731", "22597971",
+  "228459669753", "230167634149", "234629186795", "23475804866", "235433820377", "235884574964",
+  "240473092285", "241538455792", "243530643654", "24543051", "246964291776", "247213054186",
+  "247432241342", "259592007905", "25967401", "26389335753", "26526342358", "272088959223",
+  "27442901", "2752701", "275674546372", "27709310", "28040727502", "282264456428", "285072007415",
+  "29024201", "29322801", "2952352", "297051", "299666980068", "3007701", "3095001",
+  "310413684954", "310746504434", "310901985518", "312976956651", "31643511261", "32082892737",
+  "326403685570", "33067351", "331287178478", "331310690523", "33274051", "33318001",
+  "33451361485", "341622469841", "34391448515", "345681650897", "34600201", "349151",
+  "350399983821", "35107201", "35185251", "35250901", "353880670430", "35973801", "36132051",
+  "361607846115", "36202751", "36250251", "365013824730", "366052791521", "36830601", "36961951",
+  "371206237410", "37123601", "37287801", "376792995030", "3771951", "37846451", "379384079604",
+  "391531294959", "391952", "39825850087", "407799221474", "4091469506", "4128851", "416525768903",
+  "416859997406", "4168734405", "416920748242", "416926615781", "41919259615", "421887588559",
+  "422635518192", "4280012774", "431067019492", "432972609733", "437339297000", "449727003841",
+  "450420017342", "452775267564", "453462364392", "456449531121", "462257771757", "469888230630",
+  "483313417433", "490969391317", "4944701", "495406089405", "5130117355", "513428447448",
+  "514109512901", "5253501", "5257551", "5299351", "531104600309", "534888646884", "53597303012",
+  "540986601702", "546125462767", "55005161711", "552007302382", "552922853613", "565342467316",
+  "570587921655", "5742838725", "578253643001", "581613720813", "591138075884", "596089805022",
+  "608280386759", "612056320229", "614802711790", "617817355460", "617921942739", "618056157388",
+  "6180617460", "621531125962", "621725809878", "632478611682", "632768005325", "633762607329",
+  "641345689827", "645468273874", "646414848205", "647624050936", "656118764786", "657247234266",
+  "658451", "659225400520", "6653407", "6696051", "6733401", "673885045995", "678523579602",
+  "678991132919", "680064241879", "680846190829", "683062772969", "6927301", "6952201",
+  "698781148393", "6988251", "6991551189", "700390564066", "70818438372", "71051", "7129101",
+  "715442140382", "715798595798", "72601", "72781525199", "732074780915", "742943541480", "74308",
+  "752302415066", "752656074970", "754652", "757545459899", "7578619330", "757879248119",
+  "760598229211", "772824386809", "774504269041", "774807796974", "780566597862", "784097908948",
+  "786966453436", "787513150709", "78882", "790721403085", "793575560439", "802692059373",
+  "80469482693", "8097552", "813398440185", "818951", "8200351", "821332008164", "823349748956",
+  "825791933631", "828463508683", "82851", "8356751", "83697", "83866", "849216205023",
+  "860412178618", "866492931273", "868482262229", "87752", "88965", "892858398909", "89348551899",
+  "91029", "9601451", "9945401"
+];
 
 const REPORTS = {
   "mrr-nov-sprint": {
@@ -138,11 +187,12 @@ const REPORTS = {
       },
       {
         key: "reengage-ltd",
-        label: "Reengage — LTD missed leads",
+        label: "Experiment - missed LTD leads",
         // "LTD missed leads - Core Plan" tasks (a separate workflow, from 15 Oct) have their own
         // project below — they tripled this one's volume and broke its outcomes card (26 Oct).
-        // Only the 286 Core Plan #1s the test workflow created stay here (see LTD_CORE_TESTING_WF).
-        match: (s, t) => s.includes("LTD missed leads") && (!s.includes("Core Plan") || t.hs_object_source_detail_1 === LTD_CORE_TESTING_WF),
+        // Only the test workflow's Core Plan contacts (#1s and follow-ups) stay here (see
+        // LTD_CORE_TESTING_CONTACTS).
+        match: (s, t) => s.includes("LTD missed leads") && (!s.includes("Core Plan") || t.ltd_core_testing),
         // Real subject: "#N | Call | Reengage | LTD missed leads". "LTD" alone collides
         // heavily with dozens of unrelated LTD-setup/mortgage tasks — use the full phrase.
         namePattern: "Call | Reengage | LTD missed leads",
@@ -153,10 +203,12 @@ const REPORTS = {
         // unrelated meeting-followup tasks — the third token is needed) — clean without an
         // owner filter.
         // "Core" excluded (26 Oct): leaves the 592 tasks of this campaign, without the Core Plan
-        // ones; orGroups adds back the test workflow's 286 Core Plan #1s. 878 in all, checked live.
+        // ones. orGroups adds back every Core Plan task not from the "Always on" workflow (the test
+        // workflow's 286 #1s plus all follow-ups); the follow-ups of other contacts are then dropped
+        // in searchTasksForAttribution.
         attributionSearch: {
           tokens: ["Reengage", "LTD", "missed"], notTokens: ["Core"], ownerFiltered: false,
-          orGroups: [{ tokens: ["LTD", "missed", "Core", "Plan"], filters: [{ propertyName: "hs_object_source_detail_1", operator: "EQ", value: LTD_CORE_TESTING_WF }] }],
+          orGroups: [{ tokens: ["LTD", "missed", "Core", "Plan"], filters: [{ propertyName: "hs_object_source_detail_1", operator: "NEQ", value: "Always on | Growth | LTD missed leads reengage MRR | Calls only - 1026" }] }],
         },
         // Enrollment-window rules (see outcomeForEnrollmentTask), restricted to campaignRepIds —
         // these leads overlap heavily with live property/mortgage pipelines.
@@ -174,20 +226,21 @@ const REPORTS = {
       },
       {
         key: "reengage-ltd-core-plan",
-        label: "Always on | missed LTD leads",
+        label: "Always on - missed LTD leads",
         // Real subject: "#1 |  Call | Reengage | LTD missed leads - Core Plan" (double space after
         // "#1 |"), from "Always on | Growth | LTD missed leads reengage MRR | Calls only - 1026",
         // first tasks 15 Oct. Split out of reengage-ltd on 26 Oct: 1,187 tasks in 11 days, too many
         // to compute alongside the original queue under Cloudflare's 50-subrequest cap.
-        // #1s from the "Always on" workflow plus every #2/#3 follow-up (created by "Call Automation |
-        // Task Creation"), but not the test workflow's 15 Oct #1s, which stay in reengage-ltd.
-        match: (s, t) => s.includes("LTD missed leads - Core Plan") && t.hs_object_source_detail_1 !== LTD_CORE_TESTING_WF,
+        // #1s from the "Always on" workflow and their #2/#3 follow-ups. The test workflow's 15 Oct
+        // contacts stay in reengage-ltd (see LTD_CORE_TESTING_CONTACTS).
+        match: (s, t) => s.includes("LTD missed leads - Core Plan") && !t.ltd_core_testing,
         namePattern: "Call | Reengage | LTD missed leads - Core Plan",
         searchTerm: "LTD missed leads - Core Plan",
         context: "LTD missed leads offered the Core Plan — a calls-only re-engagement queue worked by Billy, Iglesias and Carlos.",
         // Verified against real data (2026-10-26): "LTD" AND "missed" AND "Core" AND "Plan" returns
         // the 1,187 Core Plan tasks ("missed" + "Core" alone also picks up a free-text "catch up on
-        // missed meeting and chase core sign up" task); without the test workflow's 286, 901.
+        // missed meeting and chase core sign up" task). The test workflow's #1s are excluded here;
+        // its contacts' follow-ups are dropped in searchTasksForAttribution.
         attributionSearch: {
           tokens: ["LTD", "missed", "Core", "Plan"], ownerFiltered: false,
           filters: [{ propertyName: "hs_object_source_detail_1", operator: "NEQ", value: LTD_CORE_TESTING_WF }],
@@ -632,7 +685,7 @@ async function searchTasksForAttribution(API, H, report, opts = {}) {
     else batches.push([g]);
   }
   let total = 0, truncated = false;
-  const results = [];
+  let results = [];
   // Filter groups are ORed within one request, but not across batches — a task matched by
   // projects in two different batches would otherwise be counted twice.
   const seen = new Set();
@@ -646,7 +699,21 @@ async function searchTasksForAttribution(API, H, report, opts = {}) {
       results.push(t);
     }
   }
+  // LTD missed leads Core Plan tasks go to whichever tab the contact's #1 went to, so tag the test
+  // workflow contacts' tasks, then drop any that belong to the other LTD tab than this request's.
+  if (results.some((t) => (t.properties?.hs_task_subject || "").includes("LTD missed leads - Core Plan"))) {
+    await tagLtdCoreTesting(API, H, results);
+    results = results.filter((t) => !t.properties.hs_task_subject.includes("LTD missed leads - Core Plan") || classifyProject(report, t.properties) !== "other");
+  }
   return { total, results, truncated };
+}
+
+// Sets ltd_core_testing on tasks of the LTD_CORE_TESTING_CONTACTS (3 subrequests: 287 contacts in
+// batches of 100), which the two LTD projects' match() use.
+async function tagLtdCoreTesting(API, H, results) {
+  const assoc = await batchAssociations(API, H, "contacts", "tasks", LTD_CORE_TESTING_CONTACTS);
+  const ids = new Set(Object.values(assoc).flat());
+  for (const t of results) if (ids.has(String(t.id))) t.properties.ltd_core_testing = true;
 }
 
 // Live owner-name lookup, used so the per-rep breakdown shows whoever actually owns a task
