@@ -134,7 +134,9 @@ const REPORTS = {
       {
         key: "reengage-ltd",
         label: "Reengage — LTD missed leads",
-        match: (s) => s.includes("LTD missed leads"),
+        // "LTD missed leads - Core Plan" tasks (a separate workflow, from 15 Oct) have their own
+        // project below — they tripled this one's volume and broke its outcomes card (26 Oct).
+        match: (s) => s.includes("LTD missed leads") && !s.includes("Core Plan"),
         // Real subject: "#N | Call | Reengage | LTD missed leads". "LTD" alone collides
         // heavily with dozens of unrelated LTD-setup/mortgage tasks — use the full phrase.
         namePattern: "Call | Reengage | LTD missed leads",
@@ -144,7 +146,8 @@ const REPORTS = {
         // real matches for this project ("LTD" + "missed" alone isn't enough — collides with
         // unrelated meeting-followup tasks — the third token is needed) — clean without an
         // owner filter.
-        attributionSearch: { tokens: ["Reengage", "LTD", "missed"], ownerFiltered: false },
+        // "Core" excluded (26 Oct): leaves the 592 tasks of this campaign, without the Core Plan ones.
+        attributionSearch: { tokens: ["Reengage", "LTD", "missed"], notTokens: ["Core"], ownerFiltered: false },
         // Enrollment-window rules (see outcomeForEnrollmentTask), restricted to campaignRepIds —
         // these leads overlap heavily with live property/mortgage pipelines.
         outcomeMatching: "enrollment",
@@ -157,6 +160,28 @@ const REPORTS = {
         noCampaignEmail: true,
         // Count meetings booked into anyone's calendar during the call window, not just the
         // campaign reps' own (15 Oct: 7 of ~28 meetings were counted) — see outcomeForEnrollmentTask.
+        meetingsAnyHost: true,
+      },
+      {
+        key: "reengage-ltd-core-plan",
+        label: "Always on | missed LTD leads",
+        // Real subject: "#1 |  Call | Reengage | LTD missed leads - Core Plan" (double space after
+        // "#1 |"), from "Always on | Growth | LTD missed leads reengage MRR | Calls only - 1026",
+        // first tasks 15 Oct. Split out of reengage-ltd on 26 Oct: 1,187 tasks in 11 days, too many
+        // to compute alongside the original queue under Cloudflare's 50-subrequest cap.
+        match: (s) => s.includes("LTD missed leads - Core Plan"),
+        namePattern: "Call | Reengage | LTD missed leads - Core Plan",
+        searchTerm: "LTD missed leads - Core Plan",
+        context: "LTD missed leads offered the Core Plan — a calls-only re-engagement queue worked by Billy, Iglesias and Carlos.",
+        // Verified against real data (2026-10-26): "LTD" AND "missed" AND "Core" AND "Plan" returns
+        // exactly the 1,187 tasks of this campaign ("missed" + "Core" alone also picks up a free-text
+        // "catch up on missed meeting and chase core sign up" task).
+        attributionSearch: { tokens: ["LTD", "missed", "Core", "Plan"], ownerFiltered: false },
+        // Same team, same rules as reengage-ltd — see that project's comments.
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
+        noCampaignEmail: true,
         meetingsAnyHost: true,
       },
       {
