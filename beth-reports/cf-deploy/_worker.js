@@ -341,6 +341,28 @@ const REPORTS = {
         // opens at the send for tasks created within 24h of it (see attributionStartMs).
         campaignEmail: { id: 491653236932, sentAt: "2026-10-21T15:48:24Z" },
       },
+      {
+        key: "black-friday",
+        label: "Black Friday",
+        // Real subjects: "#1 |  Call | Black Friday | 50% off 6 month - Core Plans" (double space
+        // after "#1 |") and, per the team, "Call | Black Friday | Free Company - Core Plans" (none
+        // yet on 26 Oct). First tasks 23 Oct from "Testing | Growth | Black Friday post ad flow -
+        // Calls only | 1026". Last year's "#1 | Call | High Priority | Black Friday Stock" tasks
+        // don't end in "Core Plans", so they don't match.
+        match: (s) => s.includes("Call | Black Friday |") && s.includes("Core Plans"),
+        namePattern: "Call | Black Friday | 50% off 6 month - Core Plans / Free Company - Core Plans",
+        searchTerm: "Black Friday",
+        context: "Black Friday offer on Core Plans (50% off for 6 months, or a free company), called after the post-ad flow.",
+        // Verified against real data (2026-10-26): "Black" AND "Friday" AND "Core" AND "Plans" returns
+        // exactly the 7 tasks of this campaign, portal-wide, even with no date filter.
+        attributionSearch: { tokens: ["Black", "Friday", "Core", "Plans"], ownerFiltered: false },
+        // Calls only, worked by the same team as LTD missed leads, so the same rules — see reengage-ltd.
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
+        noCampaignEmail: true,
+        meetingsAnyHost: true,
+      },
     ],
   },
 };
