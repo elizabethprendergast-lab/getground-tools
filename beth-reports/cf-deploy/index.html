@@ -138,6 +138,17 @@
   }
   section.card h2 { font-size: 16px; margin: 0 0 4px; font-weight: 600; }
   section.card .sub { font-size: 13px; color: var(--text-muted); margin: 0 0 18px; }
+  .email-block { padding: 14px 0; border-top: 1px solid var(--border); }
+  .email-block:first-of-type { border-top: none; padding-top: 0; }
+  .email-title { font-size: 13px; color: var(--text-muted); }
+  .email-name { font-size: 12px; }
+  .email-subject { font-size: 16px; font-weight: 600; margin-top: 4px; }
+  .email-preview { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+  .email-stats { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; margin-top: 10px; }
+  .email-stats .share { color: var(--text-muted); margin-left: 2px; }
+  .email-body { margin-top: 10px; font-size: 13px; }
+  .email-body summary { cursor: pointer; color: var(--text-muted); }
+  .email-body div { white-space: pre-wrap; margin-top: 8px; padding: 12px; border-left: 3px solid var(--border); line-height: 1.5; }
   .context-line { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0 0 18px; }
   .task-name-pattern { font-size: 12px; color: var(--text-muted); margin: -10px 0 18px; }
   .task-name-pattern code {
@@ -628,6 +639,42 @@ function segmentEmailTableHtml(seg, values, dRows) {
       </div>`;
 }
 
+// The emails this campaign's workflow sends alongside its call tasks (/api/emails), so a strong
+// open rate can be read next to the subject and copy behind it. Rates are % of delivered.
+function emailsCardHtml(res, loading) {
+  const head = `<h2>Campaign emails</h2>
+      <p class="sub">The email${res && res.emails && res.emails.length === 1 ? "" : "s"} sent with this campaign's call tasks — HubSpot's live counts for each email, % of delivered.</p>`;
+  if (!res || !res.emails) {
+    return `<section class="card">${head}<div class="empty-state">${loading ? "Loading campaign emails…" : "Couldn't load the campaign emails."}</div></section>`;
+  }
+  const pct = (a, b) => (b ? ` <span class="share">${Math.round(100 * a / b)}%</span>` : "");
+  return `
+    <section class="card">${head}
+      ${res.emails.map(e => {
+        const title = esc(e.label || e.name || `Email ${e.id}`);
+        const open = `<a href="${esc(e.link)}" target="_blank" rel="noopener">Open in HubSpot ↗</a>`;
+        if (e.error) {
+          return `<div class="email-block"><div class="email-title">${title} · ${open}</div>
+            <p class="sub" style="margin:4px 0 0">Couldn't read this email from HubSpot (the app token may be missing the <code>content</code> scope).</p></div>`;
+        }
+        const st = e.stats || {};
+        return `<div class="email-block">
+          <div class="email-title">${title}${e.label && e.name ? ` <span class="email-name">${esc(e.name)}</span>` : ""} · ${open}</div>
+          <div class="email-subject">${esc(e.subject || "(no subject)")}</div>
+          ${e.previewText ? `<div class="email-preview">${esc(e.previewText)}</div>` : ""}
+          <div class="email-stats">
+            <span><b>${st.delivered || 0}</b> delivered</span>
+            <span><b>${st.opened || 0}</b> opened${pct(st.opened || 0, st.delivered)}</span>
+            <span><b>${st.clicked || 0}</b> clicked${pct(st.clicked || 0, st.delivered)}</span>
+            ${st.replied ? `<span><b>${st.replied}</b> replied${pct(st.replied, st.delivered)}</span>` : ""}
+            ${st.unsubscribed ? `<span><b>${st.unsubscribed}</b> unsubscribed${pct(st.unsubscribed, st.delivered)}</span>` : ""}
+          </div>
+          ${e.body ? `<details class="email-body"><summary>Read the email</summary><div>${esc(e.body)}</div></details>` : ""}
+        </div>`;
+      }).join("")}
+    </section>`;
+}
+
 function campaignPageHtml(proj, sprintStart, hubspot) {
   return `
     <div class="meta-row">
@@ -638,6 +685,7 @@ function campaignPageHtml(proj, sprintStart, hubspot) {
     ${completionCardHtml(proj, sprintStart, hubspot)}
     <div id="outcomes-slot"></div>
     <div id="deals-slot"></div>
+    <div id="emails-slot"></div>
     <div id="segments-slot"></div>
     <footer id="footer-line"></footer>`;
 }
@@ -903,6 +951,7 @@ let cache = { stats: null, outcomes: null, deals: null, referrals: null };
 // switching back to an already-scoped-fetched campaign doesn't re-hit HubSpot.
 let scopedOutcomes = {};
 let scopedDeals = {};
+let campaignEmailsByKey = {}; // /api/emails per campaign — doesn't depend on the date range
 const scopedInFlight = new Set();
 
 async function fetchScoped(kind, key) {
@@ -985,6 +1034,15 @@ function render() {
     const { data: dealData, loading: dealsLoading } = resolveScoped("deals", key, dealsByKey);
     document.getElementById("deals-slot").innerHTML = dealCardHtml(proj.label, dealData, portalId, dealsLoading);
     wireDealHovers(proj.label, portalId);
+
+    if (proj.hasEmails) {
+      if (!(key in campaignEmailsByKey)) {
+        campaignEmailsByKey[key] = undefined;
+        fetch(`/api/emails?report=${REPORT_KEY}&campaign=${encodeURIComponent(key)}`).then(r => r.json()).catch(() => null)
+          .then(res => { campaignEmailsByKey[key] = res; if (currentCampaignKey() === key) render(); });
+      }
+      document.getElementById("emails-slot").innerHTML = emailsCardHtml(campaignEmailsByKey[key], campaignEmailsByKey[key] === undefined);
+    }
 
     document.getElementById("segments-slot").innerHTML = segmentCardHtml(outcomeData, dealData, outcomesLoading || dealsLoading);
   }
