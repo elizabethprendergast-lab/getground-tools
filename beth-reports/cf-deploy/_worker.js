@@ -294,6 +294,28 @@ const REPORTS = {
           order: ["4-6 months", "7-9 months", "10-12 months", "13-15 months", "16-18 months"],
         },
       },
+      {
+        key: "reengage-property-closed-lost",
+        label: "Reengage — Property closed lost",
+        // Real subject: "#1 |  Call | Reengage | Property closed lost mrr" (double space after
+        // "#1 |"), from workflow 5154829523 ("Testing | Growth | Closed lost property deals -
+        // re-market plans MRR | 1026"). Match the fixed phrase so later call numbers land here too.
+        match: (s) => s.includes("Property closed lost"),
+        namePattern: "Call | Reengage | Property closed lost mrr",
+        searchTerm: "Property closed lost",
+        context: "Contacts with a closed-lost property deal, re-marketed our plans by email and then called.",
+        // Verified against real data (2026-10-26): "closed" AND "lost" AND "mrr" returns exactly
+        // the 1 task created so far (21 Oct), nothing else.
+        attributionSearch: { tokens: ["closed", "lost", "mrr"], ownerFiltered: false },
+        // Email + call, so enrollment-window rules apply (see outcomeForEnrollmentTask).
+        // Restricted to campaignRepIds because the property team works these contacts in parallel.
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        // "MRR Reengage - Closed Lost Property Deals - 1026" (subject "Buying takes weeks. Owning
+        // takes years.") went out at 15:48 UTC on 21 Oct, 3h before the first call task. The window
+        // opens at the send for tasks created within 24h of it (see attributionStartMs).
+        campaignEmail: { id: 491653236932, sentAt: "2026-10-21T15:48:24Z" },
+      },
     ],
   },
 };
