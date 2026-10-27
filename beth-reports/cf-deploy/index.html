@@ -759,11 +759,6 @@ function landingHtml(stats) {
     <h2 class="section-heading">Active campaigns</h2>
     <div class="landing-grid">
       ${active.map(landingCardHtml).join("")}
-      <a class="landing-card" href="/?campaign=${REFERRAL_TAB_KEY}">
-        <div class="landing-card-head"><h3>Referral programme</h3></div>
-        <p>Copy-link &amp; referral conversions across the whole programme.</p>
-        <div class="landing-stats"><span>view funnel →</span></div>
-      </a>
     </div>
     <h2 class="section-heading">Reports</h2>
     <div class="landing-grid">
@@ -775,6 +770,11 @@ function landingHtml(stats) {
       <a class="landing-card" href="/btl-calculator-page/">
         <div class="landing-card-head"><h3>BTL calculator page</h3></div>
         <p>Company Google Ads landing page — visits, clicks, sign-ups, form leads and plans, before vs since the 6 Oct relaunch.</p>
+        <div class="landing-stats"><span>open report →</span></div>
+      </a>
+      <a class="landing-card" href="/?campaign=${REFERRAL_TAB_KEY}">
+        <div class="landing-card-head"><h3>Referral programme</h3></div>
+        <p>Copy-link &amp; referral conversions across the whole programme.</p>
         <div class="landing-stats"><span>open report →</span></div>
       </a>
       <a class="landing-card" href="/chatgpt-ltd-company/">
@@ -805,7 +805,6 @@ function renderNav(stats, activeKey) {
   const nav = document.getElementById("campaign-nav");
   const projects = sortedByPriority(stats.projects || []);
   const allLink = `<a href="/" class="${!activeKey ? "active" : ""}">All campaigns</a>`;
-  const referralLink = `<a href="/?campaign=${REFERRAL_TAB_KEY}" class="${activeKey === REFERRAL_TAB_KEY ? "active" : ""}">Referral programme</a>`;
   const link = (p) => `<a href="/?campaign=${p.key}" class="${p.key === activeKey ? "active" : ""}">${esc(p.label)}${isClosed(p) ? "" : priorityPillHtml(dominantPriority(p))}</a>`;
   const closed = projects.filter(isClosed);
   const closedActive = closed.some((p) => p.key === activeKey);
@@ -814,7 +813,7 @@ function renderNav(stats, activeKey) {
       <summary class="${closedActive ? "active" : ""}">Closed (${closed.length})</summary>
       <div class="nav-closed-menu">${closed.map(link).join("")}</div>
     </details>` : "";
-  nav.innerHTML = allLink + projects.filter((p) => !isClosed(p)).map(link).join("") + referralLink + closedMenu;
+  nav.innerHTML = allLink + projects.filter((p) => !isClosed(p)).map(link).join("") + closedMenu;
 }
 
 // The Closed dropdown is a <details>, which doesn't close itself on an outside click.
@@ -934,7 +933,68 @@ function wireRepHovers() {
 }
 
 function currentCampaignKey() {
-  return new URLSearchParams(location.search).get("campaign");
+  const key = new URLSearchParams(location.search).get("campaign");
+  return MERGED_INTO[key] || key;
+}
+
+// Campaigns shown as one tab although the worker computes them as separate projects. The two
+// LTD missed leads projects were split server-side on 26 Oct only because together they're too
+// many tasks to compute under Cloudflare's 50-subrequest cap — they're the same queue, so the page
+// fetches each half on its own and adds them up here (27 Oct). The first part's key is the tab's.
+const MERGED_CAMPAIGNS = {
+  "reengage-ltd": {
+    parts: ["reengage-ltd", "reengage-ltd-core-plan"],
+    label: "Missed LTD leads",
+    context: "Landlords who inquired about an LTD company and had a closed-lost deal, called to re-engage them (including the Core Plan offer and the Properties outside GG company follow-ups).",
+  },
+};
+const MERGED_INTO = Object.fromEntries(Object.entries(MERGED_CAMPAIGNS).flatMap(([k, m]) => m.parts.filter((p) => p !== k).map((p) => [p, k])));
+
+// Adds two payloads of the same shape: numbers sum, objects merge key by key, and arrays of
+// keyed rows (outcome / label / number / level …) merge row by row; other arrays concatenate.
+const ROW_KEYS = ["outcome", "label", "number", "level", "key", "name", "id"];
+function mergeData(a, b) {
+  if (a === undefined || a === null) return b;
+  if (b === undefined || b === null) return a;
+  if (typeof a === "number" && typeof b === "number") return a + b;
+  if (typeof a === "boolean" && typeof b === "boolean") return a && b;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    const sample = a[0] || b[0];
+    const rk = sample && typeof sample === "object" ? ROW_KEYS.find((k) => k in sample) : null;
+    if (!rk) return a.concat(b);
+    const out = a.map((x) => ({ ...x }));
+    for (const y of b) {
+      const i = out.findIndex((x) => x[rk] === y[rk]);
+      if (i < 0) out.push(y); else out[i] = mergeData(out[i], y);
+    }
+    if (rk === "number") out.sort((x, y) => Number(x.number) - Number(y.number));
+    else if (out.every((x) => typeof (x.tasks ?? x.count) === "number")) out.sort((x, y) => (y.tasks ?? y.count) - (x.tasks ?? x.count));
+    return out;
+  }
+  if (typeof a === "object" && typeof b === "object") {
+    const out = { ...a };
+    for (const k of Object.keys(b)) out[k] = k in a ? mergeData(a[k], b[k]) : b[k];
+    return out;
+  }
+  return a;
+}
+
+// Stats with each merged campaign's parts folded into its first part.
+function withMergedProjects(stats) {
+  if (!stats || !stats.projects) return stats;
+  const byKey = Object.fromEntries(stats.projects.map((p) => [p.key, p]));
+  const projects = [];
+  for (const p of stats.projects) {
+    if (MERGED_INTO[p.key]) continue;
+    const m = MERGED_CAMPAIGNS[p.key];
+    if (!m) { projects.push(p); continue; }
+    const parts = m.parts.map((k) => byKey[k]).filter(Boolean);
+    const merged = parts.reduce((acc, x) => mergeData(acc, x));
+    const name = (x) => x.taskNamePattern || "";
+    projects.push({ ...merged, key: p.key, label: m.label, context: m.context, closed: parts.every((x) => x.closed),
+      taskViewQuery: "LTD missed leads", taskNamePattern: parts.map(name).filter(Boolean).join(" / "), hasEmails: parts.some((x) => x.hasEmails) });
+  }
+  return { ...stats, projects };
 }
 
 // Cached across in-app navigation: switching between already-loaded campaigns is just a
@@ -966,7 +1026,7 @@ async function fetchScoped(kind, key) {
     store[key] = null;
   } finally {
     scopedInFlight.delete(flightKey);
-    if (currentCampaignKey() === key) render();
+    if (currentCampaignKey() === (MERGED_INTO[key] || key)) render();
   }
 }
 
@@ -975,6 +1035,16 @@ async function fetchScoped(kind, key) {
 // covered it (computed !== false); otherwise there's nothing to show yet — kick off a scoped
 // fetch and report "loading" so the card doesn't look like a false "no data" empty state.
 function resolveScoped(kind, key, batchByKey) {
+  const merged = MERGED_CAMPAIGNS[key];
+  if (merged) {
+    const parts = merged.parts.map((k) => resolveScopedOne(kind, k, batchByKey));
+    if (parts.some((r) => r.loading)) return { data: undefined, loading: true };
+    const data = parts.map((r) => r.data).reduce((acc, x) => mergeData(acc, x), undefined);
+    return { data: data && { ...data, key, label: merged.label }, loading: false };
+  }
+  return resolveScopedOne(kind, key, batchByKey);
+}
+function resolveScopedOne(kind, key, batchByKey) {
   const store = kind === "outcomes" ? scopedOutcomes : scopedDeals;
   if (key in store) return { data: store[key] || undefined, loading: false };
   const batch = batchByKey[key];
@@ -1003,7 +1073,8 @@ const lastLoadKey = () => `${LAST_LOAD_PREFIX}${rangeParams()}`;
 
 function render() {
   const key = currentCampaignKey();
-  const { stats: statsRes, outcomes: outcomesRes, deals: dealsRes } = cache;
+  const { outcomes: outcomesRes, deals: dealsRes } = cache;
+  const statsRes = withMergedProjects(cache.stats);
   if (!statsRes) return;
 
   renderNav(statsRes, key);
