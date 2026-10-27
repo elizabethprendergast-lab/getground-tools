@@ -192,14 +192,10 @@ const REPORTS = {
         // project below — they tripled this one's volume and broke its outcomes card (26 Oct).
         // Only the test workflow's Core Plan contacts (#1s and follow-ups) stay here (see
         // LTD_CORE_TESTING_CONTACTS).
-        match: (s, t) => (s.includes("LTD missed leads") && (!s.includes("Core Plan") || t.ltd_core_testing))
-          // Added 27 Oct at Beth's request: "#1 |  Call | Follow-up | Properties outside GG company
-          // (Joe's email followup)", from "Testing | Growth | Properties outside GG company - mrr | 1026"
-          // (21 tasks, 26 Oct, same reps). Joe's email isn't a HubSpot marketing email, so no email card.
-          || s.includes("Properties outside GG company"),
+        match: (s, t) => s.includes("LTD missed leads") && (!s.includes("Core Plan") || t.ltd_core_testing),
         // Real subject: "#N | Call | Reengage | LTD missed leads". "LTD" alone collides
         // heavily with dozens of unrelated LTD-setup/mortgage tasks — use the full phrase.
-        namePattern: "Call | Reengage | LTD missed leads / Call | Follow-up | Properties outside GG company",
+        namePattern: "Call | Reengage | LTD missed leads",
         searchTerm: "Call | Reengage | LTD missed leads",
         context: "Landlords who inquired about an LTD company and had a closed-lost deal — a second pass to re-engage them before writing them off.",
         // Verified against real data: "Reengage" AND "LTD" AND "missed" returns 165 tasks, all
@@ -214,9 +210,6 @@ const REPORTS = {
           tokens: ["Reengage", "LTD", "missed"], notTokens: ["Core"], ownerFiltered: false,
           orGroups: [
             { tokens: ["LTD", "missed", "Core", "Plan"], filters: [{ propertyName: "hs_object_source_detail_1", operator: "NEQ", value: "Always on | Growth | LTD missed leads reengage MRR | Calls only - 1026" }] },
-            // Verified against real data (27 Oct): "Properties" AND "outside" returns exactly the 21
-            // Properties outside GG company follow-up tasks, portal-wide.
-            { tokens: ["Properties", "outside", "GG", "company"] },
           ],
         },
         // Enrollment-window rules (see outcomeForEnrollmentTask), restricted to campaignRepIds —
@@ -450,6 +443,28 @@ const REPORTS = {
         // Display only. Sent at the same moment as each #1 task (7 of 7 contacts, 26 Oct). It has
         // no meeting-booking button, so noCampaignEmail stays true (self-booked = "by rep").
         emails: [{ id: 495692031170 }],
+      },
+      {
+        key: "properties-outside",
+        label: "Follow-up — Properties outside GG company",
+        // Real subject: "#1 |  Call | Follow-up | Properties outside GG company (Joe's email followup)"
+        // (double space after "#1 |"), from "Testing | Growth | Properties outside GG company - mrr |
+        // 1026", first 21 tasks 26 Oct. Briefly counted in reengage-ltd (27 Oct), now its own page.
+        match: (s) => s.includes("Properties outside GG company"),
+        namePattern: "Call | Follow-up | Properties outside GG company",
+        searchTerm: "Properties outside GG company",
+        context: "Customers holding properties outside their GetGround company, called as a follow-up to Joe's email.",
+        // Verified against real data (27 Oct): "Properties" AND "outside" AND "GG" AND "company"
+        // returns exactly the 21 tasks of this campaign, portal-wide.
+        attributionSearch: { tokens: ["Properties", "outside", "GG", "company"], ownerFiltered: false },
+        // Calls only, worked by the SDRs (reassigned from Asya/Chey/Yoana on 27 Oct) — same rules
+        // as reengage-ltd. Joe's email isn't a HubSpot marketing email, so there's no email card and
+        // a self-booked meeting counts as "by rep".
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
+        noCampaignEmail: true,
+        meetingsAnyHost: true,
       },
     ],
   },
