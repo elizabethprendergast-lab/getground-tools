@@ -945,7 +945,7 @@ const MERGED_CAMPAIGNS = {
   "reengage-ltd": {
     parts: ["reengage-ltd", "reengage-ltd-core-plan"],
     label: "Missed LTD leads",
-    context: "Landlords who inquired about an LTD company and had a closed-lost deal, called to re-engage them (including the Core Plan offer and the Properties outside GG company follow-ups).",
+    context: "Landlords who inquired about an LTD company and had a closed-lost deal, called to re-engage them (including the Core Plan offer).",
   },
 };
 const MERGED_INTO = Object.fromEntries(Object.entries(MERGED_CAMPAIGNS).flatMap(([k, m]) => m.parts.filter((p) => p !== k).map((p) => [p, k])));
