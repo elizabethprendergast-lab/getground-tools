@@ -192,10 +192,14 @@ const REPORTS = {
         // project below — they tripled this one's volume and broke its outcomes card (26 Oct).
         // Only the test workflow's Core Plan contacts (#1s and follow-ups) stay here (see
         // LTD_CORE_TESTING_CONTACTS).
-        match: (s, t) => s.includes("LTD missed leads") && (!s.includes("Core Plan") || t.ltd_core_testing),
+        match: (s, t) => (s.includes("LTD missed leads") && (!s.includes("Core Plan") || t.ltd_core_testing))
+          // Added 27 Oct at Beth's request: "#1 |  Call | Follow-up | Properties outside GG company
+          // (Joe's email followup)", from "Testing | Growth | Properties outside GG company - mrr | 1026"
+          // (21 tasks, 26 Oct, same reps). Joe's email isn't a HubSpot marketing email, so no email card.
+          || s.includes("Properties outside GG company"),
         // Real subject: "#N | Call | Reengage | LTD missed leads". "LTD" alone collides
         // heavily with dozens of unrelated LTD-setup/mortgage tasks — use the full phrase.
-        namePattern: "Call | Reengage | LTD missed leads",
+        namePattern: "Call | Reengage | LTD missed leads / Call | Follow-up | Properties outside GG company",
         searchTerm: "Call | Reengage | LTD missed leads",
         context: "Landlords who inquired about an LTD company and had a closed-lost deal — a second pass to re-engage them before writing them off.",
         // Verified against real data: "Reengage" AND "LTD" AND "missed" returns 165 tasks, all
@@ -208,7 +212,12 @@ const REPORTS = {
         // in searchTasksForAttribution.
         attributionSearch: {
           tokens: ["Reengage", "LTD", "missed"], notTokens: ["Core"], ownerFiltered: false,
-          orGroups: [{ tokens: ["LTD", "missed", "Core", "Plan"], filters: [{ propertyName: "hs_object_source_detail_1", operator: "NEQ", value: "Always on | Growth | LTD missed leads reengage MRR | Calls only - 1026" }] }],
+          orGroups: [
+            { tokens: ["LTD", "missed", "Core", "Plan"], filters: [{ propertyName: "hs_object_source_detail_1", operator: "NEQ", value: "Always on | Growth | LTD missed leads reengage MRR | Calls only - 1026" }] },
+            // Verified against real data (27 Oct): "Properties" AND "outside" returns exactly the 21
+            // Properties outside GG company follow-up tasks, portal-wide.
+            { tokens: ["Properties", "outside", "GG", "company"] },
+          ],
         },
         // Enrollment-window rules (see outcomeForEnrollmentTask), restricted to campaignRepIds —
         // these leads overlap heavily with live property/mortgage pipelines.
