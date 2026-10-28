@@ -58,7 +58,11 @@
   header .brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
   header h1 { font-size: 18px; margin: 0; font-weight: 600; }
   header h1 a { color: inherit; text-decoration: none; }
-  nav.campaign-nav { display: flex; gap: 6px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
+  nav.campaign-nav { display: flex; flex-direction: column; gap: 10px; min-width: 0; max-width: 100%; }
+  nav.campaign-nav .nav-top { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  nav.campaign-nav .nav-group { display: flex; flex-direction: column; gap: 5px; }
+  nav.campaign-nav .nav-group-title { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+  nav.campaign-nav .nav-group-items { display: flex; gap: 6px; flex-wrap: wrap; }
   @media (max-width: 700px) { nav.campaign-nav a { white-space: normal; } }
   nav.campaign-nav a {
     font-size: 13px; padding: 6px 12px; border-radius: 999px; text-decoration: none;
@@ -801,11 +805,30 @@ function referralPageHtml() {
     <footer id="footer-line"></footer>`;
 }
 
+// Open campaigns are shown in rows by type. Keys not listed land in "Other", so a new
+// campaign still appears before it's been given a group here.
+const NAV_GROUPS = [
+  { title: "Upsell / Complete", keys: ["upsell-complete", "experiment-epc", "rent-anniversary"] },
+  { title: "Reengage & follow-up", keys: ["properties-outside", "reengage-property-closed-lost", "reengage-ltd", "reengage-nonpaying-master"] },
+  { title: "Active Lead & offers", keys: ["plan-close-month-end", "black-friday", "active-lead"] },
+];
+const NAV_SHORT = {
+  "upsell-complete": "Complete plan upsell",
+  "experiment-epc": "EPC list (experiment)",
+  "rent-anniversary": "Rent anniversary (experiment)",
+  "properties-outside": "Properties outside GG company",
+  "reengage-property-closed-lost": "Property closed lost",
+  "plan-close-month-end": "Plan close (month end)",
+};
+
 function renderNav(stats, activeKey) {
   const nav = document.getElementById("campaign-nav");
   const projects = sortedByPriority(stats.projects || []);
   const allLink = `<a href="/" class="${!activeKey ? "active" : ""}">All campaigns</a>`;
-  const link = (p) => `<a href="/?campaign=${p.key}" class="${p.key === activeKey ? "active" : ""}">${esc(p.label)}${isClosed(p) ? "" : priorityPillHtml(dominantPriority(p))}</a>`;
+  // In the grouped rows the group title carries the campaign type, so chips drop that prefix
+  // ("Upsell — Complete plan upsell" -> "Complete plan upsell"); full names stay everywhere else.
+  const shortLabel = (p) => NAV_SHORT[p.key] || p.label;
+  const link = (p) => `<a href="/?campaign=${p.key}" class="${p.key === activeKey ? "active" : ""}">${esc(isClosed(p) ? p.label : shortLabel(p))}${isClosed(p) ? "" : priorityPillHtml(dominantPriority(p))}</a>`;
   const closed = projects.filter(isClosed);
   const closedActive = closed.some((p) => p.key === activeKey);
   const closedMenu = closed.length ? `
@@ -813,7 +836,16 @@ function renderNav(stats, activeKey) {
       <summary class="${closedActive ? "active" : ""}">Closed (${closed.length})</summary>
       <div class="nav-closed-menu">${closed.map(link).join("")}</div>
     </details>` : "";
-  nav.innerHTML = allLink + projects.filter((p) => !isClosed(p)).map(link).join("") + closedMenu;
+  const open = projects.filter((p) => !isClosed(p));
+  const groups = NAV_GROUPS.map((g) => ({ ...g, items: open.filter((p) => g.keys.includes(p.key)) }));
+  const known = new Set(NAV_GROUPS.flatMap((g) => g.keys));
+  groups.push({ title: "Other", items: open.filter((p) => !known.has(p.key)) });
+  const rows = groups.filter((g) => g.items.length).map((g) => `
+    <div class="nav-group">
+      <span class="nav-group-title">${esc(g.title)}</span>
+      <div class="nav-group-items">${g.items.map(link).join("")}</div>
+    </div>`).join("");
+  nav.innerHTML = `<div class="nav-top">${allLink}${closedMenu}</div>${rows}`;
 }
 
 // The Closed dropdown is a <details>, which doesn't close itself on an outside click.
