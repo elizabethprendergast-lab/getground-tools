@@ -466,6 +466,32 @@ const REPORTS = {
         noCampaignEmail: true,
         meetingsAnyHost: true,
       },
+      {
+        key: "rent-anniversary",
+        label: "Experiment — Rent anniversary (Complete upsell)",
+        // Real subject: "#1 |  Call | Complete Upsell | rent anniversary" (double space after "#1 |"),
+        // from workflow 5209072844 "Experiment | Growth | Rent anniversary | 1026" (live 28 Oct).
+        // Customers get a Renters' Rights Act rent-review nurture email 8–10 weeks before their rent
+        // anniversary (date pushed daily by ~/code/growth/rent-anniversary-sync); anyone who clicks
+        // with a phone gets this task, assigned to Yoana. Note "Complete Upsell" here, not the
+        // upsell-complete project's "Upsell | Complete", so the two don't collide.
+        match: (s) => s.includes("Complete Upsell | rent anniversary"),
+        namePattern: "Call | Complete Upsell | rent anniversary",
+        searchTerm: "rent anniversary",
+        context: "Customers 8–10 weeks from their rent anniversary, emailed about the Renters' Rights Act once-a-year rent increase rule; anyone who clicks gets a call about Complete.",
+        // Verified against real data (28 Oct): "rent" AND "anniversary" returns 0 tasks portal-wide
+        // before launch (the one test task was deleted), so nothing else collides.
+        attributionSearch: { tokens: ["rent", "anniversary"], ownerFiltered: false },
+        // Calls only, worked by Yoana / the same team — same rules as the other recent campaigns.
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
+        // The email has no meeting-booking button, so a self-booked meeting counts as "by rep".
+        noCampaignEmail: true,
+        meetingsAnyHost: true,
+        // Display only: the automated nurture email each contact gets on enrolment.
+        emails: [{ id: 501489227985, label: "RRA rent review nurture" }],
+      },
     ],
   },
 };
