@@ -517,6 +517,10 @@ const REPORTS = {
         outcomeMatching: "enrollment",
         campaignRepsOnly: true,
         campaignRepIds: ["39630337"], // Gordon Chirwa (hapi)
+        // Only Gordon works these: hide the default Asya/Chey rep rows, and name him (his HubSpot
+        // user has no first/last name, so it would otherwise show his email).
+        onlyActualReps: true,
+        repNames: { "39630337": "Gordon Chirwa" },
         noCampaignEmail: true,
         meetingsAnyHost: true,
       },
@@ -932,7 +936,8 @@ async function stats(url, env) {
       const num = callNumber(p.hs_task_subject) || "?";
       if (p.hubspot_owner_id) {
         seenOwnerIds.add(p.hubspot_owner_id);
-        const name = report.ownerNames[p.hubspot_owner_id] || ownerNameMap[p.hubspot_owner_id] || `Owner ${p.hubspot_owner_id}`;
+        const pcfg = (report.projects || []).find((x) => x.key === key);
+        const name = (pcfg && pcfg.repNames && pcfg.repNames[p.hubspot_owner_id]) || report.ownerNames[p.hubspot_owner_id] || ownerNameMap[p.hubspot_owner_id] || `Owner ${p.hubspot_owner_id}`;
         const rep = (b.reps[name] ||= { created: 0, done: 0 });
         rep.created++; if (done) rep.done++;
         // Open tasks by call number, for the rep hover ("3 left at #1, 2 at #2").
@@ -949,6 +954,9 @@ async function stats(url, env) {
 
     const projects = (report.projects || []).map((cfg) => {
       const b = buckets[cfg.key] || emptyBucket();
+      // Campaigns worked by one person only (e.g. hapi-areas = Gordon): drop the default
+      // Asya/Chey rows that emptyBucket() seeds, keeping only reps who actually own tasks.
+      if (cfg.onlyActualReps) b.reps = Object.fromEntries(Object.entries(b.reps).filter(([, v]) => v.created > 0));
       const byCallNumber = Object.entries(b.callNumbers)
         .map(([number, v]) => ({ number, ...v, notDone: v.total - v.done }))
         .sort((a, b2) => (a.number === "?" ? 1 : b2.number === "?" ? -1 : Number(a.number) - Number(b2.number)));
