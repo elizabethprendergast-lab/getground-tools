@@ -499,6 +499,28 @@ const REPORTS = {
         emails: [{ id: 501489227985, label: "RRA rent review nurture" }],
       },
       {
+        key: "hapi-areas",
+        label: "Complete upsell — hapi areas (Gordon)",
+        // Real subject: "#1 |  Call | Complete Upsell | hapi areas" (double space after "#1 |"),
+        // 84 tasks created by API on 3 Nov 2026 for Gordon Chirwa (hapi), due 4 Nov. Core customers
+        // (plus 11 non-customers) with property in Manchester, Birmingham or Liverpool who hit a
+        // Complete target (rent £1k+, 3+ properties or a saving on Joe's list). Call fields set,
+        // 3 attempts, Gordon is contact owner so #2/#3 also go to him. Each contact has a
+        // "Gordon – Complete call prep" note.
+        match: (s) => s.includes("Complete Upsell | hapi areas"),
+        namePattern: "Call | Complete Upsell | hapi areas",
+        searchTerm: "hapi areas",
+        context: "Core customers (and a few non-customers) with property in hapi's areas (Manchester, Birmingham, Liverpool), called by Gordon from hapi to pitch Complete with lettings.",
+        // Verified against real data (3 Nov): "hapi" AND "areas" returns exactly the 84 tasks of
+        // this campaign, portal-wide, all owned by Gordon.
+        attributionSearch: { tokens: ["hapi", "areas"], ownerFiltered: false },
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        campaignRepIds: ["39630337"], // Gordon Chirwa (hapi)
+        noCampaignEmail: true,
+        meetingsAnyHost: true,
+      },
+      {
         key: "landlord-savings-calculator",
         label: "Experiment — Landlord savings calculator (Plans)",
         // Real subject: "#1 |  Call | Experiment | Landlord savings calculator - Plans" (double space
