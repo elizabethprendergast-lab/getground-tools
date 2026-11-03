@@ -1,0 +1,155 @@
+{
+  "snapshotAt": "2026-11-03T14:05:00Z",
+  "source": "raw_hubspot (BigQuery), same rules as /api/outcomes: enrollment matching, campaign reps only, meetings with any host. WhatsApp isn't in the warehouse, so a WhatsApp-only task counts as no outreach.",
+  "totalCompleted": 1200,
+  "totalMatchedToCall": 832,
+  "totalReached": 892,
+  "dispositions": [
+    {
+      "outcome": "No answer",
+      "tasks": 649,
+      "category": "no_contact",
+      "contacts": []
+    },
+    {
+      "outcome": "(no outreach found)",
+      "tasks": 308,
+      "category": "unmatched",
+      "contacts": []
+    },
+    {
+      "outcome": "Uninterested",
+      "tasks": 67,
+      "category": "answered",
+      "contacts": []
+    },
+    {
+      "outcome": "Meeting booked — by rep",
+      "tasks": 49,
+      "category": "meeting",
+      "contacts": []
+    },
+    {
+      "outcome": "Follow up",
+      "tasks": 48,
+      "category": "unclassified_connected",
+      "contacts": []
+    },
+    {
+      "outcome": "Not a fit",
+      "tasks": 44,
+      "category": "answered",
+      "contacts": []
+    },
+    {
+      "outcome": "Wrong number",
+      "tasks": 15,
+      "category": "invalid",
+      "contacts": []
+    },
+    {
+      "outcome": "Contacted via email",
+      "tasks": 5,
+      "category": "reached_other",
+      "contacts": []
+    },
+    {
+      "outcome": "Contacted — note logged",
+      "tasks": 5,
+      "category": "reached_other",
+      "contacts": []
+    },
+    {
+      "outcome": "Positive",
+      "tasks": 4,
+      "category": "answered",
+      "contacts": []
+    },
+    {
+      "outcome": "Busy",
+      "tasks": 3,
+      "category": "no_contact",
+      "contacts": []
+    },
+    {
+      "outcome": "Connected",
+      "tasks": 2,
+      "category": "unclassified_connected",
+      "contacts": []
+    },
+    {
+      "outcome": "Closed won — Core new",
+      "tasks": 1,
+      "category": "converted",
+      "contacts": []
+    }
+  ],
+  "byRepOwnerId": {
+    "35666443": {
+      "total": 753,
+      "outcomes": {
+        "No answer": 409,
+        "(no outreach found)": 237,
+        "Uninterested": 36,
+        "Follow up": 26,
+        "Meeting booked — by rep": 19,
+        "Not a fit": 11,
+        "Contacted via email": 5,
+        "Wrong number": 6,
+        "Positive": 3,
+        "Busy": 1
+      }
+    },
+    "30035011": {
+      "total": 296,
+      "outcomes": {
+        "No answer": 169,
+        "(no outreach found)": 50,
+        "Not a fit": 23,
+        "Uninterested": 17,
+        "Meeting booked — by rep": 18,
+        "Follow up": 10,
+        "Wrong number": 6,
+        "Contacted — note logged": 2,
+        "Busy": 1
+      }
+    },
+    "30345554": {
+      "total": 104,
+      "outcomes": {
+        "No answer": 55,
+        "(no outreach found)": 20,
+        "Uninterested": 7,
+        "Follow up": 6,
+        "Not a fit": 6,
+        "Meeting booked — by rep": 5,
+        "Wrong number": 2,
+        "Busy": 1,
+        "Contacted — note logged": 1,
+        "Positive": 1
+      }
+    },
+    "76256251": {
+      "total": 43,
+      "outcomes": {
+        "No answer": 13,
+        "Uninterested": 7,
+        "Meeting booked — by rep": 6,
+        "Follow up": 6,
+        "Not a fit": 4,
+        "Contacted — note logged": 2,
+        "Connected": 2,
+        "(no outreach found)": 1,
+        "Wrong number": 1,
+        "Closed won — Core new": 1
+      }
+    },
+    "1297173186": {
+      "total": 4,
+      "outcomes": {
+        "No answer": 3,
+        "Meeting booked — by rep": 1
+      }
+    }
+  }
+}

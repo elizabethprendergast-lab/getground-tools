@@ -210,6 +210,7 @@
   .outcome-bar-row .fill { height: 100%; border-radius: 5px; }
   .outcome-bar-row .count { flex: 0 0 84px; text-align: right; font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
   .outcome-bar-row .count .share { color: var(--text-muted); margin-left: 6px; display: inline-block; min-width: 34px; }
+  .outcome-bar-row .bench { flex: 0 0 40px; text-align: right; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; border-left: 1px solid var(--baseline); padding-left: 6px; cursor: help; }
   .meta-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .range-ctl { display: flex; align-items: center; gap: 6px; font-size: 13px; }
   .range-ctl select, .range-ctl input {
@@ -488,6 +489,12 @@ function showUserIdPopover(anchorEl, ids, note) {
   pop.style.left = Math.min(rect.left, window.innerWidth - 280) + "px";
 }
 
+// A benchmark campaign's share for one outcome ("–" when it never had that outcome).
+function benchShare(bench, outcome) {
+  const row = (bench.data.dispositions || []).find((x) => x.outcome === outcome);
+  return row ? sharePct(row.tasks, bench.data.totalCompleted) : "–";
+}
+
 // "<1%" rather than a misleading "0%" for a real but tiny share.
 function sharePct(n, total) {
   if (!total) return "–";
@@ -495,7 +502,7 @@ function sharePct(n, total) {
   return n && p < 1 ? "<1%" : `${Math.round(p)}%`;
 }
 
-function outcomeCardHtml(label, o, portalId, loading) {
+function outcomeCardHtml(label, o, portalId, loading, bench) {
   const rows = (o && o.dispositions) || [];
   if (!rows.length) {
     return `
@@ -509,15 +516,19 @@ function outcomeCardHtml(label, o, portalId, loading) {
   const html = `
     <section class="card">
       <h2>Outcomes — ${esc(label)}</h2>
-      <p class="sub">Call outcomes — live${rangeIsSet() ? `, tasks completed ${esc(rangeLabel())}` : ""}. Hover an outcome to see who's behind it, click a name to open them in HubSpot.</p>
+      ${o.snapshotAt
+        ? `<p class="sub">Call outcomes — snapshot as of ${fmtDate(o.snapshotAt)}, not live (campaign closed). All completed tasks, whatever the date range.</p>`
+        : `<p class="sub">Call outcomes — live${rangeIsSet() ? `, tasks completed ${esc(rangeLabel())}` : ""}. Hover an outcome to see who's behind it, click a name to open them in HubSpot.</p>`}
       ${rows.map((r, i) => `
         <div class="outcome-bar-row" data-outcome-index="${i}">
           <span class="name" data-outcome-index="${i}">${esc(r.outcome)}</span>
           <div class="track"><div class="fill" style="width:${100 * r.tasks / max}%; background:${SERIES[i % SERIES.length]}"></div></div>
-          <span class="count">${r.tasks}<span class="share">${sharePct(r.tasks, o.totalCompleted)}</span></span>
+            <span class="count">${r.tasks}<span class="share">${sharePct(r.tasks, o.totalCompleted)}</span></span>
+          ${bench ? `<span class="bench" title="${esc(bench.label)}: share of its completed tasks">${benchShare(bench, r.outcome)}</span>` : ""}
         </div>
       `).join("")}
-      <p class="sub" style="margin-top:12px">${o.totalMatchedToCall} of ${o.totalCompleted} completed tasks matched to a call.</p>
+      <p class="sub" style="margin-top:12px">${o.totalMatchedToCall} of ${o.totalCompleted} completed tasks matched to a call.${bench ? ` Right-hand column: the same outcome's share in ${esc(bench.label)} (${bench.data.totalCompleted} completed tasks${bench.data.snapshotAt ? `, snapshot ${fmtDate(bench.data.snapshotAt)}` : ""}).` : ""}</p>
+      ${o.snapshotAt ? `<p class="sub" style="font-size:11px">${esc(o.snapshotSource || "")}</p>` : ""}
     </section>`;
   // Stash rows on a data attribute-free closure via a global lookup keyed by label (simple,
   // avoids re-parsing HTML to find contacts on hover).
@@ -809,8 +820,8 @@ function referralPageHtml() {
 // campaign still appears before it's been given a group here.
 const NAV_GROUPS = [
   { title: "Upsell / Complete", keys: ["upsell-complete", "experiment-epc", "rent-anniversary"] },
-  { title: "Reengage & follow-up", keys: ["properties-outside", "reengage-property-closed-lost", "reengage-ltd", "reengage-nonpaying-master"] },
-  { title: "Active Lead & offers", keys: ["plan-close-month-end", "black-friday", "active-lead"] },
+  { title: "Reengage & follow-up", keys: ["properties-outside", "reengage-property-closed-lost", "reengage-ltd-core-plan", "reengage-nonpaying-master"] },
+  { title: "Active Lead & offers", keys: ["plan-close-month-end", "black-friday", "active-lead", "landlord-savings-calculator"] },
 ];
 const NAV_SHORT = {
   "upsell-complete": "Complete plan upsell",
@@ -819,6 +830,7 @@ const NAV_SHORT = {
   "properties-outside": "Properties outside GG company",
   "reengage-property-closed-lost": "Property closed lost",
   "plan-close-month-end": "Plan close (month end)",
+  "landlord-savings-calculator": "Landlord savings calculator (experiment)",
 };
 
 function renderNav(stats, activeKey) {
@@ -973,13 +985,17 @@ function currentCampaignKey() {
 // LTD missed leads projects were split server-side on 26 Oct only because together they're too
 // many tasks to compute under Cloudflare's 50-subrequest cap — they're the same queue, so the page
 // fetches each half on its own and adds them up here (27 Oct). The first part's key is the tab's.
-const MERGED_CAMPAIGNS = {
-  "reengage-ltd": {
-    parts: ["reengage-ltd", "reengage-ltd-core-plan"],
-    label: "Missed LTD leads",
-    context: "Landlords who inquired about an LTD company and had a closed-lost deal, called to re-engage them (including the Core Plan offer).",
-  },
+// Un-merged 3 Nov: the Experiment half (reengage-ltd) closed and its live outcomes no longer fit
+// under the cap — a failed half was silently dropped, so the page showed only Always on's 540.
+// The Experiment now has its own closed page (outcomes from a snapshot) and is shown as a
+// benchmark on Always on's outcomes card (see OUTCOME_BENCHMARKS).
+const MERGED_CAMPAIGNS = {};
+// Outcomes card benchmark: each row also shows that outcome's share in another (usually closed)
+// campaign, so a live queue can be compared with the one it follows on from.
+const OUTCOME_BENCHMARKS = {
+  "reengage-ltd-core-plan": { key: "reengage-ltd", label: "Experiment" },
 };
+
 const MERGED_INTO = Object.fromEntries(Object.entries(MERGED_CAMPAIGNS).flatMap(([k, m]) => m.parts.filter((p) => p !== k).map((p) => [p, k])));
 
 // Adds two payloads of the same shape: numbers sum, objects merge key by key, and arrays of
@@ -1058,7 +1074,8 @@ async function fetchScoped(kind, key) {
     store[key] = null;
   } finally {
     scopedInFlight.delete(flightKey);
-    if (currentCampaignKey() === (MERGED_INTO[key] || key)) render();
+    const cur = currentCampaignKey();
+    if (cur === (MERGED_INTO[key] || key) || (OUTCOME_BENCHMARKS[cur] && OUTCOME_BENCHMARKS[cur].key === key)) render();
   }
 }
 
@@ -1128,7 +1145,10 @@ function render() {
 
     const outcomesByKey = Object.fromEntries((outcomesRes && outcomesRes.projects || []).map(p => [p.key, p]));
     const { data: outcomeData, loading: outcomesLoading } = resolveScoped("outcomes", key, outcomesByKey);
-    document.getElementById("outcomes-slot").innerHTML = outcomeCardHtml(proj.label, outcomeData, portalId, outcomesLoading);
+    const benchCfg = OUTCOME_BENCHMARKS[key];
+    const benchRes = benchCfg ? resolveScoped("outcomes", benchCfg.key, outcomesByKey) : null;
+    const bench = benchRes && benchRes.data ? { label: benchCfg.label, data: benchRes.data } : null;
+    document.getElementById("outcomes-slot").innerHTML = outcomeCardHtml(proj.label, outcomeData, portalId, outcomesLoading, bench);
     wireOutcomeHovers(proj.label, portalId);
     window.__repOutcomes = outcomesLoading ? undefined : ((outcomeData && outcomeData.byRep) || {});
     wireRepHovers();
