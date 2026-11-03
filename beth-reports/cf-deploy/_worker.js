@@ -498,6 +498,28 @@ const REPORTS = {
         // Display only: the automated nurture email each contact gets on enrolment.
         emails: [{ id: 501489227985, label: "RRA rent review nurture" }],
       },
+      {
+        key: "landlord-savings-calculator",
+        label: "Experiment — Landlord savings calculator (Plans)",
+        // Real subject: "#1 |  Call | Experiment | Landlord savings calculator - Plans" (double space
+        // after "#1 |"), from "Testing | Growth | Adam's Landlord Savings Calculator | 1126". First 15
+        // tasks 3 Nov 12:54, assigned to Billy, Iglesias and Carlos.
+        match: (s) => s.includes("Landlord savings calculator"),
+        namePattern: "Call | Experiment | Landlord savings calculator - Plans",
+        searchTerm: "Landlord savings calculator",
+        context: "Leads from the Landlord Savings Calculator, called about Plans.",
+        // Verified against real data (3 Nov): "Landlord" AND "savings" AND "calculator" returns
+        // exactly the 15 tasks of this campaign, portal-wide. The older "Website | … calculator" and
+        // "L&M Calculator Lead" tasks don't contain "savings".
+        attributionSearch: { tokens: ["Landlord", "savings", "calculator"], ownerFiltered: false },
+        // Calls only (no campaign email went to these contacts), worked by the LTD missed leads team,
+        // so the same rules — see reengage-ltd.
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
+        noCampaignEmail: true,
+        meetingsAnyHost: true,
+      },
     ],
   },
 };
