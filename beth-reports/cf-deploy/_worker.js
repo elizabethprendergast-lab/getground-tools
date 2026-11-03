@@ -225,6 +225,12 @@ const REPORTS = {
         // Count meetings booked into anyone's calendar during the call window, not just the
         // campaign reps' own (15 Oct: 7 of ~28 meetings were counted) — see outcomeForEnrollmentTask.
         meetingsAnyHost: true,
+        // Closed 3 Nov. At 1,200 done tasks (~611 contacts) its live outcomes need well over
+        // Cloudflare's 50 subrequests, and the merged LTD page silently showed only the Always on
+        // half (540). The outcomes card now reads a fixed snapshot instead (see outcomes()); task
+        // counts stay live so the remaining open tasks can still be tracked.
+        closed: true,
+        outcomesSnapshot: "reengage-ltd/outcomes-snapshot.json",
       },
       {
         key: "reengage-ltd-core-plan",
@@ -1382,6 +1388,37 @@ function nearestActivity(contactsForTask, contactToActs, acts, anchorMs, before,
   return best;
 }
 
+// Outcomes for a closed project whose live computation no longer fits under Cloudflare's 50
+// subrequests (reengage-ltd, 3 Nov): a fixed snapshot computed in BigQuery with the same rules,
+// served from the project's outcomesSnapshot file. Aggregates only — no contacts or note text, as
+// the repo is public — so the outcome rows have no hover list. Doesn't follow the date range.
+// One HubSpot call at most (owner names, fail-soft), to show reps by name.
+async function outcomesFromSnapshot(url, env, API, H, PORTAL_ID, reportKey, reportConfig, proj) {
+  try {
+    const r = await env.ASSETS.fetch(new Request(`${url.origin}/${proj.outcomesSnapshot}`));
+    if (!r.ok) throw new Error(`snapshot ${r.status}`);
+    const snap = await r.json();
+    let ownerNameMap = {};
+    try { ownerNameMap = await fetchOwnerNames(API, H); } catch (e) { console.log(`outcomes: owner names skipped (${e})`); }
+    const repName = (id) => (reportConfig.ownerNames || {})[id] || ownerNameMap[id] || `Owner ${id}`;
+    const byRep = {};
+    for (const [id, v] of Object.entries(snap.byRepOwnerId || {})) byRep[repName(id)] = v;
+    return json({
+      generatedAt: new Date().toISOString(),
+      report: reportKey,
+      sprintStart: reportConfig.sprintStart,
+      portalId: PORTAL_ID,
+      projects: [{
+        key: proj.key, label: proj.label, computed: true,
+        totalCompleted: snap.totalCompleted, totalMatchedToCall: snap.totalMatchedToCall, totalReached: snap.totalReached,
+        dispositions: snap.dispositions, byRep, snapshotAt: snap.snapshotAt, snapshotSource: snap.source,
+      }],
+    });
+  } catch (err) {
+    return json({ error: String(err) }, 502);
+  }
+}
+
 async function outcomes(url, env) {
   const [reportKey, reportConfig] = getReport(url);
   if (!reportConfig) return json({ error: `unknown report '${reportKey}'` }, 404);
@@ -1412,6 +1449,7 @@ async function outcomes(url, env) {
   if (campaignKey) {
     const proj = (reportConfig.projects || []).find((p) => p.key === campaignKey);
     if (!proj) return json({ error: `unknown campaign '${campaignKey}'` }, 404);
+    if (proj.outcomesSnapshot) return outcomesFromSnapshot(url, env, API, H, PORTAL_ID, reportKey, reportConfig, proj);
     report = { ...reportConfig, projects: [proj] };
     searchOpts = {};
     computedKeys = new Set([proj.key]);
