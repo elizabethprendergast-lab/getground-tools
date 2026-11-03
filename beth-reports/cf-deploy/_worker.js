@@ -69,7 +69,7 @@ const REPORTS = {
     // Deliberately NOT adding owner IDs here to ownerIds/ownerNames (those drive the Active-Lead
     // owner filter and the pre-seeded rep list) — this is just button-link data for whoever
     // shows up dynamically in the reps breakdown (see fetchOwnerNames/stats in code below).
-    ownerViews: { "76256251": "160475825", "1297173186": "160475731", "29178925": "160648025" }, // Asya, Chey, Yoana Chung
+    ownerViews: { "76256251": "160475825", "1297173186": "160475731", "29178925": "160648025", "39630337": "160475742" }, // Asya, Chey, Yoana Chung, Gordon Chirwa
     // The only reps whose calls/meetings/notes count as campaign outcomes for projects with
     // campaignRepsOnly: true (see outcomeForEnrollmentTask). The property, mortgage and
     // Investment Consultant teams work many of the same contacts in parallel, and their calls
