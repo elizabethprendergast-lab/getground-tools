@@ -552,7 +552,7 @@ const REPORTS = {
       },
       {
         key: "reengage-post-webinar-bf",
-        label: "Reengage — Post-webinar email (BF 50% off 6M)",
+        label: "Reengage — Post BF webinar email (follow up)",
         // Real subject: "#1 | Call | Reengage | Post-webinar email (BF 50% off 6M)" (single space),
         // created by API on 9 Nov 2026 for Billy Hunt: everyone who ever clicked "Black Friday post
         // webinar email - 1126" (content 506510187755), from static segment 24605 (minus DNC / P&P
