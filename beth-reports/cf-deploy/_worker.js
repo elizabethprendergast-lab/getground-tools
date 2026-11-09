@@ -791,7 +791,7 @@ async function runTaskSearch(API, H, filterGroups, maxPages = 50) {
   do {
     const body = {
       filterGroups,
-      properties: ["hs_task_subject", "hs_task_status", "hubspot_owner_id", "hs_createdate", "hs_task_completion_date", "hs_task_priority", "hs_object_source_detail_1"],
+      properties: ["hs_task_subject", "hs_task_status", "hubspot_owner_id", "hs_createdate", "hs_task_completion_date", "hs_task_priority", "hs_object_source_detail_1", "hs_timestamp"],
       limit: 200,
     };
     if (after) body.after = after;
@@ -962,12 +962,12 @@ async function stats(url, env) {
       const b = (buckets[key] ||= emptyBucket());
       const done = p.hs_task_status === "COMPLETED";
       // Compact per-task row so the page can re-slice by date range without refetching:
-      // [repName, done 0/1, completion ms (0 if open), call number, month label, month sort, priority]
+      // [repName, done 0/1, completion ms (0 if open), call number, month label, month sort, priority, due ms]
       {
         const pcfg0 = (report.projects || []).find((x) => x.key === key);
         const rn = p.hubspot_owner_id ? ((pcfg0 && pcfg0.repNames && pcfg0.repNames[p.hubspot_owner_id]) || report.ownerNames[p.hubspot_owner_id] || ownerNameMap[p.hubspot_owner_id] || `Owner ${p.hubspot_owner_id}`) : null;
         const mo0 = monthOfSubject(p.hs_task_subject);
-        (b.taskRows ||= []).push([rn, done ? 1 : 0, done ? (Date.parse(p.hs_task_completion_date) || 0) : 0, callNumber(p.hs_task_subject) || "?", mo0 ? mo0.label : "?", mo0 ? mo0.sort : null, p.hs_task_priority || "NONE"]);
+        (b.taskRows ||= []).push([rn, done ? 1 : 0, done ? (Date.parse(p.hs_task_completion_date) || 0) : 0, callNumber(p.hs_task_subject) || "?", mo0 ? mo0.label : "?", mo0 ? mo0.sort : null, p.hs_task_priority || "NONE", Date.parse(p.hs_timestamp || p.hs_createdate) || 0]);
       }
       // Outside the date range: drop done tasks completed outside it (open ones always count).
       if (done && range && !range.has(Date.parse(p.hs_task_completion_date))) continue;

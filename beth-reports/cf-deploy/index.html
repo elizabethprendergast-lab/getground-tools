@@ -111,8 +111,9 @@
   .scope-note { margin: 0; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
   @media (max-width: 700px) { .scope-note { white-space: normal; } }
   main { max-width: 1000px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 64px; }
+  /* Status line on top, date bar always on its own row underneath — same spot whatever range is picked. */
   .meta-row {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
     margin-bottom: 20px;
   }
   .meta-row p { margin: 0; color: var(--text-secondary); font-size: 13px; }
@@ -220,7 +221,7 @@
     background: transparent; color: var(--text-secondary); white-space: nowrap;
   }
   .range-pill:hover { color: var(--text-primary); background: var(--gridline); }
-  .range-pill.active { background: var(--text-primary); color: var(--surface-1); font-weight: 600; }
+  .range-pill.active { background: var(--text-primary); color: var(--surface-1); }
   .range-dates { display: inline-flex; align-items: center; gap: 6px; }
   .range-ctl input {
     font: inherit; font-size: 13px; padding: 6px 8px; border-radius: 8px;
@@ -437,7 +438,7 @@ function completionCardHtml(proj, sprintStart, hubspot) {
         <p class="sub">Call task completion — assigned after ${fmtDate(sprintStart)}</p>
         ${contextLine}
         ${namePattern}
-        <div class="empty-state">No matching call tasks yet in this project since ${fmtDate(sprintStart)}.</div>
+        <div class="empty-state">${rangeIsSet() ? `No tasks completed or due ${esc(rangeLabel())}.${t.overdue ? ` ${t.overdue} still open and overdue from earlier.` : ""}` : `No matching call tasks yet in this project since ${fmtDate(sprintStart)}.`}</div>
       </section>`;
   }
   // The report's fixed reps are listed even with no tasks; in a date range that leaves "0 / 0" rows.
@@ -449,11 +450,11 @@ function completionCardHtml(proj, sprintStart, hubspot) {
       <p class="sub">Call task completion — assigned after ${fmtDate(sprintStart)}</p>
       ${contextLine}
       ${namePattern}
-      ${rangeIsSet() ? `<p class="range-note">Showing ${esc(rangeLabel())}: done = tasks completed in that window; not done = tasks still open now.</p>` : ""}
+      ${rangeIsSet() ? `<p class="range-note">Showing ${esc(rangeLabel())}: done = tasks completed in that window; not done = tasks due in that window and still open.</p>` : ""}
       <div class="stat-row">
-        <div class="stat-tile"><div class="label">${rangeIsSet() ? "Done + still open" : "Total assigned"}</div><div class="value">${t.total}</div></div>
+        <div class="stat-tile"><div class="label">Total tasks</div><div class="value">${t.total}</div></div>
         <div class="stat-tile done"><div class="label">Done</div><div class="value">${t.done}</div></div>
-        <div class="stat-tile"><div class="label">Not done</div><div class="value">${t.notDone}</div></div>
+        <div class="stat-tile"><div class="label">Not done</div><div class="value">${t.notDone}</div>${t.overdue ? `<div class="label" style="margin:6px 0 0;color:var(--critical)">+${t.overdue} overdue from earlier</div>` : ""}</div>
         ${priorityTileHtml(t.priorityBreakdown)}
       </div>
       ${reps.map(([name, r]) => {
@@ -940,8 +941,7 @@ document.addEventListener("click", (e) => {
 });
 
 // Date range — one-click presets (Today, Yesterday, Last 7/30 days, This month, All time) or a
-// custom from/to. Opens on All time; the choice is mirrored in the URL (?range=today, or
-// ?from=&to= for custom) so a shared link opens on the same window. Every /api call carries it
+// custom from/to. Always opens on All time; the choice isn't saved anywhere. Every /api call carries it
 // as ?from=&to= (London days, "to" inclusive — see dateRange in _worker.js).
 const RANGE_KEY = "beth-reports:range";
 const RANGE_PRESETS = [
@@ -951,12 +951,9 @@ const RANGE_PRESETS = [
 // Always opens on All time (Beth, 9 Nov) unless the link itself carries a range.
 let range = { preset: "all" };
 try { localStorage.removeItem(RANGE_KEY); } catch (_) { /* storage blocked */ }
-(() => {
-  const q = new URLSearchParams(location.search);
-  if (q.get("from") || q.get("to")) range = { preset: "custom", from: q.get("from") || "", to: q.get("to") || "" };
-  else if (q.get("range")) range = { preset: q.get("range") };
-  if (!RANGE_PRESETS.some(([v]) => v === String(range.preset)) && !Number(range.preset)) range = { preset: "all" };
-})();
+// Every load/reload starts on All time (Beth, 9 Nov): the range is never kept in the URL or
+// storage. Strip any ?range=/?from=/?to= left over from older links.
+syncRangeUrl();
 const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 function rangeDates() {
   const p = String(range.preset);
@@ -984,15 +981,17 @@ function rangeTest() {
   const hi = r.to ? day(r.to) + 86400000 : Infinity;
   return (ms) => !!ms && ms >= lo && ms < hi;
 }
-// Task completion: done = completed in the range; not done = every task still open now.
+// Task completion: done = completed in the range; not done = still-open tasks due in the range.
 function sliceTasks(t) {
   const has = rangeTest();
   if (!has || !t || !t.taskRows) return t;
   const reps = Object.fromEntries(Object.keys(t.reps || {}).map((n) => [n, { created: 0, done: 0 }]));
   const calls = {}, months = {}, pri = {};
-  let total = 0, done = 0;
-  for (const [rep, isDone, at, num, mLabel, mSort, priority] of t.taskRows) {
-    if (isDone && !has(at)) continue;
+  let total = 0, done = 0, overdue = 0;
+  const lo = (() => { const r = rangeDates(); if (!r.from) return -Infinity; const [y, m, d] = r.from.split("-").map(Number); return new Date(y, m - 1, d).getTime(); })();
+  for (const [rep, isDone, at, num, mLabel, mSort, priority, due] of t.taskRows) {
+    if (!isDone && due && due < lo) overdue++;
+    if (!has(isDone ? at : due)) continue;
     total++; if (isDone) done++;
     if (rep) {
       const r = (reps[rep] ||= { created: 0, done: 0 });
@@ -1008,7 +1007,7 @@ function sliceTasks(t) {
   const byMonth = t.byMonth ? Object.entries(months).map(([month, v]) => ({ month, total: v.total, done: v.done, notDone: v.total - v.done, sort: v.sort }))
     .sort((a, b) => a.sort - b.sort).map(({ sort, ...r }) => r) : undefined;
   const priorityBreakdown = Object.entries(pri).map(([level, count]) => ({ level, count })).sort((a, b) => b.count - a.count);
-  return { ...t, total, done, notDone: total - done, reps, byCallNumber, byMonth, priorityBreakdown };
+  return { ...t, total, done, notDone: total - done, overdue, reps, byCallNumber, byMonth, priorityBreakdown };
 }
 function sliceStats(stats) {
   if (!stats || !stats.projects || !rangeTest()) return stats;
@@ -1080,16 +1079,15 @@ function syncRangeUrl() {
   try {
     const q = new URLSearchParams(location.search);
     q.delete("range"); q.delete("from"); q.delete("to");
-    if (range.preset === "custom") { if (range.from) q.set("from", range.from); if (range.to) q.set("to", range.to); }
-    else if (range.preset !== "all") q.set("range", range.preset);
     const qs = q.toString();
     history.replaceState(null, "", location.pathname + (qs ? `?${qs}` : "") + location.hash);
   } catch (_) { /* ignore */ }
 }
 function setRange(next) {
   range = next;
-  syncRangeUrl();
-  render(); // all-time data is already loaded; the range is applied in the browser (sliceStats etc.)
+  const y = window.scrollY;
+  render();
+  window.scrollTo(0, y); // all-time data is already loaded; the range is applied in the browser (sliceStats etc.)
 }
 function wireRangeControl() {
   document.querySelectorAll(".range-pill").forEach((btn) => btn.addEventListener("click", () => {
