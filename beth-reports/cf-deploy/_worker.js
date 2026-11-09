@@ -961,6 +961,14 @@ async function stats(url, env) {
       const key = classifyProject(report, p);
       const b = (buckets[key] ||= emptyBucket());
       const done = p.hs_task_status === "COMPLETED";
+      // Compact per-task row so the page can re-slice by date range without refetching:
+      // [repName, done 0/1, completion ms (0 if open), call number, month label, month sort, priority]
+      {
+        const pcfg0 = (report.projects || []).find((x) => x.key === key);
+        const rn = p.hubspot_owner_id ? ((pcfg0 && pcfg0.repNames && pcfg0.repNames[p.hubspot_owner_id]) || report.ownerNames[p.hubspot_owner_id] || ownerNameMap[p.hubspot_owner_id] || `Owner ${p.hubspot_owner_id}`) : null;
+        const mo0 = monthOfSubject(p.hs_task_subject);
+        (b.taskRows ||= []).push([rn, done ? 1 : 0, done ? (Date.parse(p.hs_task_completion_date) || 0) : 0, callNumber(p.hs_task_subject) || "?", mo0 ? mo0.label : "?", mo0 ? mo0.sort : null, p.hs_task_priority || "NONE"]);
+      }
       // Outside the date range: drop done tasks completed outside it (open ones always count).
       if (done && range && !range.has(Date.parse(p.hs_task_completion_date))) continue;
       b.total++;
@@ -1009,7 +1017,7 @@ async function stats(url, env) {
         taskViewQuery: cfg.searchTerm || "",
         taskNamePattern: cfg.namePattern || "",
         hasEmails: projectEmails(cfg).length > 0,
-        tasks: { total: b.total, done: b.done, notDone: b.total - b.done, reps: b.reps, byCallNumber, byMonth, priorityBreakdown },
+        tasks: { total: b.total, done: b.done, notDone: b.total - b.done, reps: b.reps, byCallNumber, byMonth, priorityBreakdown, taskRows: b.taskRows || [] },
       };
     });
 
@@ -1617,6 +1625,7 @@ async function outcomes(url, env) {
     try { ownerNameMap = await fetchOwnerNames(API, H); } catch (e) { console.log(`outcomes: owner names skipped (${e})`); }
     const repName = (id) => (reportConfig.ownerNames || {})[id] || ownerNameMap[id] || `Owner ${id}`;
     const tallyRep = (b, p, outcome) => {
+      (b.taskInfo ||= {})[p.hs_object_id] = [Date.parse(p.hs_task_completion_date) || 0, p.hubspot_owner_id ? repName(p.hubspot_owner_id) : null, outcome, 0];
       if (!p.hubspot_owner_id) return;
       const r = ((b.byRep ||= {})[repName(p.hubspot_owner_id)] ||= { total: 0, outcomes: {} });
       r.total++;
@@ -1758,7 +1767,7 @@ async function outcomes(url, env) {
 
       const enrolled = enrolledByTask.get(p.hs_object_id) || null;
       if (enrolled) {
-        if (enrolled.call) b.matched++;
+        if (enrolled.call) { b.matched++; (b.callTasks ||= []).push(p.hs_object_id); }
         else b.reached = (b.reached || 0) + 1;
         const o = (b.byOutcome[enrolled.outcome] ||= { count: 0, category: enrolled.category, contacts: [] });
         o.count++;
@@ -1790,6 +1799,7 @@ async function outcomes(url, env) {
       let outcome, category, noteText = null;
       if (best) {
         b.matched++;
+        (b.callTasks ||= []).push(p.hs_object_id);
         const label = best.hs_call_disposition ? dispLabel[best.hs_call_disposition] : null;
         outcome = label || "(no disposition set)";
         category = categoriseDisposition(label);
@@ -1844,7 +1854,7 @@ async function outcomes(url, env) {
       // not a real "no data", so the client knows to fetch it scoped rather than trust them.
       const segments = cfg.segmentBy ? segmentOutcomes(cfg, tallied.filter((t) => t.key === cfg.key), contacts) : undefined;
       const meetingRows = meetingsByProject[cfg.key] ? [...meetingsByProject[cfg.key].values()].sort((a, c) => (c.startTime || "").localeCompare(a.startTime || "")) : undefined;
-      return { key: cfg.key, label: cfg.label, computed: computedKeys.has(cfg.key), meetings: meetingRows, totalCompleted: b.totalCompleted, totalMatchedToCall: b.matched, totalReached: (b.matched || 0) + (b.reached || 0), dispositions: toRows(b), byRep: b.byRep || {}, segments };
+      return { key: cfg.key, label: cfg.label, computed: computedKeys.has(cfg.key), meetings: meetingRows, totalCompleted: b.totalCompleted, totalMatchedToCall: b.matched, totalReached: (b.matched || 0) + (b.reached || 0), dispositions: toRows(b), byRep: b.byRep || {}, segments, taskInfo: b.taskInfo || {}, callTasks: b.callTasks || [] };
     });
     const otherB = buckets.other || { totalCompleted: 0, matched: 0, byOutcome: {} };
     const other = { totalCompleted: otherB.totalCompleted, totalMatchedToCall: otherB.matched, totalReached: (otherB.matched || 0) + (otherB.reached || 0), dispositions: toRows(otherB) };
@@ -1979,7 +1989,7 @@ async function dealAttribution(url, env) {
             const label = `${productType} — ${d.p_p___upsell === "true" ? "Upsell" : "New"}`;
             const b = (buckets[label] ||= { count: 0, contacts: [] });
             b.count++;
-            b.contacts.push({ id: cid, name: contactLabel(contacts[cid]) });
+            b.contacts.push({ id: cid, name: contactLabel(contacts[cid]), at: Date.parse(d.closedate) || 0 });
           }
         } else if (validMigration) {
           contactsWithDeal++;
@@ -1988,7 +1998,7 @@ async function dealAttribution(url, env) {
           const label = `Migrated to ${plan} (${mrrLive ? "MRR live" : "trial — MRR not started"})`;
           const b = (buckets[label] ||= { count: 0, contacts: [] });
           b.count++;
-          b.contacts.push({ id: cid, name: contactLabel(contacts[cid]) });
+          b.contacts.push({ id: cid, name: contactLabel(contacts[cid]), at: migration.occurredMs || 0 });
         } else {
           noDealContacts.push({ id: cid, name: contactLabel(contacts[cid]) });
         }
