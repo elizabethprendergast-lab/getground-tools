@@ -940,16 +940,17 @@ document.addEventListener("click", (e) => {
 });
 
 // Date range — one-click presets (Today, Yesterday, Last 7/30 days, This month, All time) or a
-// custom from/to. Kept per viewer in localStorage and mirrored in the URL (?range=today, or
+// custom from/to. Opens on All time; the choice is mirrored in the URL (?range=today, or
 // ?from=&to= for custom) so a shared link opens on the same window. Every /api call carries it
 // as ?from=&to= (London days, "to" inclusive — see dateRange in _worker.js).
 const RANGE_KEY = "beth-reports:range";
 const RANGE_PRESETS = [
-  ["today", "Today"], ["yesterday", "Yesterday"], ["7", "Last 7 days"], ["30", "Last 30 days"],
-  ["month", "This month"], ["all", "All time"], ["custom", "Custom"],
+  ["all", "All time"], ["today", "Today"], ["yesterday", "Yesterday"], ["7", "Last 7 days"],
+  ["30", "Last 30 days"], ["month", "This month"], ["custom", "Custom"],
 ];
+// Always opens on All time (Beth, 9 Nov) unless the link itself carries a range.
 let range = { preset: "all" };
-try { range = JSON.parse(localStorage.getItem(RANGE_KEY) || "null") || range; } catch (_) { /* storage blocked */ }
+try { localStorage.removeItem(RANGE_KEY); } catch (_) { /* storage blocked */ }
 (() => {
   const q = new URLSearchParams(location.search);
   if (q.get("from") || q.get("to")) range = { preset: "custom", from: q.get("from") || "", to: q.get("to") || "" };
@@ -1006,11 +1007,13 @@ function syncRangeUrl() {
 }
 function setRange(next) {
   range = next;
-  try { localStorage.setItem(RANGE_KEY, JSON.stringify(range)); } catch (_) { /* storage blocked */ }
   syncRangeUrl();
   cache = { stats: null, outcomes: null, deals: null, referrals: null };
   scopedOutcomes = {}; scopedDeals = {};
-  document.getElementById("main").innerHTML = "Loading…";
+  document.querySelectorAll(".range-pill").forEach((b) => {
+    const on = b.dataset.range === String(range.preset);
+    b.classList.toggle("active", on); b.setAttribute("aria-pressed", String(on));
+  });
   load({ force: true });
 }
 function wireRangeControl() {
@@ -1276,7 +1279,8 @@ function render() {
     document.getElementById("segments-slot").innerHTML = segmentCardHtml(outcomeData, dealData, outcomesLoading || dealsLoading);
   }
 
-  document.getElementById("meta-line").textContent = key === REFERRAL_TAB_KEY
+  const metaLine = document.getElementById("meta-line");
+  if (metaLine) metaLine.textContent = key === REFERRAL_TAB_KEY
     ? "Referral programme"
     : `${statsRes.name || "MRR Nov Sprint"} · live, updated ${fmtDateTime(statsRes.generatedAt)}`;
   const other = statsRes.other || { total: 0 };
@@ -1286,7 +1290,8 @@ function render() {
       ? `${other.total} matching task${other.total === 1 ? "" : "s"} didn't fit any known project's title pattern and aren't shown.`
       : "";
   }
-  document.getElementById("update-btn").addEventListener("click", () => load({ force: true }));
+  const updateBtn = document.getElementById("update-btn");
+  if (updateBtn) updateBtn.addEventListener("click", () => load({ force: true }));
   wireRangeControl();
 }
 
@@ -1300,7 +1305,8 @@ async function load({ force = false } = {}) {
       } catch (_) { /* unreadable — fall through to a normal load */ }
     }
     if (force || !cache.stats) {
-      if (force) document.getElementById("update-btn").textContent = "Updating…";
+      const btn = document.getElementById("update-btn");
+      if (force && btn) btn.textContent = "Updating…";
       await fetchData();
     }
     render();
