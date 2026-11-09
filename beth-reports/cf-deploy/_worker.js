@@ -1382,6 +1382,70 @@ function attributionStartMs(cfg, taskCreatedMs) {
   return sentMs <= taskCreatedMs && taskCreatedMs - sentMs <= CAMPAIGN_EMAIL_LEAD_MAX_MS ? sentMs : taskCreatedMs;
 }
 
+// The meetings outcomeForEnrollmentTask would count for this task (same window + rep/host rule).
+function campaignMeetingsForTask(p, ctx) {
+  const { contactsForTask, contactToMeetings, meetings, repOk, projectCfg } = ctx;
+  const startMs = attributionStartMs(projectCfg, Date.parse(p.hs_createdate));
+  const hi = Date.parse(p.hs_task_completion_date) + ENROLLMENT_CALL_AFTER_MS;
+  const out = [];
+  for (const cid of contactsForTask) {
+    for (const id of contactToMeetings[cid] || []) {
+      const m = meetings[id];
+      if (!m || !m.hs_createdate || Date.parse(m.hs_createdate) < startMs) continue;
+      if (projectCfg?.meetingsAnyHost) {
+        if (Date.parse(m.hs_createdate) > hi) continue;
+      } else if (!repOk(m)) continue;
+      out.push({ cid, id, m });
+    }
+  }
+  return out;
+}
+
+// Meetings card row: has it happened yet, and how did it go. Status from the meeting's own
+// outcome + start time. Result, for meetings that happened, in priority order: a closed-won
+// Plans deal since the meeting was booked > any deal created since then > the latest call
+// logged after the meeting started (its disposition, read as positive/negative) > nothing logged.
+const MEETING_POSITIVE = /^(positive|progress to deal|thinking about it)$/i;
+const MEETING_NEGATIVE = /^(uninterested|not a fit|wrong number)$/i;
+function meetingSummary(cid, id, m, ctx) {
+  const { contactToDeals, deals, contactToCalls, calls, isClosedPlansDeal, dispLabel, contacts, ownerNameMap } = ctx;
+  const now = Date.now();
+  const bookedMs = Date.parse(m.hs_createdate);
+  const startMs = Date.parse(m.hs_meeting_start_time || "") || null;
+  const oc = (m.hs_meeting_outcome || "").toUpperCase();
+  let status;
+  if (oc === "CANCELED" || oc === "CANCELLED") status = "Cancelled";
+  else if (oc === "NO_SHOW") status = "No-show";
+  else if (startMs && startMs > now) status = "Upcoming";
+  else status = "Happened";
+
+  let result = null, tone = "neutral";
+  if (status === "Upcoming") { result = "Yet to happen"; }
+  else if (status !== "Happened") { result = status; tone = "negative"; }
+  else {
+    const ds = (contactToDeals[cid] || []).map((d) => deals[d]).filter(Boolean);
+    const won = ds.find((d) => isClosedPlansDeal(d) && Date.parse(d.closedate) >= bookedMs);
+    const opened = ds.filter((d) => Date.parse(d.createdate) >= bookedMs - 3600 * 1000);
+    if (won) { result = `Closed won — ${won.plans___product_type || "plan"}`; tone = "positive"; }
+    else if (opened.length) { result = `Deal opened — ${opened[0].dealname || "deal"}`; tone = "positive"; }
+    else {
+      const after = (contactToCalls[cid] || []).map((c) => calls[c])
+        .filter((c) => c && c.hs_timestamp && c.hs_call_disposition && Date.parse(c.hs_timestamp) >= (startMs || bookedMs))
+        .sort((a, b) => Date.parse(b.hs_timestamp) - Date.parse(a.hs_timestamp));
+      const label = after.length ? dispLabel[after[0].hs_call_disposition] : null;
+      if (label && MEETING_POSITIVE.test(label)) { result = `Positive — call after: ${label}`; tone = "positive"; }
+      else if (label && MEETING_NEGATIVE.test(label)) { result = `Negative — call after: ${label}`; tone = "negative"; }
+      else if (label) { result = `Call after: ${label}`; }
+      else { result = "No outcome logged"; }
+    }
+  }
+  return {
+    meetingId: id, contactId: cid, name: contactLabel(contacts[cid]),
+    title: m.hs_meeting_title || "Meeting", host: (ownerNameMap || {})[m.hubspot_owner_id] || null,
+    bookedAt: m.hs_createdate, startTime: m.hs_meeting_start_time || null, status, result, tone,
+  };
+}
+
 function outcomeForEnrollmentTask(p, ctx) {
   const { contactsForTask, enrolledMs, contactToCalls, calls, contactToMeetings, meetings, contactToDeals, deals, isClosedPlansDeal, dispLabel, repOk, noCampaignEmail, projectCfg } = ctx;
   const createdMs = Date.parse(p.hs_createdate);
@@ -1604,15 +1668,16 @@ async function outcomes(url, env) {
     };
     const enrollmentKeys = new Set((report.projects || []).filter((p) => p.outcomeMatching === "enrollment").map((p) => p.key));
     const enrolledByTask = new Map(); // task id -> outcomeForEnrollmentTask result (null = unresolved)
+    const meetingsByProject = {}; // project key -> Map(meeting id -> meetingSummary row)
     if (enrollmentKeys.size) {
       const enrollTasks = completedTasks.filter((p) => enrollmentKeys.has(classifyProject(report, p)));
       const enrollContactIds = [...new Set(enrollTasks.flatMap((p) => taskToContacts[p.hs_object_id] || []))];
       let contactToMeetings = {}, meetings = {}, contactToDeals = {}, deals = {};
       try {
         contactToMeetings = await batchAssociations(API, H, "contacts", "meetings", enrollContactIds);
-        meetings = await batchRead(API, H, "meetings", [...new Set(Object.values(contactToMeetings).flat())], ["hs_createdate", "hs_meeting_source", "hubspot_owner_id"]);
+        meetings = await batchRead(API, H, "meetings", [...new Set(Object.values(contactToMeetings).flat())], ["hs_createdate", "hs_meeting_source", "hubspot_owner_id", "hs_meeting_start_time", "hs_meeting_outcome", "hs_meeting_title"]);
         contactToDeals = await batchAssociations(API, H, "contacts", "deals", enrollContactIds);
-        deals = await batchRead(API, H, "deals", [...new Set(Object.values(contactToDeals).flat())], ["pipeline", "dealstage", "plans___product_type", "p_p___upsell", "closedate"]);
+        deals = await batchRead(API, H, "deals", [...new Set(Object.values(contactToDeals).flat())], ["pipeline", "dealstage", "plans___product_type", "p_p___upsell", "closedate", "createdate", "dealname"]);
       } catch (e) {
         console.log(`outcomes: meetings/deals fetch skipped (${e})`);
       }
@@ -1628,7 +1693,15 @@ async function outcomes(url, env) {
       for (const p of enrollTasks) {
         const key = classifyProject(report, p);
         const projectCfg = cfgFor(key);
-        enrolledByTask.set(p.hs_object_id, outcomeForEnrollmentTask(p, { ...ctx, repOk: repFilterFor(key), noCampaignEmail: !!projectCfg?.noCampaignEmail, projectCfg, contactsForTask: taskToContacts[p.hs_object_id] || [] }));
+        const tctx = { ...ctx, repOk: repFilterFor(key), noCampaignEmail: !!projectCfg?.noCampaignEmail, projectCfg, contactsForTask: taskToContacts[p.hs_object_id] || [] };
+        enrolledByTask.set(p.hs_object_id, outcomeForEnrollmentTask(p, tctx));
+        // Meetings card: every meeting the same rule would count for this task, even when a
+        // closed-won deal took precedence as the task's outcome. One row per meeting.
+        const seen = (meetingsByProject[key] ||= new Map());
+        for (const { cid, id, m } of campaignMeetingsForTask(p, tctx)) {
+          if (seen.has(id)) continue;
+          seen.set(id, meetingSummary(cid, id, m, { ...tctx, contacts, ownerNameMap }));
+        }
       }
     }
 
@@ -1770,7 +1843,8 @@ async function outcomes(url, env) {
       // without ?campaign=, i.e. beyond the maxProjects:5 cap) — its zeros are "not fetched yet",
       // not a real "no data", so the client knows to fetch it scoped rather than trust them.
       const segments = cfg.segmentBy ? segmentOutcomes(cfg, tallied.filter((t) => t.key === cfg.key), contacts) : undefined;
-      return { key: cfg.key, label: cfg.label, computed: computedKeys.has(cfg.key), totalCompleted: b.totalCompleted, totalMatchedToCall: b.matched, totalReached: (b.matched || 0) + (b.reached || 0), dispositions: toRows(b), byRep: b.byRep || {}, segments };
+      const meetingRows = meetingsByProject[cfg.key] ? [...meetingsByProject[cfg.key].values()].sort((a, c) => (c.startTime || "").localeCompare(a.startTime || "")) : undefined;
+      return { key: cfg.key, label: cfg.label, computed: computedKeys.has(cfg.key), meetings: meetingRows, totalCompleted: b.totalCompleted, totalMatchedToCall: b.matched, totalReached: (b.matched || 0) + (b.reached || 0), dispositions: toRows(b), byRep: b.byRep || {}, segments };
     });
     const otherB = buckets.other || { totalCompleted: 0, matched: 0, byOutcome: {} };
     const other = { totalCompleted: otherB.totalCompleted, totalMatchedToCall: otherB.matched, totalReached: (otherB.matched || 0) + (otherB.reached || 0), dispositions: toRows(otherB) };
