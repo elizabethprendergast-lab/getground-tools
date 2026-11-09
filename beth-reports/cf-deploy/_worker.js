@@ -407,6 +407,7 @@ const REPORTS = {
       },
       {
         key: "reengage-property-closed-lost",
+        closed: true, // Moved under "Closed" on the dashboard (9 Nov) — data still computed/shown.
         label: "Reengage — Property closed lost",
         // Real subject: "#1 |  Call | Reengage | Property closed lost mrr" (double space after
         // "#1 |"), from workflow 5154829523 ("Testing | Growth | Closed lost property deals -
@@ -454,6 +455,7 @@ const REPORTS = {
       },
       {
         key: "properties-outside",
+        closed: true, // Moved under "Closed" on the dashboard (9 Nov) — data still computed/shown.
         label: "Follow-up — Properties outside GG company",
         // Real subject: "#1 |  Call | Follow-up | Properties outside GG company (Joe's email followup)"
         // (double space after "#1 |"), from "Testing | Growth | Properties outside GG company - mrr |
@@ -547,6 +549,34 @@ const REPORTS = {
         campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
         noCampaignEmail: true,
         meetingsAnyHost: true,
+      },
+      {
+        key: "reengage-post-webinar-bf",
+        label: "Reengage — Post-webinar email (BF 50% off 6M)",
+        // Real subject: "#1 | Call | Reengage | Post-webinar email (BF 50% off 6M)" (single space),
+        // created by API on 9 Nov 2026 for Billy Hunt: everyone who ever clicked "Black Friday post
+        // webinar email - 1126" (content 506510187755), from static segment 24605 (minus DNC / P&P
+        // segments and anyone already in a call chain). 180 created, 62 without a usable phone were
+        // closed and renamed "Removed | no valid phone number", leaving 118. Contacts carry the Call
+        // Automation fields (3 calls), so "Always on｜Growth｜Call Automation | Task Creation" makes
+        // the #2/#3 with the same title.
+        match: (s) => s.includes("Post-webinar email (BF"),
+        namePattern: "Call | Reengage | Post-webinar email (BF 50% off 6M)",
+        searchTerm: "Post-webinar email",
+        context: "Contacts who clicked the Black Friday post-webinar email (Budget 2026 replay, 50% off for 6 months), called by Billy.",
+        // Verified against real data (9 Nov): "webinar" AND "BF" returns exactly the 118 live tasks of
+        // this campaign, portal-wide. The renamed "Removed | …" tasks don't match.
+        attributionSearch: { tokens: ["webinar", "BF"], ownerFiltered: false },
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        campaignRepIds: ["35666443"], // Billy Hunt
+        onlyActualReps: true,
+        // The email went out days before the tasks (they target past clickers), so it doesn't open
+        // the attribution window; a self-booked meeting counts as "by rep".
+        noCampaignEmail: true,
+        meetingsAnyHost: true,
+        // Display only: the email these contacts clicked.
+        emails: [{ id: 506510187755 }],
       },
     ],
   },
