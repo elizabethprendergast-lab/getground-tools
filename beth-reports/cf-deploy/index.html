@@ -242,6 +242,11 @@
   .mtg-status.s-noshow, .mtg-status.s-cancelled { color: var(--critical); border-color: currentColor; }
   .mtg-result.t-positive { color: var(--good); font-weight: 600; }
   .mtg-result.t-negative { color: var(--critical); }
+  .asset-h { font-size: 13px; font-weight: 600; margin: 16px 0 6px; color: var(--text-secondary); }
+  .asset-list { list-style: none; padding: 0; margin: 0; font-size: 13px; }
+  .asset-list li { padding: 8px 0; border-bottom: 1px solid var(--gridline); }
+  .asset-list a { color: var(--text-primary); font-weight: 500; }
+  .asset-list .ph-note { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
   .range-note { font-size: 12px; color: var(--text-muted); margin: -8px 0 16px; }
   .rep-bar-wrap[data-rep] .rep-bar-head span:first-child { cursor: help; border-bottom: 1px dashed var(--baseline); }
   #contact-popover.rep-pop { max-width: 300px; max-height: 360px; }
@@ -590,7 +595,7 @@ function meetingsCardHtml(label, o, portalId, loading) {
   }
   const n = (f) => rows.filter(f).length;
   const tiles = [
-    ["Booked", rows.length, ""],
+    ["Booked (call tasks)", rows.length, ""],
     ["Yet to happen", n(r => r.status === "Upcoming"), ""],
     ["Happened", n(r => r.status === "Happened"), ""],
     ["Positive", n(r => r.tone === "positive"), "done"],
@@ -606,10 +611,11 @@ function meetingsCardHtml(label, o, portalId, loading) {
       <p class="sub">${sub}</p>
       <div class="stat-row">${tiles.map(([l, v, c]) => `<div class="stat-tile ${c}"><div class="label">${l}</div><div class="value">${v}</div></div>`).join("")}</div>
       <div class="mtg-table-wrap"><table class="mtg-table">
-        <thead><tr><th>Contact</th><th>Meeting</th><th>With</th><th>When</th><th>Status</th><th>Result</th></tr></thead>
+        <thead><tr><th>Contact</th><th>Call</th><th>Meeting</th><th>With</th><th>When</th><th>Status</th><th>Result</th></tr></thead>
         <tbody>${sorted.map(r => `
           <tr>
             <td><a href="https://app-eu1.hubspot.com/contacts/${portalId}/record/0-1/${r.contactId}" target="_blank" rel="noopener">${esc(r.name)}</a></td>
+            <td class="muted nowrap">${r.callNo ? `#${esc(r.callNo)}` : "—"}</td>
             <td class="muted">${esc(r.title)}</td>
             <td>${esc(r.host || "—")}</td>
             <td class="nowrap">${r.startTime ? fmtDateTime(r.startTime) : "—"}</td>
@@ -620,6 +626,23 @@ function meetingsCardHtml(label, o, portalId, loading) {
       </table></div>
       <p class="sub" style="margin-top:12px">Result for meetings that happened: closed-won Plans deal &gt; any deal opened since booking &gt; the latest call logged after the meeting (Positive / Progress to deal / Thinking about it = positive; Uninterested / Not a fit / Wrong number = negative) &gt; "No outcome logged".</p>
     </section>`;
+}
+
+// Bottom of each campaign page: the HubSpot workflows and emails behind it, with links.
+function assetsCardHtml(a, loading) {
+  const head = `<h2>Workflows &amp; emails</h2><p class="sub">What runs this campaign in HubSpot — click to open.</p>`;
+  if (loading) return `<section class="card">${head}<div class="empty-state">Loading…</div></section>`;
+  if (!a || a.error) return `<section class="card">${head}<div class="empty-state">Couldn't load workflows and emails.</div></section>`;
+  const wf = a.workflows || [], em = a.emails || [];
+  const pill = (on) => on == null ? "" : `<span class="mtg-status ${on ? "s-happened" : "s-cancelled"}">${on ? "On" : "Off"}</span>`;
+  return `<section class="card">${head}
+    <h3 class="asset-h">Workflows</h3>
+    ${wf.length ? `<ul class="asset-list">${wf.map(w => `<li><a href="${w.link}" target="_blank" rel="noopener">${esc(w.name)}</a> ${pill(w.enabled)}${w.shared ? ` <span class="ph-note">— shared: creates the #2/#3 follow-up calls</span>` : ""}</li>`).join("")}</ul>`
+      : `<p class="sub">No workflow — tasks were created by API.</p>`}
+    <h3 class="asset-h">Emails</h3>
+    ${em.length ? `<ul class="asset-list">${em.map(e => `<li><a href="${e.link}" target="_blank" rel="noopener">${esc(e.name)}</a>${e.state ? ` <span class="ph-note">${esc(e.state.toLowerCase())}</span>` : ""}${e.subject ? `<div class="ph-note">Subject: ${esc(e.subject)}</div>` : ""}${e.sentBy && e.sentBy.length ? `<div class="ph-note">Sent by: ${esc(e.sentBy.join(", "))}</div>` : ""}</li>`).join("")}</ul>`
+      : `<p class="sub">No campaign email.</p>`}
+  </section>`;
 }
 
 function dealCardHtml(label, d, portalId, loading) {
@@ -774,6 +797,7 @@ function campaignPageHtml(proj, sprintStart, hubspot) {
     <div id="deals-slot"></div>
     <div id="emails-slot"></div>
     <div id="segments-slot"></div>
+    <div id="assets-slot"></div>
     <footer id="footer-line"></footer>`;
 }
 
@@ -1246,6 +1270,7 @@ let cache = { stats: null, outcomes: null, deals: null, referrals: null };
 // switching back to an already-scoped-fetched campaign doesn't re-hit HubSpot.
 let scopedOutcomes = {};
 let scopedDeals = {};
+let campaignAssetsByKey = {}; // /api/assets per campaign (workflows + emails, links)
 let campaignEmailsByKey = {}; // /api/emails per campaign — doesn't depend on the date range
 const scopedInFlight = new Set();
 
@@ -1359,6 +1384,13 @@ function render() {
     }
 
     document.getElementById("segments-slot").innerHTML = segmentCardHtml(outcomeData, dealData, outcomesLoading || dealsLoading);
+
+    if (!(key in campaignAssetsByKey)) {
+      campaignAssetsByKey[key] = undefined;
+      fetch(`/api/assets?report=${REPORT_KEY}&campaign=${encodeURIComponent(key)}`).then(r => r.json()).catch(() => null)
+        .then(res => { campaignAssetsByKey[key] = res; if (currentCampaignKey() === key) { const el = document.getElementById("assets-slot"); if (el) el.innerHTML = assetsCardHtml(res, false); } });
+    }
+    document.getElementById("assets-slot").innerHTML = assetsCardHtml(campaignAssetsByKey[key], campaignAssetsByKey[key] === undefined);
   }
 
   const metaLine = document.getElementById("meta-line");
