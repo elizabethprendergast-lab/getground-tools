@@ -478,6 +478,7 @@ const REPORTS = {
       },
       {
         key: "rent-anniversary",
+        closed: true, // Moved under "Closed" on the dashboard (10 Nov) — data still computed/shown.
         label: "Experiment — Rent anniversary (Complete upsell)",
         // Real subject: "#1 |  Call | Complete Upsell | rent anniversary" (double space after "#1 |"),
         // from workflow 5209072844 "Experiment | Growth | Rent anniversary | 1026" (live 28 Oct).
@@ -738,6 +739,7 @@ export default {
     if (url.pathname === "/api/outcomes") return outcomes(url, env);
     if (url.pathname === "/api/deals") return dealAttribution(url, env);
     if (url.pathname === "/api/emails") return campaignEmails(url, env);
+    if (url.pathname === "/api/assets") return campaignAssets(url, env);
     if (url.pathname === "/api/referrals") return referrals(url, env);
     if (url.pathname === "/api/meetings") return meetingsBooked(url, env);
     if (url.pathname === "/api/btl-calc") return btlCalcReport(url, env, ctx);
@@ -1316,6 +1318,72 @@ function emailBodyText(email) {
   return prettyTokens(parts.join("\n\n")).slice(0, 4000);
 }
 
+// HubSpot workflows behind each campaign (enrol / set call fields / create #1 tasks, or send its
+// email). Found 10 Nov 2026 by scanning every contact workflow for task subjects / active_task
+// values this campaign's `match` accepts, plus the email-only and follow-up flows by hand.
+// 4196785376 = "Call Automation | Task Creation" (makes the #2/#3 for API-created queues).
+const CAMPAIGN_WORKFLOWS = {
+  "active-lead": ["2777753849", "4344179957", "3686261997", "3694529746", "3745020107", "3963728078", "4153108690"],
+  "reengage-pack": ["4884298939"],
+  "reengage-unmigrated": ["4885447896"],
+  "ba-closed-won-reengage": ["4940349643"],
+  "upsell-complete": ["4974721270"],
+  "reengage-ltd-freemium": ["5004185819"],
+  "reengage-nonpaying-master": ["5063079150"],
+  "reengage-ltd-core-plan": ["5066982616"],
+  "reengage-ltd": ["5066982616"],
+  "reengage-nonpaying": ["5096426690"],
+  "experiment-epc": ["5096773821"],
+  "reengage-property-closed-lost": ["5154829523"],
+  "black-friday": ["5161774322", "5163907314"],
+  "properties-outside": ["5193566402"],
+  "rent-anniversary": ["5209072844"],
+  "landlord-savings-calculator": ["5252951265"],
+  "reengage-post-webinar-bf": ["4196785376"],
+  "hapi-areas": ["4196785376"],
+  "plan-close-month-end": ["4196785376"],
+};
+// Emails not sent by one of the workflows above (sent by hand / one-off sends).
+const CAMPAIGN_EXTRA_EMAILS = { "reengage-post-webinar-bf": ["506510187755"] };
+
+// /api/assets?campaign= — the campaign's workflows (name, on/off, emails they send) and every
+// email involved (its own config + the workflows'), with HubSpot links. Live names/status.
+async function campaignAssets(url, env) {
+  const API = "https://api.hubapi.com";
+  const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
+  const report = REPORTS[url.searchParams.get("report") || "mrr-nov-sprint"];
+  const key = url.searchParams.get("campaign");
+  const cfg = report && (report.projects || []).find((p) => p.key === key);
+  if (!cfg) return json({ error: "unknown report or campaign" }, 400);
+  const subdomain = report.hubspotSubdomain || "app-eu1.hubspot.com";
+  const workflows = await Promise.all((CAMPAIGN_WORKFLOWS[key] || []).map(async (id) => {
+    const link = `https://${subdomain}/workflows/25516403/platform/flow/${id}/edit`;
+    try {
+      const f = await hsFetch(`${API}/automation/v4/flows/${id}`, { headers: H });
+      const emailIds = [...new Set((f.actions || []).map((a) => a.fields && a.fields.content_id).filter(Boolean).map(String))];
+      return { id, name: f.name || `Workflow ${id}`, enabled: !!f.isEnabled, link, emailIds, shared: id === "4196785376" };
+    } catch (e) {
+      return { id, name: `Workflow ${id}`, enabled: null, link, emailIds: [], error: String(e).slice(0, 120) };
+    }
+  }));
+  const emailIds = [...new Set([
+    ...projectEmails(cfg).map((e) => String(e.id)),
+    ...(CAMPAIGN_EXTRA_EMAILS[key] || []),
+    ...workflows.filter((w) => !w.shared).flatMap((w) => w.emailIds),
+  ])];
+  const emails = await Promise.all(emailIds.map(async (id) => {
+    const link = `https://${subdomain}/email/25516403/edit/${id}/content`;
+    try {
+      const e = await hsFetch(`${API}/marketing/v3/emails/${id}`, { headers: H });
+      return { id, name: e.name || `Email ${id}`, subject: prettyTokens(e.subject), state: e.state || "", link,
+        sentBy: workflows.filter((w) => w.emailIds.includes(id)).map((w) => w.name) };
+    } catch (err) {
+      return { id, name: `Email ${id}`, link, error: String(err).slice(0, 120) };
+    }
+  }));
+  return json({ generatedAt: new Date().toISOString(), campaign: key, workflows, emails });
+}
+
 async function campaignEmails(url, env) {
   const API = "https://api.hubapi.com";
   const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
@@ -1469,7 +1537,7 @@ function outcomeForEnrollmentTask(p, ctx) {
   }
 
   const hi = Date.parse(p.hs_task_completion_date) + ENROLLMENT_CALL_AFTER_MS;
-  let meeting = null;
+  let meeting = null, meetingId = null, meetingCid = null;
   for (const cid of contactsForTask) {
     for (const id of contactToMeetings[cid] || []) {
       const m = meetings[id];
@@ -1477,13 +1545,14 @@ function outcomeForEnrollmentTask(p, ctx) {
       if (projectCfg?.meetingsAnyHost) {
         if (Date.parse(m.hs_createdate) > hi) continue;
       } else if (!repOk(m)) continue;
-      if (!meeting || m.hs_meeting_source === "MEETINGS_PUBLIC") meeting = m; // self-booked wins: the call didn't cause it
+      if (!meeting || m.hs_meeting_source === "MEETINGS_PUBLIC") { meeting = m; meetingId = id; meetingCid = cid; } // self-booked wins: the call didn't cause it
     }
   }
   if (meeting) {
+    const base = { category: "meeting", meetingId, meetingCid };
     return meeting.hs_meeting_source === "MEETINGS_PUBLIC" && !noCampaignEmail
-      ? { outcome: "Meeting booked — from email", category: "meeting" }
-      : { outcome: "Meeting booked — by rep", category: "meeting" };
+      ? { outcome: "Meeting booked — from email", ...base }
+      : { outcome: "Meeting booked — by rep", ...base };
   }
 
   const candidates = [];
@@ -1703,13 +1772,14 @@ async function outcomes(url, env) {
         const key = classifyProject(report, p);
         const projectCfg = cfgFor(key);
         const tctx = { ...ctx, repOk: repFilterFor(key), noCampaignEmail: !!projectCfg?.noCampaignEmail, projectCfg, contactsForTask: taskToContacts[p.hs_object_id] || [] };
-        enrolledByTask.set(p.hs_object_id, outcomeForEnrollmentTask(p, tctx));
-        // Meetings card: every meeting the same rule would count for this task, even when a
-        // closed-won deal took precedence as the task's outcome. One row per meeting.
-        const seen = (meetingsByProject[key] ||= new Map());
-        for (const { cid, id, m } of campaignMeetingsForTask(p, tctx)) {
-          if (!seen.has(id)) seen.set(id, { ...meetingSummary(cid, id, m, { ...tctx, contacts, ownerNameMap }), taskIds: [] });
-          seen.get(id).taskIds.push(p.hs_object_id); // the call task(s) it's credited to — for date-range slicing
+        const res = outcomeForEnrollmentTask(p, tctx);
+        enrolledByTask.set(p.hs_object_id, res);
+        // Meetings card = exactly the tasks in the "Meeting booked" outcome bars (one row per
+        // task, with the meeting that task was credited to), so the two always add up the same.
+        if (res && res.category === "meeting" && res.meetingId) {
+          const rows = (meetingsByProject[key] ||= new Map());
+          rows.set(p.hs_object_id, { ...meetingSummary(res.meetingCid, res.meetingId, meetings[res.meetingId], { ...tctx, contacts, ownerNameMap }),
+            taskIds: [p.hs_object_id], callNo: callNumber(p.hs_task_subject) || null });
         }
       }
     }
