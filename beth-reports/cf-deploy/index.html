@@ -438,7 +438,7 @@ function completionCardHtml(proj, sprintStart, hubspot) {
         <p class="sub">Call task completion — assigned after ${fmtDate(sprintStart)}</p>
         ${contextLine}
         ${namePattern}
-        <div class="empty-state">${rangeIsSet() ? `No tasks completed or due ${esc(rangeLabel())}.${t.overdue ? ` ${t.overdue} still open and overdue from earlier.` : ""}` : `No matching call tasks yet in this project since ${fmtDate(sprintStart)}.`}</div>
+        <div class="empty-state">${rangeIsSet() ? `No open tasks ${esc(rangeLabel())}.` : `No matching call tasks yet in this project since ${fmtDate(sprintStart)}.`}</div>
       </section>`;
   }
   // The report's fixed reps are listed even with no tasks; in a date range that leaves "0 / 0" rows.
@@ -450,11 +450,11 @@ function completionCardHtml(proj, sprintStart, hubspot) {
       <p class="sub">Call task completion — assigned after ${fmtDate(sprintStart)}</p>
       ${contextLine}
       ${namePattern}
-      ${rangeIsSet() ? `<p class="range-note">Showing ${esc(rangeLabel())}: done = tasks completed in that window; not done = tasks due in that window and still open.</p>` : ""}
+      ${rangeIsSet() ? `<p class="range-note">Showing ${esc(rangeLabel())}: total = tasks open at some point in that period; done = completed in it; not done = could have been done in it but weren't.</p>` : ""}
       <div class="stat-row">
         <div class="stat-tile"><div class="label">Total tasks</div><div class="value">${t.total}</div></div>
         <div class="stat-tile done"><div class="label">Done</div><div class="value">${t.done}</div></div>
-        <div class="stat-tile"><div class="label">Not done</div><div class="value">${t.notDone}</div>${t.overdue ? `<div class="label" style="margin:6px 0 0;color:var(--critical)">+${t.overdue} overdue from earlier</div>` : ""}</div>
+        <div class="stat-tile"><div class="label">Not done</div><div class="value">${t.notDone}</div></div>
         ${priorityTileHtml(t.priorityBreakdown)}
       </div>
       ${reps.map(([name, r]) => {
@@ -584,7 +584,7 @@ function meetingsCardHtml(label, o, portalId, loading) {
   }
   const rows = o && o.meetings;
   if (!rows) return ""; // campaign doesn't use enrollment matching — no meeting data
-  const sub = `Meetings booked from this campaign${rangeIsSet() ? ` (booked or taking place ${esc(rangeLabel())})` : ""} — whether they've happened yet and how they went. Click a name to open them in HubSpot.`;
+  const sub = `Meetings booked from this campaign${rangeIsSet() ? ` (from call tasks completed ${esc(rangeLabel())}, same as "Meeting booked" in Outcomes)` : ""} — whether they've happened yet and how they went. Click a name to open them in HubSpot.`;
   if (!rows.length) {
     return `<section class="card"><h2>Meetings — ${esc(label)}</h2><p class="sub">${sub}</p><div class="empty-state">No meetings booked from this campaign yet.</div></section>`;
   }
@@ -981,17 +981,24 @@ function rangeTest() {
   const hi = r.to ? day(r.to) + 86400000 : Infinity;
   return (ms) => !!ms && ms >= lo && ms < hi;
 }
-// Task completion: done = completed in the range; not done = still-open tasks due in the range.
+// Task completion for a period: total = tasks that were open at some point in it (created before
+// it ended, not completed before it started); done = completed in it; not done = the rest — tasks
+// that could have been done in the period but weren't (still open, or completed after it).
 function sliceTasks(t) {
   const has = rangeTest();
   if (!has || !t || !t.taskRows) return t;
   const reps = Object.fromEntries(Object.keys(t.reps || {}).map((n) => [n, { created: 0, done: 0 }]));
   const calls = {}, months = {}, pri = {};
-  let total = 0, done = 0, overdue = 0;
-  const lo = (() => { const r = rangeDates(); if (!r.from) return -Infinity; const [y, m, d] = r.from.split("-").map(Number); return new Date(y, m - 1, d).getTime(); })();
-  for (const [rep, isDone, at, num, mLabel, mSort, priority, due] of t.taskRows) {
-    if (!isDone && due && due < lo) overdue++;
-    if (!has(isDone ? at : due)) continue;
+  let total = 0, done = 0;
+  const r0 = rangeDates();
+  const day = (iso) => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d).getTime(); };
+  const lo = r0.from ? day(r0.from) : -Infinity;
+  const hi = r0.to ? day(r0.to) + 86400000 : Infinity;
+  for (const row of t.taskRows) {
+    const [rep, wasDone, at, num, mLabel, mSort, priority, due, created] = row;
+    if (!(created < hi)) continue;              // didn't exist yet
+    if (wasDone && at < lo) continue;           // already done before the period
+    const isDone = wasDone && at < hi ? 1 : 0;  // done within the period
     total++; if (isDone) done++;
     if (rep) {
       const r = (reps[rep] ||= { created: 0, done: 0 });
@@ -1007,7 +1014,7 @@ function sliceTasks(t) {
   const byMonth = t.byMonth ? Object.entries(months).map(([month, v]) => ({ month, total: v.total, done: v.done, notDone: v.total - v.done, sort: v.sort }))
     .sort((a, b) => a.sort - b.sort).map(({ sort, ...r }) => r) : undefined;
   const priorityBreakdown = Object.entries(pri).map(([level, count]) => ({ level, count })).sort((a, b) => b.count - a.count);
-  return { ...t, total, done, notDone: total - done, overdue, reps, byCallNumber, byMonth, priorityBreakdown };
+  return { ...t, total, done, notDone: total - done, reps, byCallNumber, byMonth, priorityBreakdown };
 }
 function sliceStats(stats) {
   if (!stats || !stats.projects || !rangeTest()) return stats;
@@ -1031,8 +1038,8 @@ function sliceOutcomes(o) {
     const r = (byRep[rep] ||= { total: 0, outcomes: {} });
     r.total++; r.outcomes[outcome] = (r.outcomes[outcome] || 0) + 1;
   }
-  const iso = (x) => (x ? Date.parse(x) : 0);
-  const meetings = o.meetings && o.meetings.filter((m) => has(iso(m.bookedAt)) || has(iso(m.startTime)));
+  // Same basis as the outcome bars: meetings credited to a call task completed in the period.
+  const meetings = o.meetings && o.meetings.filter((m) => (m.taskIds || []).some((id) => keep.has(String(id))));
   return { ...o, dispositions, byRep, meetings, totalCompleted: keep.size,
     totalMatchedToCall: (o.callTasks || []).filter((id) => keep.has(String(id))).length, totalReached: reached };
 }
