@@ -1269,6 +1269,7 @@ let cache = { stats: null, outcomes: null, deals: null, referrals: null };
 // (?campaign=<key>) instead, which the worker computes without the cap. Cached per key so
 // switching back to an already-scoped-fetched campaign doesn't re-hit HubSpot.
 let scopedOutcomes = {};
+const scopedRefreshing = new Set(); // "kind:key" being (re)fetched — drives the Update button label
 let scopedDeals = {};
 let campaignAssetsByKey = {}; // /api/assets per campaign (workflows + emails, links)
 let campaignEmailsByKey = {}; // /api/emails per campaign — doesn't depend on the date range
@@ -1276,6 +1277,7 @@ const scopedInFlight = new Set();
 
 async function fetchScoped(kind, key) {
   const flightKey = `${kind}:${key}`;
+  scopedRefreshing.add(flightKey);
   if (scopedInFlight.has(flightKey)) return;
   scopedInFlight.add(flightKey);
   const store = kind === "outcomes" ? scopedOutcomes : scopedDeals;
@@ -1286,6 +1288,7 @@ async function fetchScoped(kind, key) {
     store[key] = null;
   } finally {
     scopedInFlight.delete(flightKey);
+    scopedRefreshing.delete(flightKey);
     const cur = currentCampaignKey();
     if (cur === (MERGED_INTO[key] || key) || (OUTCOME_BENCHMARKS[cur] && OUTCOME_BENCHMARKS[cur].key === key)) render();
   }
@@ -1315,21 +1318,19 @@ function resolveScopedOne(kind, key, batchByKey) {
 }
 
 async function fetchData() {
-  const [statsRes, outcomesRes, dealsRes, referralsRes] = await Promise.all([
+  // Outcomes/deals aren't fetched for every campaign at once any more (that was ~130 HubSpot
+  // calls and 30s+): each campaign page fetches its own, scoped, via resolveScoped/fetchScoped.
+  const [statsRes, referralsRes] = await Promise.all([
     fetch(`/api/stats?report=${REPORT_KEY}`).then(r => r.json()),
-    fetch(`/api/outcomes?report=${REPORT_KEY}`).then(r => r.json()).catch(() => null),
-    fetch(`/api/deals?report=${REPORT_KEY}`).then(r => r.json()).catch(() => null),
     fetch(`/api/referrals`).then(r => r.json()).catch(() => null),
   ]);
-  cache = { stats: statsRes, outcomes: outcomesRes, deals: dealsRes, referrals: referralsRes };
-  scopedOutcomes = {};
-  scopedDeals = {};
+  cache = { stats: statsRes, outcomes: null, deals: null, referrals: referralsRes };
   // Keep the last good load for this tab, so coming back (e.g. the back button from another
   // report) can paint instantly instead of waiting on the live HubSpot fetch again.
   try { sessionStorage.setItem(lastLoadKey(), JSON.stringify(cache)); } catch (_) { /* quota / disabled */ }
 }
 // Data is always all-time (the date range is applied in the browser), so one saved load per tab.
-const LAST_LOAD_PREFIX = "beth-reports:last-load-v2";
+const LAST_LOAD_PREFIX = "beth-reports:last-load-v3";
 const lastLoadKey = () => LAST_LOAD_PREFIX;
 
 function render() {
@@ -1405,7 +1406,10 @@ function render() {
       : "";
   }
   const updateBtn = document.getElementById("update-btn");
-  if (updateBtn) updateBtn.addEventListener("click", () => load({ force: true }));
+  if (updateBtn) {
+    updateBtn.textContent = scopedRefreshing.size ? "Updating…" : "Update";
+    updateBtn.addEventListener("click", () => load({ force: true }));
+  }
   wireRangeControl();
 }
 
@@ -1417,6 +1421,15 @@ async function load({ force = false } = {}) {
         const saved = JSON.parse(sessionStorage.getItem(lastLoadKey()) || "null");
         if (saved && saved.stats) { cache = saved; render(); force = true; }
       } catch (_) { /* unreadable — fall through to a normal load */ }
+    }
+    const key = currentCampaignKey();
+    if (force && key && key !== REFERRAL_TAB_KEY) {
+      // Update = the whole page: tasks (stats), outcomes, meetings, deals, emails, workflows.
+      // Each card keeps its current numbers until its fresh data lands, then redraws.
+      const parts = (MERGED_CAMPAIGNS[key] ? MERGED_CAMPAIGNS[key].parts : [key]).concat(OUTCOME_BENCHMARKS[key] ? [OUTCOME_BENCHMARKS[key].key] : []);
+      for (const k of parts) { fetchScoped("outcomes", k); fetchScoped("deals", k); }
+      delete campaignEmailsByKey[key];
+      delete campaignAssetsByKey[key];
     }
     if (force || !cache.stats) {
       const btn = document.getElementById("update-btn");
