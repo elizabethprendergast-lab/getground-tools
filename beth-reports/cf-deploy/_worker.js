@@ -459,7 +459,7 @@ const REPORTS = {
         // Real subject: "#1 |  Call | Black Friday | 50% off Core (6 months) | Interest: Accounting"
         // (double space after "#1 |"). The BF re-engagement emails (workflow 5336168655) go to the
         // existing database (stock-onboarding list: Ltd owners + A&T interest, nobody on a current
-        // plan); anyone who clicks gets this task. First 247 #1s created 12 Nov 2026 for Billy, by
+        // plan); anyone who clicks gets this task. 42 #1s created 12 Nov 2026 for Billy, by
         // "Testing | Growth | Black Friday (AD+Reengage) - Calls only MRR | 1026", which also makes
         // the ads tab's "… - Core Plans" tasks — so the two tabs split on subject, not workflow.
         // "Interest:" keeps the ads tab's subjects out; "Core Plans" keeps these out of that tab.
