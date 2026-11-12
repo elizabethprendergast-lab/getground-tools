@@ -2027,6 +2027,24 @@ async function outcomes(url, env) {
   }
 }
 
+// ---- Deal stage labels (all deal pipelines) ----------------------------------------------
+// won = closed with probability 1, lost = closed with probability 0, anything else = open.
+async function dealStageInfo(API, H) {
+  const res = await fetch(`${API}/crm/v3/pipelines/deals`, { headers: H });
+  const out = { pipelines: {}, stages: {} };
+  if (!res.ok) return out;
+  for (const p of (await res.json()).results || []) {
+    out.pipelines[p.id] = p.label;
+    for (const st of p.stages || []) {
+      const md = st.metadata || {};
+      const closed = md.isClosed === "true" || md.isClosed === true;
+      const prob = Number(md.probability);
+      out.stages[st.id] = { label: st.label, won: closed && prob >= 1, lost: closed && !(prob > 0) };
+    }
+  }
+  return out;
+}
+
 // ---- Deal attribution -------------------------------------------------------------------
 // "Did a contact we put into one of these calling sequences end up in a closed Plans deal,
 // and was it Core or Complete, new business or an upsell." Verified against real data (Jamie
@@ -2110,7 +2128,9 @@ async function dealAttribution(url, env) {
     const allContactIds = [...new Set(Object.values(projectContacts).flatMap((m) => [...m.keys()]))];
     const contactToDeals = await batchAssociations(API, H, "contacts", "deals", allContactIds);
     const dealIds = [...new Set(Object.values(contactToDeals).flat())];
-    const deals = await batchRead(API, H, "deals", dealIds, ["pipeline", "dealstage", "plans___product_type", "p_p___upsell", "closedate"]);
+    const deals = await batchRead(API, H, "deals", dealIds, ["pipeline", "dealstage", "plans___product_type", "p_p___upsell", "closedate", "createdate", "dealname", "amount"]);
+    // Pipeline + stage labels and won/lost flags for the "All deals opened" table.
+    const stageInfo = await dealStageInfo(API, H);
     const contacts = await batchRead(API, H, "contacts", allContactIds, [
       "firstname", "lastname", "email", "hs_active_contracts_mrr", ...segmentProperties(report),
       ...((report.projects || []).some((p) => p.campaignEmail && p.campaignEmail.emailCampaignIds) ? EMAIL_FALLBACK_PROPS : []),
@@ -2123,6 +2143,34 @@ async function dealAttribution(url, env) {
     // the old is_migration_p_p-property approach this CAN be checked against the contact's
     // enrollment date, the same causality guard as deals.
     const migrationEvents = await fetchMigrationEvents(API, H, report.sprintStart);
+
+    // Every deal (any pipeline) a contact in this project opened ON OR AFTER they were enrolled
+    // (and inside the date range, by createdate) — opened / still open / won / lost per pipeline.
+    const buildDealActivity = (contactMap) => {
+      const seen = new Set();
+      const byPipeline = new Map();
+      const list = [];
+      for (const [cid, enrolledMs] of contactMap) {
+        for (const did of contactToDeals[cid] || []) {
+          const d = deals[did];
+          if (!d || seen.has(did) || !d.createdate) continue;
+          const created = Date.parse(d.createdate);
+          if (!(created >= enrolledMs) || !inRange(created)) continue;
+          seen.add(did);
+          const st = stageInfo.stages[d.dealstage] || {};
+          const status = st.won ? "won" : st.lost ? "lost" : "open";
+          const pipeline = stageInfo.pipelines[d.pipeline] || d.pipeline || "Unknown pipeline";
+          const row = byPipeline.get(pipeline) || { pipeline, opened: 0, open: 0, won: 0, lost: 0 };
+          row.opened++; row[status]++;
+          byPipeline.set(pipeline, row);
+          list.push({ id: did, name: d.dealname || "(no name)", pipeline, stage: st.label || d.dealstage, status, createdMs: created, contactId: cid, contactName: contactLabel(contacts[cid]) });
+        }
+      }
+      const rows = [...byPipeline.values()].sort((a, b) => b.opened - a.opened);
+      const total = rows.reduce((t, r) => ({ opened: t.opened + r.opened, open: t.open + r.open, won: t.won + r.won, lost: t.lost + r.lost }), { opened: 0, open: 0, won: 0, lost: 0 });
+      list.sort((a, b) => b.createdMs - a.createdMs);
+      return { rows, total, deals: list };
+    };
 
     const buildProject = (contactMap) => {
       const buckets = {};
@@ -2191,7 +2239,7 @@ async function dealAttribution(url, env) {
       const contactMap = projectContacts[cfg.key] || new Map();
       const segments = cfg.segmentBy ? await segmentDeals(cfg, contactMap) : undefined;
       // See outcomes() for what `computed: false` means (project outside this request's search).
-      projects.push({ key: cfg.key, label: cfg.label, computed: computedKeys.has(cfg.key), ...buildProject(contactMap), segments });
+      projects.push({ key: cfg.key, label: cfg.label, computed: computedKeys.has(cfg.key), ...buildProject(contactMap), dealActivity: buildDealActivity(contactMap), segments });
     }
     const other = buildProject(projectContacts.other || new Map());
 
