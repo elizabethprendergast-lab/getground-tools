@@ -1808,9 +1808,18 @@ async function outcomes(url, env) {
       }
       const utmCids = [...new Set(Object.values(utmMeetingContacts).flat().map((x) => x.cid))];
       const enrollContactIds = [...new Set([...enrollTasks.flatMap((p) => taskToContacts[p.hs_object_id] || []), ...utmCids])];
+      // Email bookers with no done call task: read their names and their recent calls (newest 25
+      // each), so the Meetings card can show the call logged after their meeting.
       const missingNames = utmCids.filter((cid) => !contacts[cid]);
       if (missingNames.length) {
-        try { Object.assign(contacts, await batchRead(API, H, "contacts", missingNames, ["firstname", "lastname", "email"])); } catch (e) { console.log(`outcomes: utm contacts skipped (${e})`); }
+        try {
+          Object.assign(contacts, await batchRead(API, H, "contacts", missingNames, ["firstname", "lastname", "email"]));
+          const extraCalls = await batchAssociations(API, H, "contacts", "calls", missingNames);
+          for (const cid of Object.keys(extraCalls)) {
+            contactToCalls[cid] = extraCalls[cid].sort((a, b) => (BigInt(b) > BigInt(a) ? 1 : -1)).slice(0, 25);
+          }
+          Object.assign(calls, await batchRead(API, H, "calls", [...new Set(Object.values(extraCalls).flatMap((x) => x.slice(0, 25)))], ["hs_timestamp", "hs_call_disposition", "hs_call_direction", "hubspot_owner_id"]));
+        } catch (e) { console.log(`outcomes: utm contacts skipped (${e})`); }
       }
       let contactToMeetings = {}, meetings = {}, contactToDeals = {}, deals = {};
       try {
