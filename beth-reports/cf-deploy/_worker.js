@@ -430,7 +430,7 @@ const REPORTS = {
       },
       {
         key: "black-friday",
-        label: "Black Friday",
+        label: "Black Friday — Ads",
         // Real subjects: "#1 |  Call | Black Friday | 50% off 6 month - Core Plans" (double space
         // after "#1 |") and, per the team, "Call | Black Friday | Free Company - Core Plans" (none
         // yet on 26 Oct). First tasks 23 Oct from "Testing | Growth | Black Friday post ad flow -
@@ -439,7 +439,7 @@ const REPORTS = {
         match: (s) => s.includes("Call | Black Friday |") && s.includes("Core Plans"),
         namePattern: "Call | Black Friday | 50% off 6 month - Core Plans / Free Company - Core Plans",
         searchTerm: "Black Friday",
-        context: "Black Friday offer on Core Plans (50% off for 6 months, or a free company), called after the post-ad flow.",
+        context: "Ad leads for the Black Friday offer on Core Plans (50% off for 6 months, or a free company): emails plus call tasks after the post-ad flow. The database re-engagement is its own tab (Black Friday — Reengage).",
         // Verified against real data (2026-10-26): "Black" AND "Friday" AND "Core" AND "Plans" returns
         // exactly the 7 tasks of this campaign, portal-wide, even with no date filter.
         attributionSearch: { tokens: ["Black", "Friday", "Core", "Plans"], ownerFiltered: false },
@@ -452,6 +452,33 @@ const REPORTS = {
         // Display only. Sent at the same moment as each #1 task (7 of 7 contacts, 26 Oct). It has
         // no meeting-booking button, so noCampaignEmail stays true (self-booked = "by rep").
         emails: [{ id: 495692031170 }],
+      },
+      {
+        key: "black-friday-reengage",
+        label: "Black Friday — Reengage",
+        // Real subject: "#1 |  Call | Black Friday | 50% off Core (6 months) | Interest: Accounting"
+        // (double space after "#1 |"). The BF re-engagement emails (workflow 5336168655) go to the
+        // existing database (stock-onboarding list: Ltd owners + A&T interest, nobody on a current
+        // plan); anyone who clicks gets this task. 42 #1s created 12 Nov 2026 for Billy, by
+        // "Testing | Growth | Black Friday (AD+Reengage) - Calls only MRR | 1026", which also makes
+        // the ads tab's "… - Core Plans" tasks — so the two tabs split on subject, not workflow.
+        // "Interest:" keeps the ads tab's subjects out; "Core Plans" keeps these out of that tab.
+        match: (s) => s.includes("Call | Black Friday |") && s.includes("Interest:"),
+        namePattern: "Call | Black Friday | 50% off Core (6 months) | Interest: …",
+        searchTerm: "Black Friday",
+        context: "Existing database (Ltd owners and A&T-interested non-customers) emailed the Black Friday offer (50% off Core for 6 months); anyone who clicks gets a call. They can also book a meeting straight from the email.",
+        // Verified against real data (12 Nov): "Black" AND "Friday" AND "Interest" returns only
+        // this campaign's tasks, portal-wide.
+        attributionSearch: { tokens: ["Black", "Friday", "Interest"], ownerFiltered: false },
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
+        meetingsAnyHost: true,
+        // The emails carry a booking link tagged utm_campaign=bf_reengage_1126 (7 meetings by
+        // 12 Nov, several booked before the contact's call task existed). Every meeting with this
+        // UTM is listed on the Meetings card, with or without a call task, and a task whose contact
+        // booked one counts as "Meeting booked — from email" whenever it was booked.
+        utmMeetings: ["bf_reengage_1126"],
       },
       {
         key: "properties-outside",
@@ -1336,6 +1363,7 @@ const CAMPAIGN_WORKFLOWS = {
   "experiment-epc": ["5096773821"],
   "reengage-property-closed-lost": ["5154829523"],
   "black-friday": ["5161774322", "5163907314"],
+  "black-friday-reengage": ["5336168655", "5163907314"],
   "properties-outside": ["5193566402"],
   "rent-anniversary": ["5209072844"],
   "landlord-savings-calculator": ["5252951265"],
@@ -1458,6 +1486,13 @@ function attributionStartMs(cfg, taskCreatedMs) {
   return sentMs <= taskCreatedMs && taskCreatedMs - sentMs <= CAMPAIGN_EMAIL_LEAD_MAX_MS ? sentMs : taskCreatedMs;
 }
 
+// Projects with utmMeetings: a meeting booked from the campaign's email (utm_campaign_of_meeting
+// in the list) belongs to the campaign whenever it was booked and whoever hosts it — the contact
+// can book before their call task exists.
+function isUtmMeeting(cfg, m) {
+  return !!(cfg && cfg.utmMeetings && m && cfg.utmMeetings.includes(m.utm_campaign_of_meeting));
+}
+
 // The meetings outcomeForEnrollmentTask would count for this task (same window + rep/host rule).
 function campaignMeetingsForTask(p, ctx) {
   const { contactsForTask, contactToMeetings, meetings, repOk, projectCfg } = ctx;
@@ -1467,10 +1502,13 @@ function campaignMeetingsForTask(p, ctx) {
   for (const cid of contactsForTask) {
     for (const id of contactToMeetings[cid] || []) {
       const m = meetings[id];
-      if (!m || !m.hs_createdate || Date.parse(m.hs_createdate) < startMs) continue;
-      if (projectCfg?.meetingsAnyHost) {
-        if (Date.parse(m.hs_createdate) > hi) continue;
-      } else if (!repOk(m)) continue;
+      if (!m || !m.hs_createdate) continue;
+      if (!isUtmMeeting(projectCfg, m)) {
+        if (Date.parse(m.hs_createdate) < startMs) continue;
+        if (projectCfg?.meetingsAnyHost) {
+          if (Date.parse(m.hs_createdate) > hi) continue;
+        } else if (!repOk(m)) continue;
+      }
       out.push({ cid, id, m });
     }
   }
@@ -1541,10 +1579,13 @@ function outcomeForEnrollmentTask(p, ctx) {
   for (const cid of contactsForTask) {
     for (const id of contactToMeetings[cid] || []) {
       const m = meetings[id];
-      if (!m || !m.hs_createdate || Date.parse(m.hs_createdate) < startMs) continue;
-      if (projectCfg?.meetingsAnyHost) {
-        if (Date.parse(m.hs_createdate) > hi) continue;
-      } else if (!repOk(m)) continue;
+      if (!m || !m.hs_createdate) continue;
+      if (!isUtmMeeting(projectCfg, m)) {
+        if (Date.parse(m.hs_createdate) < startMs) continue;
+        if (projectCfg?.meetingsAnyHost) {
+          if (Date.parse(m.hs_createdate) > hi) continue;
+        } else if (!repOk(m)) continue;
+      }
       if (!meeting || m.hs_meeting_source === "MEETINGS_PUBLIC") { meeting = m; meetingId = id; meetingCid = cid; } // self-booked wins: the call didn't cause it
     }
   }
@@ -1749,11 +1790,41 @@ async function outcomes(url, env) {
     const meetingsByProject = {}; // project key -> Map(meeting id -> meetingSummary row)
     if (enrollmentKeys.size) {
       const enrollTasks = completedTasks.filter((p) => enrollmentKeys.has(classifyProject(report, p)));
-      const enrollContactIds = [...new Set(enrollTasks.flatMap((p) => taskToContacts[p.hs_object_id] || []))];
+      // Meetings booked from a campaign email's booking link (projects with utmMeetings), found by
+      // UTM so they show even when the contact has no done call task (~3 subrequests).
+      const utmProjects = (report.projects || []).filter((c) => c.outcomeMatching === "enrollment" && c.utmMeetings && c.utmMeetings.length);
+      const utmMeetingContacts = {}; // project key -> [{ id, cid }]
+      for (const c of utmProjects) {
+        try {
+          const found = await hsFetch(`${API}/crm/v3/objects/meetings/search`, { method: "POST", headers: H, body: JSON.stringify({
+            filterGroups: [{ filters: [{ propertyName: "utm_campaign_of_meeting", operator: "IN", values: c.utmMeetings }] }],
+            properties: ["hs_createdate"], limit: 200 }) });
+          const ids = (found.results || []).map((m) => m.id);
+          const m2c = await batchAssociations(API, H, "meetings", "contacts", ids);
+          utmMeetingContacts[c.key] = ids.map((id) => ({ id, cid: (m2c[id] || [])[0] })).filter((x) => x.cid);
+        } catch (e) {
+          console.log(`outcomes: utm meetings fetch skipped for ${c.key} (${e})`);
+        }
+      }
+      const utmCids = [...new Set(Object.values(utmMeetingContacts).flat().map((x) => x.cid))];
+      const enrollContactIds = [...new Set([...enrollTasks.flatMap((p) => taskToContacts[p.hs_object_id] || []), ...utmCids])];
+      // Email bookers with no done call task: read their names and their recent calls (newest 25
+      // each), so the Meetings card can show the call logged after their meeting.
+      const missingNames = utmCids.filter((cid) => !contacts[cid]);
+      if (missingNames.length) {
+        try {
+          Object.assign(contacts, await batchRead(API, H, "contacts", missingNames, ["firstname", "lastname", "email"]));
+          const extraCalls = await batchAssociations(API, H, "contacts", "calls", missingNames);
+          for (const cid of Object.keys(extraCalls)) {
+            contactToCalls[cid] = extraCalls[cid].sort((a, b) => (BigInt(b) > BigInt(a) ? 1 : -1)).slice(0, 25);
+          }
+          Object.assign(calls, await batchRead(API, H, "calls", [...new Set(Object.values(extraCalls).flatMap((x) => x.slice(0, 25)))], ["hs_timestamp", "hs_call_disposition", "hs_call_direction", "hubspot_owner_id"]));
+        } catch (e) { console.log(`outcomes: utm contacts skipped (${e})`); }
+      }
       let contactToMeetings = {}, meetings = {}, contactToDeals = {}, deals = {};
       try {
         contactToMeetings = await batchAssociations(API, H, "contacts", "meetings", enrollContactIds);
-        meetings = await batchRead(API, H, "meetings", [...new Set(Object.values(contactToMeetings).flat())], ["hs_createdate", "hs_meeting_source", "hubspot_owner_id", "hs_meeting_start_time", "hs_meeting_outcome", "hs_meeting_title"]);
+        meetings = await batchRead(API, H, "meetings", [...new Set(Object.values(contactToMeetings).flat())], ["hs_createdate", "hs_meeting_source", "hubspot_owner_id", "hs_meeting_start_time", "hs_meeting_outcome", "hs_meeting_title", "utm_campaign_of_meeting"]);
         contactToDeals = await batchAssociations(API, H, "contacts", "deals", enrollContactIds);
         deals = await batchRead(API, H, "deals", [...new Set(Object.values(contactToDeals).flat())], ["pipeline", "dealstage", "plans___product_type", "p_p___upsell", "closedate", "createdate", "dealname"]);
       } catch (e) {
@@ -1779,7 +1850,20 @@ async function outcomes(url, env) {
         if (res && res.category === "meeting" && res.meetingId) {
           const rows = (meetingsByProject[key] ||= new Map());
           rows.set(p.hs_object_id, { ...meetingSummary(res.meetingCid, res.meetingId, meetings[res.meetingId], { ...tctx, contacts, ownerNameMap }),
-            taskIds: [p.hs_object_id], callNo: callNumber(p.hs_task_subject) || null });
+            taskIds: [p.hs_object_id], callNo: callNumber(p.hs_task_subject) || null,
+            fromEmail: isUtmMeeting(projectCfg, meetings[res.meetingId]) || undefined });
+        }
+      }
+      // Email-booked meetings no done call task was credited with (booked before the task, or the
+      // task isn't done yet): listed too, marked as from the email, with no call number.
+      for (const [key, list] of Object.entries(utmMeetingContacts)) {
+        const projectCfg = cfgFor(key);
+        const rows = (meetingsByProject[key] ||= new Map());
+        const credited = new Set([...rows.values()].map((r) => String(r.meetingId)));
+        const tctx = { ...ctx, repOk: repFilterFor(key), noCampaignEmail: !!projectCfg?.noCampaignEmail, projectCfg, contacts, ownerNameMap };
+        for (const { id, cid } of list) {
+          if (credited.has(String(id)) || !meetings[id]) continue;
+          rows.set(`utm-${id}`, { ...meetingSummary(cid, id, meetings[id], tctx), taskIds: [], callNo: null, fromEmail: true });
         }
       }
     }
