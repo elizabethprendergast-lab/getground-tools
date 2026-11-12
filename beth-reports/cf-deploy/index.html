@@ -673,10 +673,42 @@ function dealCardHtml(label, d, portalId, loading) {
         </div>
       `).join("")}
       <p class="sub" style="margin-top:12px">${d.contactsWithClosedDeal} of ${d.totalContacts} contacts put into this sequence have closed a Plans deal.</p>
+      ${dealActivityHtml(d.dealActivity, portalId)}
     </section>`;
   window.__dealRowsByLabel = window.__dealRowsByLabel || {};
   window.__dealRowsByLabel[label] = rows;
   return html;
+}
+
+// All deals (any pipeline) opened by this campaign's contacts since they were enrolled.
+function dealActivityHtml(a, portalId) {
+  if (!a) return "";
+  const t = a.total || { opened: 0, open: 0, won: 0, lost: 0 };
+  const statusPill = (s) => `<span class="mtg-status ${s === "won" ? "s-happened" : s === "lost" ? "s-cancelled" : ""}">${s === "won" ? "Won" : s === "lost" ? "Lost" : "Open"}</span>`;
+  const link = (id) => `https://app-eu1.hubspot.com/contacts/${portalId}/record/0-3/${id}`;
+  return `
+      <h3 style="margin:22px 0 4px; font-size:14px">All deals opened</h3>
+      <p class="sub">Every deal, in any pipeline, opened by a contact in this sequence on or after they were put into it${rangeIsSet() ? ` (opened ${esc(rangeLabel())})` : ""} — and where it is now.</p>
+      ${(a.rows || []).length ? `
+      <div class="overflow-x">
+        <table class="outcomes-table">
+          <thead><tr><th>Pipeline</th><th>Opened</th><th>Open</th><th>Won</th><th>Lost</th></tr></thead>
+          <tbody>
+            ${a.rows.map(r => `<tr><td>${esc(r.pipeline)}</td><td>${r.opened}</td><td>${r.open}</td><td>${r.won}</td><td>${r.lost}</td></tr>`).join("")}
+            <tr style="font-weight:600"><td>Total</td><td>${t.opened}</td><td>${t.open}</td><td>${t.won}</td><td>${t.lost}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <details style="margin-top:10px"><summary class="sub" style="cursor:pointer">See the ${t.opened} deal${t.opened === 1 ? "" : "s"}</summary>
+        <div class="overflow-x">
+          <table class="outcomes-table">
+            <thead><tr><th>Deal</th><th>Contact</th><th>Pipeline</th><th>Stage</th><th>Status</th><th>Opened</th></tr></thead>
+            <tbody>
+              ${(a.deals || []).map(x => `<tr><td><a href="${link(x.id)}" target="_blank" rel="noopener">${esc(x.name)}</a></td><td>${esc(x.contactName || "")}</td><td>${esc(x.pipeline)}</td><td>${esc(x.stage || "")}</td><td>${statusPill(x.status)}</td><td>${x.createdMs ? new Date(x.createdMs).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}</td></tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+      </details>` : `<div class="empty-state">No deals opened by these contacts since they were put into the sequence.</div>`}`;
 }
 
 function wireDealHovers(label, portalId) {
