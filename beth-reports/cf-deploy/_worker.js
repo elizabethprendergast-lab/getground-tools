@@ -479,6 +479,11 @@ const REPORTS = {
         // UTM is listed on the Meetings card, with or without a call task, and a task whose contact
         // booked one counts as "Meeting booked — from email" whenever it was booked.
         utmMeetings: ["bf_reengage_1126"],
+        // The re-engagement email is a one-off A/B batch send, not sent by either workflow:
+        // "BF26 | Reengage email 01 - Specialised Accounting | 1126" (list 24683). Only list it —
+        // ownEmailsOnly stops the ads workflow's email (5163907314) showing on this tab.
+        emails: [{ id: 511986247886, label: "BF26 Reengage email 01 — Specialised Accounting (A/B)" }],
+        ownEmailsOnly: true,
       },
       {
         key: "properties-outside",
@@ -1397,7 +1402,7 @@ async function campaignAssets(url, env) {
   const emailIds = [...new Set([
     ...projectEmails(cfg).map((e) => String(e.id)),
     ...(CAMPAIGN_EXTRA_EMAILS[key] || []),
-    ...workflows.filter((w) => !w.shared).flatMap((w) => w.emailIds),
+    ...(cfg.ownEmailsOnly ? [] : workflows.filter((w) => !w.shared).flatMap((w) => w.emailIds)),
   ])];
   const emails = await Promise.all(emailIds.map(async (id) => {
     const link = `https://${subdomain}/email/25516403/edit/${id}/content`;
