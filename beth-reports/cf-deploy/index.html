@@ -589,13 +589,18 @@ function meetingsCardHtml(label, o, portalId, loading) {
   }
   const rows = o && o.meetings;
   if (!rows) return ""; // campaign doesn't use enrollment matching — no meeting data
-  const sub = `Meetings booked from this campaign${rangeIsSet() ? ` (from call tasks completed ${esc(rangeLabel())}, same as "Meeting booked" in Outcomes)` : ""} — whether they've happened yet and how they went. Click a name to open them in HubSpot.`;
+  const viaEmail = rows.some((r) => r.fromEmail);
+  const sub = viaEmail
+    ? `Meetings booked from this campaign: the ones credited to a call task${rangeIsSet() ? ` completed ${esc(rangeLabel())}` : ""} (same as "Meeting booked" in Outcomes), plus every meeting booked straight from the campaign email's booking link${rangeIsSet() ? ` in that period` : ""}, with or without a call. Whether they've happened yet and how they went. Click a name to open them in HubSpot.`
+    : `Meetings booked from this campaign${rangeIsSet() ? ` (from call tasks completed ${esc(rangeLabel())}, same as "Meeting booked" in Outcomes)` : ""} — whether they've happened yet and how they went. Click a name to open them in HubSpot.`;
   if (!rows.length) {
     return `<section class="card"><h2>Meetings — ${esc(label)}</h2><p class="sub">${sub}</p><div class="empty-state">No meetings booked from this campaign yet.</div></section>`;
   }
   const n = (f) => rows.filter(f).length;
   const tiles = [
-    ["Booked (call tasks)", rows.length, ""],
+    ...(viaEmail
+      ? [["Booked", rows.length, ""], ["From email", n(r => r.fromEmail), ""], ["By rep", n(r => !r.fromEmail), ""]]
+      : [["Booked (call tasks)", rows.length, ""]]),
     ["Yet to happen", n(r => r.status === "Upcoming"), ""],
     ["Happened", n(r => r.status === "Happened"), ""],
     ["Positive", n(r => r.tone === "positive"), "done"],
@@ -615,7 +620,7 @@ function meetingsCardHtml(label, o, portalId, loading) {
         <tbody>${sorted.map(r => `
           <tr>
             <td><a href="https://app-eu1.hubspot.com/contacts/${portalId}/record/0-1/${r.contactId}" target="_blank" rel="noopener">${esc(r.name)}</a></td>
-            <td class="muted nowrap">${r.callNo ? `#${esc(r.callNo)}` : "—"}</td>
+            <td class="muted nowrap">${r.callNo ? `#${esc(r.callNo)}` : "—"}${r.fromEmail ? `<div class="ph-note">from email</div>` : ""}</td>
             <td class="muted">${esc(r.title)}</td>
             <td>${esc(r.host || "—")}</td>
             <td class="nowrap">${r.startTime ? fmtDateTime(r.startTime) : "—"}</td>
@@ -917,7 +922,7 @@ function referralPageHtml() {
 const NAV_GROUPS = [
   { title: "Upsell / Complete", keys: ["upsell-complete", "experiment-epc", "rent-anniversary", "hapi-areas"] },
   { title: "Reengage & follow-up", keys: ["reengage-post-webinar-bf", "properties-outside", "reengage-property-closed-lost", "reengage-ltd-core-plan", "reengage-nonpaying-master"] },
-  { title: "Active Lead & offers", keys: ["plan-close-month-end", "black-friday", "active-lead", "landlord-savings-calculator"] },
+  { title: "Active Lead & offers", keys: ["plan-close-month-end", "black-friday", "black-friday-reengage", "active-lead", "landlord-savings-calculator"] },
 ];
 const NAV_SHORT = {
   "upsell-complete": "Complete plan upsell",
@@ -1063,7 +1068,9 @@ function sliceOutcomes(o) {
     r.total++; r.outcomes[outcome] = (r.outcomes[outcome] || 0) + 1;
   }
   // Same basis as the outcome bars: meetings credited to a call task completed in the period.
-  const meetings = o.meetings && o.meetings.filter((m) => (m.taskIds || []).some((id) => keep.has(String(id))));
+  // Email-booked meetings with no credited task (fromEmail, no taskIds) go by when they were booked.
+  const meetings = o.meetings && o.meetings.filter((m) => (m.taskIds || []).length
+    ? m.taskIds.some((id) => keep.has(String(id))) : has(Date.parse(m.bookedAt)));
   return { ...o, dispositions, byRep, meetings, totalCompleted: keep.size,
     totalMatchedToCall: (o.callTasks || []).filter((id) => keep.has(String(id))).length, totalReached: reached };
 }
