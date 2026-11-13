@@ -463,8 +463,12 @@ const REPORTS = {
         // "Testing | Growth | Black Friday (AD+Reengage) - Calls only MRR | 1026", which also makes
         // the ads tab's "… - Core Plans" tasks — so the two tabs split on subject, not workflow.
         // "Interest:" keeps the ads tab's subjects out; "Core Plans" keeps these out of that tab.
-        match: (s) => s.includes("Call | Black Friday |") && s.includes("Interest:"),
-        namePattern: "Call | Black Friday | 50% off Core (6 months) | Interest: …",
+        // Open tasks renamed 13 Nov to "Call | Reengage | Black Friday email | Interest: Accounting",
+        // so match both the old and new phrasing (done tasks keep the old subject).
+        match: (s) =>
+          (s.includes("Call | Black Friday |") || s.includes("Call | Reengage | Black Friday email |")) &&
+          s.includes("Interest:"),
+        namePattern: "Call | Reengage | Black Friday email | Interest: …",
         searchTerm: "Black Friday",
         context: "Existing database (Ltd owners and A&T-interested non-customers) emailed the Black Friday offer (50% off Core for 6 months); anyone who clicks gets a call. They can also book a meeting straight from the email.",
         // Verified against real data (12 Nov): "Black" AND "Friday" AND "Interest" returns only
