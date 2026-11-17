@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Black Friday Pages</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --page-plane: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --gridline: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --series-1: #2a78d6;
+    --bar-hover: #1c5fae;
+    --accent-soft: rgba(42,120,214,0.10);
+    --good: #1a7f4b;
+    --critical: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --page-plane: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --gridline: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255,255,255,0.10);
+      --series-1: #3987e5;
+      --bar-hover: #6aa6ee;
+      --accent-soft: rgba(57,135,229,0.14);
+      --good: #3fbf7f;
+      --critical: #e66767;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page-plane); color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 20px clamp(16px, 4vw, 40px); display: flex; align-items: baseline; gap: 14px;
+    flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  header a { font-size: 13px; color: var(--text-secondary); }
+  main { min-width: 0; max-width: 1100px; margin: 0 auto; padding: 20px clamp(16px, 4vw, 40px) 64px; }
+  .meta { font-size: 13px; color: var(--text-secondary); margin: 0 0 18px; line-height: 1.5; }
+  .meta b { color: var(--text-primary); font-weight: 600; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+  .tile .l { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+  .tile .v { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tile .was { font-size: 12px; color: var(--text-secondary); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .delta { font-size: 12px; font-weight: 600; margin-left: 6px; white-space: nowrap; }
+  .early { display: block; font-size: 12px; font-weight: 400; color: var(--text-muted); margin-top: 2px; }
+  .delta.up { color: var(--good); } .delta.down { color: var(--critical); }
+
+  section.card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; margin-bottom: 20px; min-width: 0; }
+  section.card h2 { font-size: 16px; margin: 0 0 4px; font-weight: 600; }
+  section.card .sub { font-size: 13px; color: var(--text-muted); margin: 0 0 16px; }
+  .err { font-size: 13px; color: var(--critical); background: var(--accent-soft); padding: 8px 10px; border-radius: 8px; }
+
+  .chart-wrap { position: relative; width: 100%; }
+  svg.chart { width: 100%; height: 240px; display: block; overflow: visible; }
+  .tip { position: absolute; pointer-events: none; background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 9px; font-size: 12px; color: var(--text-primary); white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12); display: none; }
+
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--gridline); }
+  th { font-size: 12px; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .funnel { display: grid; gap: 8px; }
+  .funnel .row { display: grid; grid-template-columns: minmax(120px, 34%) minmax(0, 1fr); gap: 12px; align-items: center; }
+  .funnel .lab { font-size: 13px; color: var(--text-secondary); text-align: right; }
+  .funnel .track { display: flex; align-items: center; min-width: 0; border-left: 1px solid var(--baseline); height: 24px; }
+  .funnel .bar { height: 14px; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 2px; }
+  .funnel .num { font-size: 12px; color: var(--text-secondary); margin-left: 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  :root { --before: #eb6834; --since: #2a78d6; }
+  @media (prefers-color-scheme: dark) { :root { --before: #d95926; --since: #3987e5; } }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary); margin: 0 0 12px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .cchart { display: grid; grid-template-columns: minmax(110px, 34%) minmax(0, 1fr); column-gap: 12px; row-gap: 10px; position: relative; }
+  .cchart .lab { font-size: 12px; color: var(--text-secondary); text-align: right; align-self: center; line-height: 1.3; }
+  .cchart .lab small { display: block; color: var(--text-muted); }
+  .cchart .bars { display: flex; flex-direction: column; gap: 2px; border-left: 1px solid var(--baseline); padding: 2px 0; min-width: 0; cursor: default; }
+  .cchart .bars:hover .b { filter: brightness(0.9); }
+  .cchart .brow { display: flex; align-items: center; min-width: 0; height: 12px; }
+  .cchart .b { height: 10px; border-radius: 0 4px 4px 0; min-width: 2px; flex: none; }
+  .cchart .b.before { background: var(--before); } .cchart .b.since { background: var(--since); }
+  .cchart .v { font-size: 11px; color: var(--text-secondary); margin-left: 5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .linkish { font: inherit; font-size: 12px; background: none; border: none; color: var(--series-1); cursor: pointer; padding: 0; margin-top: 12px; text-decoration: underline; }
+  .funnel .row { cursor: pointer; }
+  .funnel .row:hover .bar { background: var(--bar-hover); }
+  .people { font-size: 12px; color: var(--text-secondary); padding: 0 0 6px calc(34% + 22px); }
+  .people a { color: var(--series-1); margin-right: 10px; white-space: nowrap; }
+  #contact-popover {
+    position: fixed; z-index: 50; max-width: 260px; max-height: 260px; overflow-y: auto;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18); padding: 10px 12px; font-size: 12px; display: none;
+  }
+  #contact-popover .ph-title { font-size: 11px; color: var(--text-muted); margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.03em; }
+  #contact-popover a { display: block; padding: 4px 0; color: var(--series-1); text-decoration: none; }
+  #contact-popover a:hover { text-decoration: underline; }
+  #contact-popover .ph-note { color: var(--text-muted); font-style: italic; display: block; padding: 4px 0; }
+  .notes { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+  .notes li { margin-bottom: 4px; }
+
+  .tabs { display: flex; gap: 8px; margin: 0 0 12px; flex-wrap: wrap; }
+  .tabs button { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface-1); color: var(--text-secondary); cursor: pointer; }
+  .tabs button.on { background: var(--series-1); border-color: var(--series-1); color: #fff; }
+  tr.src { cursor: pointer; }
+  tr.src td:first-child::before { content: "▸ "; color: var(--text-muted); }
+  tr.src.open td:first-child::before { content: "▾ "; }
+  tr.det td { color: var(--text-secondary); font-size: 12px; }
+  tr.det td:first-child { padding-left: 28px; }
+  tr.det.hide { display: none; }
+  tr.total td { font-weight: 600; border-top: 1px solid var(--baseline); }
+  td a { color: var(--series-1); }
+  .pill { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--text-secondary); white-space: nowrap; }
+  .pill.good { color: var(--good); }
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+  .two h3 { font-size: 13px; margin: 0 0 10px; color: var(--text-secondary); font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Black Friday pages</h1>
+  <a href="/">← All reports</a>
+  <a href="https://www.getground.co.uk/black-friday" target="_blank" rel="noopener">Black Friday page ↗</a>
+  <a href="https://www.getground.co.uk/black-friday/cost-comparison" target="_blank" rel="noopener">Cost comparison ↗</a>
+</header>
+<main>
+  <p class="meta" id="meta">Loading…</p>
+  <div class="tiles" id="tiles"></div>
+
+  <div class="tabs" id="tabs"></div>
+
+  <section class="card">
+    <h2 id="funnel-title">From visit to plan</h2>
+    <p class="sub">Hover a step to see the contacts. Share of the step above in brackets.</p>
+    <div id="funnel"></div>
+  </section>
+
+  <section class="card">
+    <h2>Where visitors came from</h2>
+    <p class="sub">One row per source; click a row to split it by campaign. Click rates are visitors who clicked at least once.</p>
+    <div class="table-scroll" id="sources"></div>
+  </section>
+
+  <section class="card">
+    <h2>Visitors per day</h2>
+    <p class="sub">New visitors to the selected page. Hover a day for the split by source.</p>
+    <div id="chart"></div>
+  </section>
+
+  <section class="card">
+    <h2>Meetings booked</h2>
+    <p class="sub" id="meetings-sub"></p>
+    <div class="table-scroll" id="meetings"></div>
+  </section>
+
+  <section class="card">
+    <h2>Claim online → checkout</h2>
+    <p class="sub">“Claim online” opens app checkout with the code already applied. The app steps count anyone who arrived with code BF26CORE50 in the link — from these pages, the pricing pages or /budget-2026.</p>
+    <div id="checkout"></div>
+  </section>
+
+  <section class="card">
+    <h2>How to read this</h2>
+    <ul class="notes">
+      <li><b>Only people who accept the cookie banner are tracked</b> in Mixpanel, so visitors and clicks are lower than the real numbers. Meetings and plans come from HubSpot and are complete.</li>
+      <li><b>Source</b> comes from the link the visitor arrived on (UTM tags — Mixpanel keeps them for the whole visit), otherwise the site they came from. <b>Site banner</b> = clicked the sitewide Black Friday banner up to 30 minutes before reaching the page; that wins over older tags.</li>
+      <li><b>Book a call</b> counts the booking buttons (and the older “Talk to our team” buttons). <b>Claim online</b> counts the claim/checkout buttons.</li>
+      <li><b>Meetings</b> are bookings made through the page’s booking button: the link carries <code>utm_medium=black_friday_page</code> or <code>bf_cost_comparison</code>, plus the visitor’s own source and campaign. Tagging started on 17 Nov at 12:47 (the page update); bookings made through the page before then can’t be told apart. Banner, search and direct visitors all arrive untagged, so their meetings show as “Website / untagged”.</li>
+      <li><b>Plans bought</b> = a Closed won Plans-pipeline deal on the contact, created from an hour before the booking onwards.</li>
+      <li>Internal test visits and bookings count too.</li>
+    </ul>
+  </section>
+  <p class="notes" id="footer"></p>
+  <div id="contact-popover"></div>
+</main>
+<script>
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pct = (a, b) => b ? `${Math.round((a / b) * 100)}%` : "—";
+const fmtTime = (iso) => iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : "—";
+const hsContact = (id, name) => `<a href="https://app-eu1.hubspot.com/contacts/25516403/record/0-1/${encodeURIComponent(id)}" target="_blank" rel="noopener">${esc(name || `HubSpot ${id}`)}</a>`;
+
+let popoverHideTimer = null;
+function positionPop(anchorEl) {
+  const pop = document.getElementById("contact-popover"), rect = anchorEl.getBoundingClientRect();
+  pop.style.display = "block";
+  pop.style.top = Math.max(8, Math.min(rect.bottom + 6, window.innerHeight - pop.offsetHeight - 12)) + "px";
+  pop.style.left = Math.min(rect.left, window.innerWidth - 280) + "px";
+}
+function showPop(anchorEl, people, emptyText) {
+  clearTimeout(popoverHideTimer);
+  const pop = document.getElementById("contact-popover");
+  if (people === null) pop.innerHTML = `<span class="ph-note">${esc(emptyText)}</span>`;
+  else pop.innerHTML = `<p class="ph-title">${people.length} contact${people.length === 1 ? "" : "s"}</p>` + (people.length
+    ? people.map((p) => p.contactId ? `<a href="https://app-eu1.hubspot.com/contacts/25516403/record/0-1/${encodeURIComponent(p.contactId)}" target="_blank" rel="noopener">${esc(p.name || `HubSpot ${p.contactId}`)}</a>` : `<span class="ph-note">${esc(p.name || "Unknown")}</span>`).join("")
+    : `<span class="ph-note">${esc(emptyText)}</span>`);
+  positionPop(anchorEl);
+}
+function scheduleHidePopover() {
+  clearTimeout(popoverHideTimer);
+  popoverHideTimer = setTimeout(() => { document.getElementById("contact-popover").style.display = "none"; }, 250);
+}
+const popEl = document.getElementById("contact-popover");
+popEl.onmouseenter = () => clearTimeout(popoverHideTimer); popEl.onmouseleave = scheduleHidePopover;
+
+function tile(label, value, sub) {
+  return `<div class="tile"><div class="l">${esc(label)}</div><div class="v">${value}</div><div class="was">${sub || ""}</div></div>`;
+}
+
+function funnel(el, steps) {
+  const max = Math.max(...steps.map((s) => s.v), 1);
+  el.innerHTML = `<div class="funnel">${steps.map((s, i) => `<div class="row" data-i="${i}" tabindex="0"><div class="lab">${esc(s.l)}</div><div class="track"><div class="bar" style="width:${(s.v / max) * 85}%"></div><span class="num">${s.v}${i && s.of !== false ? ` (${pct(s.v, steps[i - 1].v)})` : ""}</span></div></div>`).join("")}</div>`;
+  el.querySelectorAll(".row").forEach((r) => {
+    const s = steps[+r.dataset.i];
+    const show = () => showPop(r.querySelector(".track"), s.people, s.empty);
+    r.addEventListener("mouseenter", show); r.addEventListener("focus", show);
+    r.addEventListener("mouseleave", scheduleHidePopover); r.addEventListener("blur", scheduleHidePopover);
+  });
+}
+
+function renderChart(daily, pageKey, sourceNames) {
+  const el = document.getElementById("chart");
+  const rows = daily.map((d) => ({ date: d.date, v: pageKey === "all" ? (d.main || 0) + (d.calc || 0) : (d[pageKey] || 0), d })).filter((r, i, a) => a.slice(0, i + 1).some((x) => x.v));
+  if (!rows.length) { el.innerHTML = `<p class="sub">No visits yet.</p>`; return; }
+  const W = 1000, H = 220, padL = 36, padB = 26, padT = 10;
+  const max = Math.max(...rows.map((d) => d.v), 1), nice = Math.max(5, Math.ceil(max / 5) * 5);
+  const bw = (W - padL) / rows.length, y = (v) => padT + (H - padT - padB) * (1 - v / nice);
+  const every = Math.ceil(rows.length / 16);
+  let s = "";
+  for (let i = 0; i <= 4; i++) { const v = (nice / 4) * i, yy = y(v);
+    s += `<line x1="${padL}" x2="${W}" y1="${yy}" y2="${yy}" stroke="var(--gridline)"/><text x="${padL - 6}" y="${yy + 4}" text-anchor="end" font-size="11" fill="var(--text-muted)">${Math.round(v)}</text>`; }
+  rows.forEach((d, i) => {
+    const w = Math.max(Math.min(bw - 4, 40), 2), cx = padL + i * bw + bw / 2;
+    s += `<rect x="${cx - w / 2}" y="${y(d.v)}" width="${w}" height="${Math.max((H - padB) - y(d.v), 0)}" rx="3" fill="var(--series-1)"/>`;
+    s += `<rect class="hit" data-i="${i}" x="${padL + i * bw}" y="${padT}" width="${bw}" height="${H - padT - padB}" fill="transparent"/>`;
+    if (i % every === 0) s += `<text x="${cx}" y="${H - 8}" text-anchor="middle" font-size="11" fill="var(--text-muted)">${d.date.slice(8)}/${d.date.slice(5, 7)}</text>`;
+  });
+  s += `<line x1="${padL}" x2="${W}" y1="${H - padB}" y2="${H - padB}" stroke="var(--baseline)"/>`;
+  el.innerHTML = `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Visitors per day">${s}</svg><div class="tip"></div></div>`;
+  const tip = el.querySelector(".tip"), wrap = el.querySelector(".chart-wrap");
+  el.querySelectorAll("rect.hit").forEach((r) => {
+    r.addEventListener("mousemove", (e) => { const d = rows[+r.dataset.i];
+      const split = pageKey === "all" ? sourceNames.filter((n) => d.d[n]).map((n) => `${esc(n)}: ${d.d[n]}`).join("<br>") : "";
+      tip.innerHTML = `<b>${esc(d.date)}</b><br>${d.v} visitors${split ? `<br><span style="color:var(--text-muted)">${split}</span>` : ""}`;
+      const box = wrap.getBoundingClientRect(); tip.style.display = "block";
+      tip.style.left = Math.min(e.clientX - box.left + 12, box.width - tip.offsetWidth) + "px"; tip.style.top = (e.clientY - box.top - 40) + "px"; });
+    r.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+  });
+}
+
+let DATA = null, PAGE = "all";
+function mergedPage(d) {
+  if (PAGE !== "all") return d.pages.find((p) => p.key === PAGE);
+  const src = {};
+  for (const p of d.pages) for (const r of p.sources || []) {
+    const t = src[r.source] = src[r.source] || { source: r.source, visitors: 0, book: 0, claim: 0, detail: {} };
+    t.visitors += r.visitors; t.book += r.book; t.claim += r.claim;
+    for (const x of r.detail) { const y = t.detail[x.detail] = t.detail[x.detail] || { detail: x.detail, visitors: 0, book: 0, claim: 0 }; y.visitors += x.visitors; y.book += x.book; y.claim += x.claim; }
+  }
+  const sum = (k) => d.pages.reduce((t, p) => t + (p[k] || 0), 0);
+  return { key: "all", label: "Both pages", visitors: sum("visitors"), book: sum("book"), claim: sum("claim"),
+    sources: Object.values(src).map((r) => ({ ...r, detail: Object.values(r.detail).sort((a, b) => b.visitors - a.visitors) })).sort((a, b) => b.visitors - a.visitors) };
+}
+
+function renderPage() {
+  const d = DATA, page = mergedPage(d);
+  const medium = PAGE === "all" ? null : d.pages.find((p) => p.key === PAGE).utmMedium;
+  const meetings = (d.meetings || []).filter((m) => !medium || m.utmMedium === medium);
+  document.getElementById("tabs").innerHTML = [["all", "Both pages"], ...d.pages.map((p) => [p.key, p.label])]
+    .map(([k, l]) => `<button data-k="${k}" class="${k === PAGE ? "on" : ""}">${esc(l)}</button>`).join("");
+  document.getElementById("tabs").querySelectorAll("button").forEach((b) => b.onclick = () => { PAGE = b.dataset.k; renderPage(); });
+  document.getElementById("funnel-title").textContent = `From visit to plan — ${page.label}`;
+
+  const mp = !d.errors.mixpanel;
+  const people = (list) => list.filter((m) => m.contactId).map((m) => ({ contactId: m.contactId, name: m.name }));
+  funnel(document.getElementById("funnel"), [
+    { l: "Visited the page", v: mp ? page.visitors : 0, people: null, empty: "Website visitors aren't logged in, so they aren't linked to a contact." },
+    { l: "Clicked “Book a call”", v: mp ? page.book : 0, people: null, empty: "Clicks aren't linked to a contact." },
+    { l: "Booked a meeting", v: meetings.length, people: people(meetings), empty: "No bookings through the page yet (tagged since 17 Nov, 12:47)." },
+    { l: "Bought a plan", v: meetings.filter((m) => m.plan).length, people: people(meetings.filter((m) => m.plan)), empty: "None yet." },
+  ]);
+
+  // Sources table, with meetings matched by source.
+  const mBySource = {};
+  for (const m of meetings) mBySource[m.source] = (mBySource[m.source] || 0) + 1;
+  const srcEl = document.getElementById("sources");
+  if (!mp) srcEl.innerHTML = `<p class="err">Mixpanel data unavailable: ${esc(d.errors.mixpanel)}</p>`;
+  else {
+    const rows = page.sources.map((r, i) => `
+      <tr class="src" data-i="${i}"><td>${esc(r.source)}</td><td class="n">${r.visitors}</td><td class="n">${r.book} <span class="pill">${pct(r.book, r.visitors)}</span></td><td class="n">${r.claim} <span class="pill">${pct(r.claim, r.visitors)}</span></td></tr>
+      ${r.detail.map((x) => `<tr class="det hide" data-p="${i}"><td>${esc(x.detail)}</td><td class="n">${x.visitors}</td><td class="n">${x.book}</td><td class="n">${x.claim}</td></tr>`).join("")}`).join("");
+    const meetRows = Object.entries(mBySource).sort((a, b) => b[1] - a[1]).map(([s, n]) => `<tr><td>${esc(s)}</td><td class="n">${n}</td></tr>`).join("");
+    srcEl.innerHTML = `<div class="two"><div><h3>Visitors and clicks</h3><table><thead><tr><th>Source</th><th class="n">Visitors</th><th class="n">Book a call</th><th class="n">Claim online</th></tr></thead><tbody>${rows}
+      <tr class="total"><td>Total</td><td class="n">${page.visitors}</td><td class="n">${page.book} <span class="pill">${pct(page.book, page.visitors)}</span></td><td class="n">${page.claim} <span class="pill">${pct(page.claim, page.visitors)}</span></td></tr></tbody></table></div>
+      <div><h3>Meetings booked, by source</h3>${meetRows ? `<table><thead><tr><th>Source (from the booking link)</th><th class="n">Meetings</th></tr></thead><tbody>${meetRows}</tbody></table>` : `<p class="sub">No tagged bookings yet.</p>`}</div></div>`;
+    srcEl.querySelectorAll("tr.src").forEach((tr) => tr.onclick = () => {
+      tr.classList.toggle("open");
+      srcEl.querySelectorAll(`tr.det[data-p="${tr.dataset.i}"]`).forEach((x) => x.classList.toggle("hide"));
+    });
+  }
+
+  if (mp) renderChart(d.daily || [], PAGE, [...new Set(d.pages.flatMap((p) => (p.sources || []).map((s) => s.source)))]);
+  else document.getElementById("chart").innerHTML = "";
+
+  // Meetings table
+  const mEl = document.getElementById("meetings");
+  const pageLabel = (m) => (d.pages.find((p) => p.utmMedium === m.utmMedium) || {}).label || m.utmMedium || "BF email link";
+  const table = (list, withPage) => `<table><thead><tr><th>Booked</th><th>Contact</th>${withPage ? "<th>Page</th>" : ""}<th>Source</th><th>Campaign</th><th>Call</th><th>Plan</th></tr></thead><tbody>${list.map((m) => `
+    <tr><td>${fmtTime(m.bookedAt)}</td><td>${m.contactId ? hsContact(m.contactId, m.name) : "—"}</td>${withPage ? `<td>${esc(pageLabel(m))}</td>` : ""}<td>${esc(m.utmSource || "—")}</td><td>${esc(m.utmCampaign || "—")}</td><td>${fmtTime(m.startsAt)}</td><td>${m.plan ? `<span class="pill good">Bought</span>` : ""}</td></tr>`).join("")}</tbody></table>`;
+  const em = d.emailMeetings || [];
+  document.getElementById("meetings-sub").textContent = d.errors.meetings ? "" : `Booked through the page's booking button (tagged ${medium ? medium : "black_friday_page / bf_cost_comparison"}).`;
+  mEl.innerHTML = d.errors.meetings ? `<p class="err">HubSpot data unavailable: ${esc(d.errors.meetings)}</p>`
+    : (meetings.length ? table(meetings, PAGE === "all") : `<p class="sub">No bookings through the page yet. The booking buttons have been tagged since 17 Nov, 12:47.</p>`)
+      + (em.length ? `<details style="margin-top:14px"><summary class="sub" style="cursor:pointer;margin:0">For comparison: ${em.length} meeting${em.length === 1 ? "" : "s"} booked straight from the Black Friday emails’ own link (not via the page)</summary>${table(em, false)}</details>` : "");
+
+  // Checkout
+  const c = d.checkout;
+  const coEl = document.getElementById("checkout");
+  if (!mp || !c) coEl.innerHTML = mp ? "" : `<p class="err">Mixpanel data unavailable.</p>`;
+  else funnel(coEl, [
+    { l: `Clicked “Claim online” (${PAGE === "all" ? "both pages" : page.label})`, v: page.claim, people: null, empty: "Clicks aren't linked to a contact." },
+    { l: "Opened the app with the code (any page)", v: c.opened, of: false, people: null, empty: "Counted from app events with the code in the link." },
+    { l: "Reached checkout", v: c.checkout, people: null, empty: "Counted from app events with the code in the link." },
+    { l: "Completed checkout", v: c.complete, people: c.people, empty: "None yet." },
+  ]);
+}
+
+function render(d) {
+  DATA = d;
+  document.getElementById("meta").innerHTML = `Since <b>${new Date(d.startDay).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</b> · live from Mixpanel and HubSpot · offer ends Mon 30 Nov 23:59.`;
+  const mp = !d.errors.mixpanel, sum = (k) => d.pages.reduce((t, p) => t + (p[k] || 0), 0);
+  const meetings = d.meetings || [];
+  document.getElementById("tiles").innerHTML = [
+    tile("Visitors (both pages)", mp ? sum("visitors") : "—", mp ? d.pages.map((p) => `${p.label.split(" (")[0]}: ${p.visitors}`).join(" · ") : esc(d.errors.mixpanel)),
+    tile("Clicked “Book a call”", mp ? sum("book") : "—", mp ? `${pct(sum("book"), sum("visitors"))} of visitors` : ""),
+    tile("Meetings booked from the pages", d.errors.meetings ? "—" : meetings.length, d.errors.meetings ? "unavailable" : `${(d.emailMeetings || []).length} more straight from BF emails`),
+    tile("Plans bought", d.errors.meetings ? "—" : meetings.filter((m) => m.plan).length, "after booking from the pages"),
+    tile("Banner clicks (sitewide)", mp && d.bannerClicks ? d.bannerClicks.clicks : "—", mp && d.bannerClicks ? `${d.bannerClicks.visitors} visitors` : ""),
+    tile("Checkouts with the BF code", mp && d.checkout ? d.checkout.complete : "—", mp && d.checkout ? `${d.checkout.checkout} reached checkout` : ""),
+  ].join("");
+  renderPage();
+  document.getElementById("footer").textContent = `Updated ${new Date(d.generatedAt).toLocaleString("en-GB", { timeZone: "Europe/London" })} · refreshes every 10 minutes.`;
+}
+
+fetch("/api/bf-pages").then((r) => r.json()).then((d) => { if (d.error) throw new Error(d.error); render(d); })
+  .catch((e) => { document.getElementById("meta").innerHTML = `<span class="err">Couldn't load the report: ${esc(e.message)}</span>`; });
+</script>
+</body>
+</html>
