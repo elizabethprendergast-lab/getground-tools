@@ -81,9 +81,17 @@
         {
           "label": "n8n: Create Ticket",
           "url": "https://getground.app.n8n.cloud/workflow/2ez4j7Vx6aDNVW5m"
+        },
+        {
+          "label": "n8n: Suggest Ticket",
+          "url": "https://getground.app.n8n.cloud/workflow/nI6wYjcP2IaCPsmN"
         }
       ],
-      "tab": "Ticket tool"
+      "tab": "Ticket tool",
+      "usageUrl": "https://getground.app.n8n.cloud/webhook/ctt-usage",
+      "excludeUsers": [
+        "elizabeth.prendergast@getground.co.uk"
+      ]
     },
     {
       "key": "complete-post-purchase",

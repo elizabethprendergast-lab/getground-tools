@@ -277,8 +277,28 @@ async function evaluateTool(env, tool, sinceOverrideMs) {
         contactUrl: c ? contactUrl(c.id) : null, ticketUrl: tid ? `https://app-eu1.hubspot.com/contacts/${PORTAL}/record/0-5/${tid}` : null });
     }
   }
+  // Usage log from n8n (every Suggest run and Create attempt, by verified consultant email).
+  let usage = null;
+  if (tool.usageUrl && env.CTT_USAGE_KEY) {
+    try {
+      const r = await fetch(tool.usageUrl, { headers: { "x-usage-key": env.CTT_USAGE_KEY } });
+      const j = await r.json();
+      const skip = new Set((tool.excludeUsers || []).map((e) => e.toLowerCase()));
+      const rows = (j.rows || []).filter((x) => !skip.has(String(x.email).toLowerCase()) && Date.parse(x.at) >= sinceMs);
+      const per = {};
+      for (const x of rows) {
+        const n = consultantName(x.email);
+        per[n] = per[n] || { name: n, suggestions: 0, created: 0, rejected: 0, last: 0 };
+        if (x.action === "suggest") per[n].suggestions++;
+        else if (x.action === "create") per[n].created++;
+        else if (x.action === "create_rejected" || x.action === "create_failed") per[n].rejected++;
+        per[n].last = Math.max(per[n].last, Date.parse(x.at));
+      }
+      usage = { suggestions: rows.filter((x) => x.action === "suggest").length, users: Object.values(per).sort((a, b) => b.last - a.last) };
+    } catch (e) { usage = { error: String(e.message || e) }; }
+  }
   return {
-    ...tool, sinceMs, viaTool, manual, tickets,
+    ...tool, sinceMs, viaTool, manual, tickets, usage,
     adoption: viaTool + manual ? Math.round((100 * viaTool) / (viaTool + manual)) : 0,
     people: Object.entries(byPerson).map(([name, c]) => ({ name, ...c })).sort((a, b) => b.tool - a.tool || b.manual - a.manual),
   };
