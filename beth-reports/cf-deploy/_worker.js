@@ -807,6 +807,7 @@ export default {
     if (url.pathname === "/api/meetings") return meetingsBooked(url, env);
     if (url.pathname === "/api/btl-calc") return btlCalcReport(url, env, ctx);
     if (url.pathname === "/api/chatgpt-ltd") return chatgptLtdReport(url, env, ctx);
+    if (url.pathname === "/api/bf-pages") return bfPagesReport(url, env, ctx);
     // Per-campaign pages are query-string routed (/?campaign=key) rather than path-routed
     // (/campaign/key) — tried path-routing first, but it needs a server-side rewrite to the
     // SPA shell for a path with no matching static file, and that rewrite hit an asset-server
@@ -2774,14 +2775,15 @@ async function mpExport(env, { from, to, events, where }, attempt = 0) {
 const MP_KEEP = ["time", "distinct_id", "$device_id", "$user_id", "button_id", "page_section", "option_group"];
 const addDay = (day, n) => new Date(Date.parse(`${day}T12:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
 async function mpExportCached(env, origin, opts) {
-  const slim = (rows) => rows.map((e) => ({ event: e.event, properties: Object.fromEntries(MP_KEEP.filter((k) => e.properties[k] !== undefined).map((k) => [k, e.properties[k]])) }));
+  const keep = opts.keep || MP_KEEP;
+  const slim = (rows) => rows.map((e) => ({ event: e.event, properties: Object.fromEntries(keep.filter((k) => e.properties[k] !== undefined).map((k) => [k, e.properties[k]])) }));
   const today = opts.to;
   const dow = new Date(`${today}T12:00:00Z`).getUTCDay();
   const lastSunday = addDay(today, -(dow || 7));
   const parts = [];
   // One request at a time: running them together hit Mixpanel's 3/second limit (22 Oct).
   if (opts.from <= lastSunday) {
-    const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(JSON.stringify([opts.events, opts.where, MP_KEEP])));
+    const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(JSON.stringify(opts.keep ? [opts.events, opts.where, keep] : [opts.events, opts.where, MP_KEEP])));
     const h = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
     const key = new Request(`${origin}/__cache/mp-export/${h}/${opts.from}_${lastSunday}`);
     const hit = await caches.default.match(key);
@@ -3237,6 +3239,213 @@ async function chatgptLtdReport(url, env, ctx) {
       total: meetings.length,
       people: cids.map((id) => ({ contactId: id, name: [contacts[id] && contacts[id].firstname, contacts[id] && contacts[id].lastname].filter(Boolean).join(" ").trim() || (contacts[id] && contacts[id].email) || null })),
     };
+  } catch (e) { out.errors.meetings = String(e); }
+
+  const res = json(out, 200);
+  if (Object.keys(out.errors).length) return res;
+  res.headers.set("Cache-Control", "max-age=600");
+  if (ctx && ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, res.clone()));
+  return res;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Black Friday pages report (/black-friday-pages/) — www.getground.co.uk/black-friday and
+// /black-friday/cost-comparison. Funnel per page and per traffic source:
+//   visitors (Mixpanel, consenting only) → clicked "Book a call" / "Claim online" →
+//   meetings booked (HubSpot) → plans bought.
+// Sources come from the visitor's UTMs (Mixpanel keeps them for the whole visit), else the
+// referrer. "Site banner" = clicked the sitewide banner (button_id black_friday_banner) within
+// 30 minutes before reaching the page; that wins over older UTMs.
+// Meetings: the pages' booking buttons open the plan-ics link with utm_medium black_friday_page
+// or bf_cost_comparison, plus the visitor's own utm_source / utm_campaign (utm_source "website"
+// when they had none), so HubSpot's "UTM … of meeting" tells page and source apart.
+// The "Claim online" path goes to app checkout with promo_code=BF26CORE50 in the URL; app events
+// carrying the code are counted from any page that links with it, not only these two.
+const BF_PAGES = {
+  startDay: "2026-10-15",
+  promoCode: "BF26CORE50",
+  pages: [
+    { key: "main", path: "/black-friday", label: "Black Friday page", utmMedium: "black_friday_page" },
+    { key: "calc", path: "/black-friday/cost-comparison", label: "Cost comparison (calculator)", utmMedium: "bf_cost_comparison" },
+  ],
+  bannerButton: "black_friday_banner",
+  // Meetings booked straight from the BF emails' own link (not via the page), shown for context.
+  emailCampaigns: ["bf_reengage_1126", "bf"],
+};
+const BF_CACHE_VERSION = "v1";
+const BF_KEEP = ["time", "distinct_id", "$current_url", "$referrer", "$initial_referrer", "utm_source", "utm_medium", "utm_campaign", "button_id", "$user_id", "$device_id"];
+
+function hostOf(u) { try { return new URL(u).hostname.replace(/^www\./, ""); } catch (_) { return ""; } }
+
+// [source, detail] for a visitor, from the properties on their first event on the page.
+function bfSource(p) {
+  const s = String(p.utm_source || "").toLowerCase(), m = String(p.utm_medium || "").toLowerCase(), c = p.utm_campaign || "";
+  const ref = hostOf(p.$referrer) || hostOf(p.$initial_referrer);
+  if (s || m) {
+    if (s === "webinar" || (m === "qr" && s !== "direct_mail")) return ["Webinar QR code", c || null];
+    if (s === "direct_mail" || m === "offline") return ["Direct mail QR code", c || null];
+    if (/email|hubspot/.test(`${s} ${m}`)) return ["Email", c || null];
+    if (/facebook|meta|^ig$|instagram/.test(s) || m === "paid social") return ["Paid social (Meta)", c || null];
+    if (/cpc|paid_search|ppc/.test(m) || s === "google" || s === "chatgpt") return ["Paid search", [s, c].filter(Boolean).join(" · ") || null];
+    return ["Other tagged link", [s, m, c].filter(Boolean).join(" · ")];
+  }
+  if (/facebook|instagram/.test(ref)) return ["Facebook / Instagram (untagged)", ref];
+  if (/google|bing|duckduckgo|yahoo|ecosia/.test(ref)) return ["Search (organic)", ref];
+  if (/getground\.co\.uk$/.test(ref)) return ["Other link on our site", null];
+  if (ref) return ["Other website", ref];
+  return ["Direct / unknown", null];
+}
+// Meetings only carry utm_source + utm_campaign from the visitor ("website" = no tags).
+function bfMeetingSource(src) {
+  const s = String(src || "").toLowerCase();
+  if (!s || s === "website") return "Website / untagged (banner, search, direct)";
+  return bfSource({ utm_source: s, utm_medium: s === "webinar" ? "qr" : "" })[0];
+}
+function bfButtonKind(id) {
+  const b = String(id || "");
+  if (/book|talk_to_team|consultation/.test(b) && !/learn_more/.test(b)) return "book";
+  if (/claim/.test(b)) return "claim";
+  return null;
+}
+
+async function bfPagesReport(url, env, ctx) {
+  const cache = caches.default;
+  const cacheKey = new Request(`${url.origin}/__cache/bf-pages-${BF_CACHE_VERSION}`);
+  if (url.searchParams.get("refresh") !== "1") {
+    const hit = await cache.match(cacheKey);
+    if (hit) return hit;
+  }
+  const API = "https://api.hubapi.com";
+  const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
+  const today = londonDay(Date.now());
+  const out = { startDay: BF_PAGES.startDay, pages: BF_PAGES.pages.map((p) => ({ key: p.key, path: p.path, label: p.label, utmMedium: p.utmMedium })), generatedAt: new Date().toISOString(), errors: {} };
+  const ms = (e) => (e.properties.time || 0) * 1000;
+  const pageOf = (u) => {
+    let path; try { path = new URL(u).pathname.replace(/\/$/, ""); } catch (_) { return null; }
+    return BF_PAGES.pages.find((p) => p.path === path) || null;
+  };
+
+  if (!mpCreds(env)) out.errors.mixpanel = "Mixpanel service account not configured";
+  else try {
+    const base = { from: BF_PAGES.startDay, to: today, keep: BF_KEEP };
+    const pageEvents = await mpExportCached(env, url.origin, { ...base, where: `properties["source"] == "marketing" and "/black-friday" in properties["$current_url"]` });
+    const bannerClicks = await mpExportCached(env, url.origin, { ...base, events: ["button_clicked"], where: `properties["button_id"] == "${BF_PAGES.bannerButton}"` });
+    const appEvents = await mpExportCached(env, url.origin, { ...base, where: `properties["source"] == "platform" and "${BF_PAGES.promoCode}" in properties["$current_url"]` });
+    // The code is only in the link people land on; later checkout pages don't carry it.
+    const checkoutViews = await mpExportCached(env, url.origin, { ...base, events: ["page_viewed"], where: `properties["source"] == "platform" and "/packs-and-plans/checkout" in properties["$current_url"]` });
+
+    const bannerAt = {};
+    for (const e of bannerClicks) (bannerAt[e.properties.distinct_id] = bannerAt[e.properties.distinct_id] || []).push(ms(e));
+    out.bannerClicks = { clicks: bannerClicks.length, visitors: Object.keys(bannerAt).length };
+
+    pageEvents.sort((a, b) => ms(a) - ms(b));
+    const per = {}; // page key -> distinct_id -> visitor
+    const daily = {};
+    for (const e of pageEvents) {
+      const page = pageOf(e.properties.$current_url);
+      if (!page) continue;
+      const who = e.properties.distinct_id, t = ms(e);
+      per[page.key] = per[page.key] || {};
+      let v = per[page.key][who];
+      if (!v) {
+        const banner = (bannerAt[who] || []).some((b) => b <= t + 60e3 && b >= t - 30 * 60e3);
+        const [source, detail] = banner ? ["Site banner", null] : bfSource(e.properties);
+        v = per[page.key][who] = { first: t, source, detail, book: 0, claim: 0 };
+        const d = londonDay(t);
+        daily[d] = daily[d] || { date: d };
+        daily[d][page.key] = (daily[d][page.key] || 0) + 1;
+        daily[d][source] = (daily[d][source] || 0) + 1;
+      }
+      if (e.event === "button_clicked") {
+        const k = bfButtonKind(e.properties.button_id);
+        if (k) v[k]++;
+      }
+    }
+    out.daily = Object.values(daily).sort((a, b) => a.date.localeCompare(b.date));
+    for (const page of out.pages) {
+      const vs = Object.values(per[page.key] || {});
+      const rows = {};
+      for (const v of vs) {
+        const r = rows[v.source] = rows[v.source] || { source: v.source, visitors: 0, book: 0, claim: 0, detail: {} };
+        r.visitors++; if (v.book) r.book++; if (v.claim) r.claim++;
+        const dk = v.detail || "(no campaign)";
+        const d = r.detail[dk] = r.detail[dk] || { detail: dk, visitors: 0, book: 0, claim: 0 };
+        d.visitors++; if (v.book) d.book++; if (v.claim) d.claim++;
+      }
+      page.visitors = vs.length;
+      page.book = vs.filter((v) => v.book).length;
+      page.claim = vs.filter((v) => v.claim).length;
+      page.sources = Object.values(rows).map((r) => ({ ...r, detail: Object.values(r.detail).sort((a, b) => b.visitors - a.visitors) })).sort((a, b) => b.visitors - a.visitors);
+    }
+
+    // Claim online → app checkout with the code in the URL (any page linking with it).
+    // One person = their app user id (an event carrying both ids links a device to it), else the
+    // device id. Checkout pages count only from that person's first visit with the code.
+    const pathOf = (u) => { try { return new URL(u).pathname.replace(/\/$/, ""); } catch (_) { return ""; } };
+    const devUser = {};
+    for (const e of [...appEvents, ...checkoutViews]) if (e.properties.$user_id && e.properties.$device_id) devUser[e.properties.$device_id] = String(e.properties.$user_id);
+    const personOf = (p) => String(p.$user_id || devUser[p.$device_id] || p.$device_id || p.distinct_id);
+    const firstWithCode = {};
+    for (const e of appEvents) { const k = personOf(e.properties); firstWithCode[k] = Math.min(firstWithCode[k] ?? Infinity, ms(e)); }
+    const checkout = new Set(), complete = new Set();
+    for (const e of checkoutViews) {
+      const k = personOf(e.properties);
+      if (firstWithCode[k] === undefined || ms(e) < firstWithCode[k] - 60e3) continue;
+      checkout.add(k);
+      if (pathOf(e.properties.$current_url) === "/packs-and-plans/checkout/complete") complete.add(k);
+    }
+    const opened = { size: Object.keys(firstWithCode).length };
+    const doneIds = [...complete].filter((u) => /^\d+$/.test(u));
+    const people = [];
+    for (const c of chunk(doneIds, 100)) {
+      const j = await hsFetch(`${API}/crm/v3/objects/contacts/search`, {
+        method: "POST", headers: H,
+        body: JSON.stringify({ filterGroups: [{ filters: [{ propertyName: "user_id", operator: "IN", values: c }] }], properties: ["user_id", "firstname", "lastname", "email"], limit: 100 }),
+      });
+      for (const r of j.results || []) people.push({ contactId: r.id, name: [r.properties.firstname, r.properties.lastname].filter(Boolean).join(" ").trim() || r.properties.email || null });
+    }
+    out.checkout = { opened: opened.size, checkout: checkout.size, complete: complete.size, people };
+  } catch (e) { out.errors.mixpanel = String(e); }
+
+  // Meetings booked from the pages' booking buttons, and (for context) straight from BF emails.
+  try {
+    const since = String(Date.parse(`${BF_PAGES.startDay}T00:00:00+01:00`));
+    const props = ["hs_createdate", "hs_meeting_start_time", "utm_source_of_meeting", "utm_medium_of_meeting", "utm_campaign_of_meeting"];
+    const search = async (filterGroups) => {
+      const res = []; let after;
+      do {
+        const j = await hsFetch(`${API}/crm/v3/objects/meetings/search`, { method: "POST", headers: H, body: JSON.stringify({ filterGroups, properties: props, limit: 100, ...(after ? { after } : {}) }) });
+        res.push(...(j.results || [])); after = j.paging && j.paging.next && j.paging.next.after;
+      } while (after);
+      return res;
+    };
+    const pageMeetings = await search(BF_PAGES.pages.map((p) => ({ filters: [
+      { propertyName: "utm_medium_of_meeting", operator: "EQ", value: p.utmMedium },
+      { propertyName: "hs_createdate", operator: "GTE", value: since },
+    ] })));
+    const emailMeetings = await search([{ filters: [
+      { propertyName: "utm_campaign_of_meeting", operator: "IN", values: BF_PAGES.emailCampaigns },
+      { propertyName: "hs_createdate", operator: "GTE", value: since },
+    ] }]);
+    const pageIds = new Set(pageMeetings.map((m) => m.id));
+    const emailOnly = emailMeetings.filter((m) => !pageIds.has(m.id));
+    const all = [...pageMeetings, ...emailOnly];
+    const m2c = all.length ? await batchAssociations(API, H, "meetings", "contacts", all.map((m) => m.id)) : {};
+    const cids = [...new Set(Object.values(m2c).flat())];
+    const contacts = await batchRead(API, H, "contacts", cids, ["firstname", "lastname", "email"]);
+    const nameOf = (id) => { const c = contacts[id] || {}; return [c.firstname, c.lastname].filter(Boolean).join(" ").trim() || c.email || null; };
+    // Plans bought: a Closed won Plans-pipeline deal on the contact, created from an hour before the booking.
+    const won = await btlWonStages(API, H);
+    const c2d = cids.length ? await batchAssociations(API, H, "contacts", "deals", cids) : {};
+    const deals = await batchRead(API, H, "deals", [...new Set(Object.values(c2d).flat())], ["pipeline", "dealstage", "createdate"]);
+    const bought = (cid, atMs) => (c2d[cid] || []).some((id) => { const d = deals[id]; return d && d.pipeline === BTL.plansPipeline && won.has(d.dealstage) && Date.parse(d.createdate) >= atMs - 3600e3; });
+    const row = (m) => {
+      const p = m.properties, at = Date.parse(p.hs_createdate), cid = (m2c[m.id] || [])[0] || null;
+      return { id: m.id, bookedAt: p.hs_createdate, startsAt: p.hs_meeting_start_time, utmSource: p.utm_source_of_meeting, utmCampaign: p.utm_campaign_of_meeting, utmMedium: p.utm_medium_of_meeting,
+        source: bfMeetingSource(p.utm_source_of_meeting), contactId: cid, name: cid ? nameOf(cid) : null, plan: cid ? bought(cid, at) : false };
+    };
+    out.meetings = pageMeetings.map(row).sort((a, b) => b.bookedAt.localeCompare(a.bookedAt));
+    out.emailMeetings = emailOnly.map(row).sort((a, b) => b.bookedAt.localeCompare(a.bookedAt));
   } catch (e) { out.errors.meetings = String(e); }
 
   const res = json(out, 200);
