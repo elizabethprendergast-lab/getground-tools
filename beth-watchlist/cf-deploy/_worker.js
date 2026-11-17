@@ -248,16 +248,37 @@ async function evaluateTool(env, tool, sinceOverrideMs) {
   } while (after);
   const byPerson = {};
   let viaTool = 0, manual = 0;
+  const toolSubs = [];
   for (const s of subs) {
     if (s.submittedAt < sinceMs) continue;
     const v = Object.fromEntries((s.values || []).map((x) => [x.name, x.value]));
     const isTool = !s.pageUrl;
     const who = consultantName(v.ticket_requested_by);
     byPerson[who] = byPerson[who] || { tool: 0, manual: 0 };
-    if (isTool) { viaTool++; byPerson[who].tool++; } else { manual++; byPerson[who].manual++; }
+    if (isTool) { viaTool++; byPerson[who].tool++; toolSubs.push({ at: s.submittedAt, who, subject: v.subject || "(no subject)", email: (v.email || "").toLowerCase(), urgency: v.urgency_level || "", type: v.ops_request__request_type || "" }); }
+    else { manual++; byPerson[who].manual++; }
+  }
+  // Link each tool submission to its ticket: contact (by email) -> associated tickets. The token can't read
+  // ticket properties, so pick the newest associated ticket id (ids increase over time) as the one created.
+  const tickets = [];
+  if (toolSubs.length) {
+    const emails = [...new Set(toolSubs.map((t) => t.email).filter(Boolean))];
+    const byEmail = {};
+    for (const c of chunk(emails, 100)) {
+      const j = await hs(env, `/crm/v3/objects/contacts/batch/read`, { method: "POST", body: JSON.stringify({ idProperty: "email", properties: ["email", "firstname", "lastname"], inputs: c.map((id) => ({ id })) }) });
+      for (const r of j.results || []) byEmail[(r.properties.email || "").toLowerCase()] = { id: r.id, name: name(r.properties) };
+    }
+    const cT = await assoc(env, "contacts", "tickets", Object.values(byEmail).map((c) => c.id)).catch(() => ({}));
+    for (const t of toolSubs) {
+      const c = byEmail[t.email];
+      const tids = (c && cT[c.id]) || [];
+      const tid = tids.length ? tids.map(Number).sort((x, y) => y - x)[0] : null;
+      tickets.push({ at: t.at, who: t.who, subject: t.subject, type: t.type, urgency: t.urgency, customer: c ? c.name : t.email,
+        contactUrl: c ? contactUrl(c.id) : null, ticketUrl: tid ? `https://app-eu1.hubspot.com/contacts/${PORTAL}/record/0-5/${tid}` : null });
+    }
   }
   return {
-    ...tool, sinceMs, viaTool, manual,
+    ...tool, sinceMs, viaTool, manual, tickets,
     adoption: viaTool + manual ? Math.round((100 * viaTool) / (viaTool + manual)) : 0,
     people: Object.entries(byPerson).map(([name, c]) => ({ name, ...c })).sort((a, b) => b.tool - a.tool || b.manual - a.manual),
   };

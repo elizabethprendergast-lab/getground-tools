@@ -153,6 +153,7 @@ function tool(t) {
       <div class="tile"><div class="n">${t.adoption}%</div><div class="l">Share using the tool</div></div>
       <div class="tile"><div class="n">${t.people.filter((p) => p.tool).length}</div><div class="l">Consultants creating tickets</div></div>
     </div>
+    ${(t.tickets || []).length ? `<h3 class="sec">Tickets created with the tool</h3><div class="scroll"><table class="feed">${t.tickets.map((k) => `<tr><td class="when">${fmt(k.at)}</td><td>${k.ticketUrl ? `<a href="${k.ticketUrl}" target="_blank" rel="noopener">${esc(k.subject)}</a>` : esc(k.subject)}<div class="muted small">${esc(k.customer)}${k.type ? ` · ${esc(k.type)}` : ""}${k.urgency ? ` · ${esc(k.urgency)}` : ""}</div></td><td class="muted small" style="white-space:nowrap">${esc(k.who)}</td></tr>`).join("")}</table></div>` : ""}
     ${t.people.some((p) => p.tool) ? `<details open><summary>Using the tool</summary><table class="feed">${t.people.filter((p) => p.tool).map((p) => `<tr><td>${esc(p.name)}</td><td>${p.tool} ticket${p.tool === 1 ? "" : "s"} via tool</td></tr>`).join("")}</table></details>` : ""}
     ${links(t)}
   </section>`;
