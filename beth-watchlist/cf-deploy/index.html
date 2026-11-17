@@ -50,6 +50,10 @@
   .feed.stats td { white-space: nowrap; }
   .feed tr.th td { color: var(--muted); font-size: 12px; border-top: 0; }
   .muted { color: var(--muted); }
+  .small { font-size: 12.5px; }
+  .tile .was { font-size: 12px; color: var(--muted); margin-top: 6px; border-top: 1px solid var(--line); padding-top: 6px; }
+  .tiles.mini .tile { background: none; border: 1px solid var(--line); padding: 10px 12px; }
+  .tiles.mini .n { font-size: 20px; }
 </style>
 </head>
 <body>
@@ -86,7 +90,7 @@ function campaign(it) {
   const s = it.summary, owners = (it.owners || []).map((o) => o.name.split(" ")[0]).join(" + ");
   const key = it.events.filter((e) => LABEL[e.type]);
   const row = (e) => `<tr class="${["meeting", "deal", "won"].includes(e.type) ? "hl" : ""}"><td class="when">${fmt(e.at)}</td>
-    <td><a href="${e.contactUrl}" target="_blank" rel="noopener">${esc(e.contact)}</a> · <strong>${LABEL[e.type]}</strong> · ${esc(e.text.replace(/^(Meeting booked|Deal opened|Closed won|Call logged by)[: ]*/, ""))}</td></tr>`;
+    <td><strong>${LABEL[e.type]}</strong></td><td><a href="${e.contactUrl}" target="_blank" rel="noopener">${esc(e.contact)}</a><div class="muted small">${esc(e.text.replace(/^(Meeting booked|Deal opened|Closed won|Call logged by|Replied to a sales email)[: ]*/, ""))}</div></td></tr>`;
   const cs = it.cohortSizes, reg = cs["Registered"], att = cs["Attended (name-matched)"];
   const pct = (a, b) => (b ? Math.round((100 * a) / b) + "%" : "–");
   const tile = (n, l) => `<div class="tile"><div class="n">${n}</div><div class="l">${l}</div></div>`;
@@ -94,10 +98,10 @@ function campaign(it) {
   const ct = it.callTasks;
   return `<section class="item">
     <h2>${esc(it.title)}</h2>
-    <p class="meta">Since ${fmt(it.sinceMs)} · ${esc(it.description || "")}</p>
+    <p class="meta">Since ${fmt(it.sinceMs)} · ${it.totalContacts} people</p>
 
     <h3 class="sec">Meetings &amp; deals</h3>
-    <div class="tiles">${tile(s.meetingsWithOwners, `Meetings with ${esc(owners)}`)}${tile(s.deals, "Deals opened")}${tile(s.won, "Closed won")}${tile(s.replies, "Replied")}</div>
+    <div class="tiles">${tile(s.meetingsWithOwners, `Meetings with ${esc(owners)}`)}${tile(s.deals, "Deals opened")}${tile(s.won, "Closed won")}${tile(pct(s.replies, it.totalContacts), "Replied")}</div>
     ${key.length ? `<details ${key.length <= 6 ? "open" : ""}><summary>Who (${key.length})</summary><div class="scroll"><table class="feed">${key.map(row).join("")}</table></div></details>` : '<p class="empty">Nothing yet.</p>'}
 
     ${reg != null ? `<h3 class="sec">Webinar</h3>
@@ -106,7 +110,7 @@ function campaign(it) {
 
     ${emails.length ? `<h3 class="sec">Emails</h3>
     <div class="scroll"><table class="feed stats"><tr class="th"><td>Email</td><td>Sent</td><td>Opened</td><td>Clicked</td><td>Unsubs</td></tr>
-    ${emails.map((e) => `<tr><td><a href="${e.url}" target="_blank" rel="noopener">${esc(e.label)}</a></td>${e.sent ? `<td>${e.sent.toLocaleString()}</td><td>${pct(e.opens, e.delivered)}</td><td>${pct(e.clicks, e.delivered)}</td><td>${e.unsubscribed}</td>` : '<td colspan="4" class="muted">No stats yet</td>'}</tr>`).join("")}
+    ${emails.map((e) => `<tr><td><a href="${e.url}" target="_blank" rel="noopener">${esc(e.label)}</a></td>${e.sent ? `<td>${e.sent.toLocaleString()}</td><td>${pct(e.opens, e.delivered)}</td><td>${pct(e.clicks, e.delivered)}</td><td>${pct(e.unsubscribed, e.delivered)}</td>` : '<td colspan="4" class="muted">No stats yet</td>'}</tr>`).join("")}
     </table></div>` : ""}
 
     ${it.callTasks !== undefined ? `<h3 class="sec">Call tasks</h3>
@@ -114,23 +118,44 @@ function campaign(it) {
       <table class="feed">${ct.byOwner.map((o) => `<tr><td>${esc(o.name)}</td><td>${o.done} done · ${o.open} open</td></tr>`).join("")}</table>`
       : `<p class="empty">${esc(it.callTasksNote || (it.callTasksConfig && it.callTasksConfig.note) || "Not started yet.")}</p>`}` : ""}
 
-    <p class="line" style="margin-top:18px">Also: ${s.calls} calls by ${esc(owners)} · ${s.formFills} form fills · ${s.visitors} site visitors · ${it.unsubscribed} unsubscribed · ${it.totalContacts} people watched</p>
+    <h3 class="sec">Other activity</h3>
+    <div class="tiles mini">${tile(s.calls, `Calls by ${esc(owners)}`)}${tile(s.formFills, "Form fills")}${tile(s.visitors, "Site visitors")}${tile(pct(it.unsubscribed, it.totalContacts), "Unsubscribed")}</div>
     ${links(it)}
   </section>`;
 }
 
 function tool(t) {
+  if (t.type === "complete-post-purchase") return completePP(t);
   if (t.error) return `<section class="item"><h2>${esc(t.title)}</h2><p class="empty">Error: ${esc(t.error)}</p></section>`;
   return `<section class="item">
     <h2>${esc(t.title)}</h2>
-    <p class="meta">Since ${fmt(t.sinceMs)} · ${esc(t.description)}</p>
+    <p class="meta">Since ${fmt(t.sinceMs)}</p>
     <div class="tiles">
-      <div class="tile"><div class="n">${t.viaTool}</div><div class="l">Tickets via the tool</div></div>
+      <div class="tile"><div class="n">${t.viaTool}</div><div class="l">Tickets created via tool</div></div>
       <div class="tile"><div class="n">${t.manual}</div><div class="l">Tickets via manual form</div></div>
       <div class="tile"><div class="n">${t.adoption}%</div><div class="l">Share using the tool</div></div>
-      <div class="tile"><div class="n">${t.people.filter((p) => p.tool).length}</div><div class="l">Consultants using it</div></div>
+      <div class="tile"><div class="n">${t.people.filter((p) => p.tool).length}</div><div class="l">Consultants creating tickets</div></div>
     </div>
     ${t.people.length ? `<details open><summary>By consultant</summary><table class="feed">${t.people.map((p) => `<tr><td>${esc(p.name)}</td><td>${p.tool} via tool · ${p.manual} manual</td></tr>`).join("")}</table></details>` : ""}
+    ${links(t)}
+  </section>`;
+}
+
+function completePP(t) {
+  if (t.error) return `<section class="item"><h2>${esc(t.title)}</h2><p class="empty">Error: ${esc(t.error)}</p></section>`;
+  const c = t.current, b = t.baseline, v = (x, suf = "%") => (x == null ? "–" : x + suf);
+  const cmp = (now, was, label, suf = "%") => `<div class="tile"><div class="n">${v(now, suf)}</div><div class="l">${label}</div><div class="was">Before: ${v(was, suf)}</div></div>`;
+  const pct = (a, d) => (d ? Math.round((100 * a) / d) + "%" : "–");
+  return `<section class="item">
+    <h2>${esc(t.title)}</h2>
+    <p class="meta">Live since ${fmt(t.sinceMs)} · ${c.buyers} buyers since (${b.buyers} in the baseline, Aug to launch) · first ${t.windowDays} days after purchase</p>
+    <h3 class="sec">Getting set up</h3>
+    <div class="tiles">${cmp(c.formPct, b.formPct, "Lettings form received")}${cmp(c.medianDaysToForm, b.medianDaysToForm, "Days to form (median)", "")}</div>
+    <h3 class="sec">Who helped them</h3>
+    <div class="tiles">${cmp(c.icTouchPct, b.icTouchPct, "Needed their IC")}${cmp(c.lettingsTouchPct, b.lettingsTouchPct, "Handled by Lettings")}${cmp(c.supportTouchPct, b.supportTouchPct, "Support / ticket")}${cmp(c.emailedInPct, b.emailedInPct, "Emailed us")}</div>
+    <p class="line">Goal: IC % down, Lettings and form % up.${c.stillInWindow ? ` ${c.stillInWindow} of the ${c.buyers} new buyers are still inside their ${t.windowDays} days, so these will move.` : ""}</p>
+    ${(t.emailStats || []).filter((e) => !e.error).length ? `<h3 class="sec">Emails</h3><table class="feed stats"><tr class="th"><td>Email</td><td>Sent</td><td>Opened</td><td>Clicked</td></tr>
+      ${t.emailStats.filter((e) => !e.error).map((e) => `<tr><td>${esc(e.label)}</td>${e.sent ? `<td>${e.sent}</td><td>${pct(e.opens, e.delivered)}</td><td>${pct(e.clicks, e.delivered)}</td>` : '<td colspan="3" class="muted">No stats yet</td>'}</tr>`).join("")}</table>` : ""}
     ${links(t)}
   </section>`;
 }
