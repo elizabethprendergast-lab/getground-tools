@@ -61,7 +61,8 @@
       "callTasks": {
         "subjectContains": null,
         "note": "Call tasks start 18 Nov"
-      }
+      },
+      "tab": "RRA Cantonese webinar"
     }
   ],
   "tools": [
@@ -81,7 +82,8 @@
           "label": "n8n: Create Ticket",
           "url": "https://getground.app.n8n.cloud/workflow/2ez4j7Vx6aDNVW5m"
         }
-      ]
+      ],
+      "tab": "Ticket tool"
     },
     {
       "key": "complete-post-purchase",
@@ -161,7 +163,8 @@
           "label": "/complete-next-steps page",
           "url": "https://www.getground.co.uk/complete-next-steps"
         }
-      ]
+      ],
+      "tab": "Complete post-purchase"
     }
   ]
 }

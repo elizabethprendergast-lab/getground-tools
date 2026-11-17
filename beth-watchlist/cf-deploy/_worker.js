@@ -356,7 +356,7 @@ async function watchlist(url, env) {
   try {
     const cfg = await (await env.ASSETS.fetch(new Request(new URL("/watchlist.json", url)))).json();
     if (url.searchParams.has("index")) {
-      const live = (arr) => (arr || []).filter((i) => i.status !== "archived").map((i) => ({ key: i.key, title: i.title }));
+      const live = (arr) => (arr || []).filter((i) => i.status !== "archived").map((i) => ({ key: i.key, title: i.title, tab: i.tab || i.title }));
       return json({ items: live(cfg.items), tools: live(cfg.tools) });
     }
     const days = Number(url.searchParams.get("days")) || 0;
