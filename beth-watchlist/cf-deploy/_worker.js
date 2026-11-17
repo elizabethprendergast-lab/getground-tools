@@ -263,6 +263,95 @@ async function evaluateTool(env, tool, sinceOverrideMs) {
   };
 }
 
+// ---------- Complete post-purchase: are buyers getting set up via email/Lettings/Support, not their IC? ----------
+// Buyers = Packs & Plans payment events with a Complete plan + upgrade events into Complete.
+// For each buyer we look at the first `windowDays` after purchase: did their L&M deal reach Form Received,
+// and who touched them (calls/meetings/emails/notes by owner group, tickets, emails they sent in).
+// Baseline = buyers between baselineFrom and launch; "Since launch" = buyers after launch.
+async function hsEvents(env, eventType, sinceIso) {
+  const out = []; let after = null;
+  do {
+    const q = new URLSearchParams({ eventType, occurredAfter: sinceIso, limit: "100" });
+    if (after) q.set("after", after);
+    const j = await hs(env, `/events/v3/events?${q}`);
+    out.push(...(j.results || []));
+    after = j.paging?.next?.after || null;
+  } while (after);
+  return out;
+}
+async function evaluateCompletePP(env, t) {
+  const launch = Date.parse(t.launch), from = Date.parse(t.baselineFrom), W = (t.windowDays || 14) * 86400000, now = Date.now();
+  const [pays, ups, own] = await Promise.all([
+    hsEvents(env, "pe25516403_packs_and_plans___payment", t.baselineFrom),
+    hsEvents(env, "pe25516403_packs_and_plans___upgrade", t.baselineFrom),
+    owners(env),
+  ]);
+  const buyers = {};
+  const addBuyer = (cid, at, how) => { if (!buyers[cid] || at < buyers[cid].at) buyers[cid] = { at, how }; };
+  for (const e of pays) {
+    const p = e.properties || {};
+    if (/complete/i.test(p.pack_plan_type || "") && (p.payment_status || "paid") === "paid" && String(p.is_migration).toLowerCase() !== "true")
+      addBuyer(String(e.objectId), Date.parse(e.occurredAt), "checkout");
+  }
+  for (const e of ups) {
+    const p = e.properties || {};
+    if (/complete/i.test(p.new_plan_type || "") && !/complete/i.test(p.previous_plan_type || "")) addBuyer(String(e.objectId), Date.parse(e.occurredAt), "upgrade");
+  }
+  const ids = Object.keys(buyers);
+  const groupOf = {};
+  for (const [g, names] of Object.entries(t.groups || {})) for (const n of names) groupOf[n.toLowerCase()] = g;
+  const ownerGroup = (oid) => groupOf[(own[String(oid || "")] || "").toLowerCase()] || "Other";
+
+  const [cDeal, cCall, cMeet, cEmail, cTicket] = await Promise.all(["deals", "calls", "meetings", "emails", "tickets"].map((o) => assoc(env, "contacts", o, ids)));
+  const fr = t.formReceivedStages || [];
+  const [deals, calls, meets, emails, tickets] = await Promise.all([
+    batchRead(env, "deals", Object.values(cDeal).flat(), ["pipeline", "createdate", ...fr.map((s) => `hs_v2_date_entered_${s}`)]),
+    batchRead(env, "calls", Object.values(cCall).flat(), ["hs_timestamp", "hubspot_owner_id"]),
+    batchRead(env, "meetings", Object.values(cMeet).flat(), ["hs_timestamp", "hubspot_owner_id"]),
+    batchRead(env, "emails", Object.values(cEmail).flat(), ["hs_timestamp", "hubspot_owner_id", "hs_email_direction"]),
+    batchRead(env, "tickets", Object.values(cTicket).flat(), ["createdate"]).catch(() => ({})), // token lacks tickets scope: fail soft
+  ]);
+
+  const rows = ids.map((cid) => {
+    const b = buyers[cid], end = b.at + W;
+    const inWin = (v) => { const x = ms(v); return x != null && x >= b.at && x <= end; };
+    let formAt = null;
+    for (const did of cDeal[cid] || []) {
+      const d = deals[did]; if (!d || String(d.pipeline) !== String(t.lmPipeline)) continue;
+      for (const s of fr) { const x = ms(d[`hs_v2_date_entered_${s}`]); if (x != null && x >= b.at - 86400000 && (formAt == null || x < formAt)) formAt = x; }
+    }
+    const touch = { IC: 0, Lettings: 0, Support: 0, Other: 0 };
+    for (const id of cCall[cid] || []) if (calls[id] && inWin(calls[id].hs_timestamp)) touch[ownerGroup(calls[id].hubspot_owner_id)]++;
+    for (const id of cMeet[cid] || []) if (meets[id] && inWin(meets[id].hs_timestamp)) touch[ownerGroup(meets[id].hubspot_owner_id)]++;
+    let emailedIn = 0;
+    for (const id of cEmail[cid] || []) {
+      const e = emails[id]; if (!e || !inWin(e.hs_timestamp)) continue;
+      if (e.hs_email_direction === "INCOMING_EMAIL") emailedIn++;
+      else touch[ownerGroup(e.hubspot_owner_id)]++;
+    }
+    const tix = (cTicket[cid] || []).filter((id) => tickets[id] && inWin(tickets[id].createdate)).length;
+    return { at: b.at, how: b.how, full: now >= end, form: formAt != null && formAt <= end, formDays: formAt != null ? Math.max(0, (formAt - b.at) / 86400000) : null,
+      icTouch: touch.IC > 0, icTouches: touch.IC, lettingsTouch: touch.Lettings > 0, supportTouch: touch.Support > 0 || tix > 0, emailedIn: emailedIn > 0, tickets: tix };
+  });
+
+  const summarise = (rs) => {
+    const n = rs.length, pct = (k) => (n ? Math.round((100 * rs.filter((r) => r[k]).length) / n) : null);
+    const days = rs.map((r) => r.formDays).filter((x) => x != null).sort((a, b) => a - b);
+    return { buyers: n, upgrades: rs.filter((r) => r.how === "upgrade").length, stillInWindow: rs.filter((r) => !r.full).length,
+      formPct: pct("form"), medianDaysToForm: days.length ? Math.round(days[Math.floor(days.length / 2)] * 10) / 10 : null,
+      icTouchPct: pct("icTouch"), icTouchesPerBuyer: n ? Math.round((10 * rs.reduce((a, r) => a + r.icTouches, 0)) / n) / 10 : null,
+      lettingsTouchPct: pct("lettingsTouch"), supportTouchPct: pct("supportTouch"), emailedInPct: pct("emailedIn") };
+  };
+  const emailStats = [];
+  for (const e of t.emails || []) {
+    try {
+      const j = await hs(env, `/marketing/v3/emails/${e.id}?includeStats=true`); const c = j.stats?.counters || {};
+      emailStats.push({ label: e.label, sent: c.sent || 0, delivered: c.delivered || 0, opens: c.open || 0, clicks: c.click || 0 });
+    } catch (err) { emailStats.push({ label: e.label, error: String(err.message || err) }); }
+  }
+  return { ...t, sinceMs: launch, baseline: summarise(rows.filter((r) => r.at >= from && r.at < launch)), current: summarise(rows.filter((r) => r.at >= launch)), emailStats };
+}
+
 async function watchlist(url, env) {
   try {
     const cfg = await (await env.ASSETS.fetch(new Request(new URL("/watchlist.json", url)))).json();
@@ -276,7 +365,7 @@ async function watchlist(url, env) {
     }
     const tools = [];
     for (const t of (cfg.tools || []).filter((i) => (!only || i.key === only) && i.status !== "archived")) {
-      try { tools.push(await evaluateTool(env, t, sinceOverride)); }
+      try { tools.push(t.type === "complete-post-purchase" ? await evaluateCompletePP(env, t) : await evaluateTool(env, t, sinceOverride)); }
       catch (e) { tools.push({ ...t, error: String(e.message || e) }); }
     }
     return json({ generatedAt: Date.now(), days: days || null, items, tools });

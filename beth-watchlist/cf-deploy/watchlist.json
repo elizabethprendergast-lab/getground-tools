@@ -82,6 +82,86 @@
           "url": "https://getground.app.n8n.cloud/workflow/2ez4j7Vx6aDNVW5m"
         }
       ]
+    },
+    {
+      "key": "complete-post-purchase",
+      "title": "Complete post-purchase emails",
+      "description": "Next-steps + insurance emails from lettings@ after a Complete purchase (live 11 Nov). Goal: buyers get set up via email, Lettings and Support, without needing their IC.",
+      "type": "complete-post-purchase",
+      "launch": "2026-11-11T17:00:00Z",
+      "baselineFrom": "2026-08-01T00:00:00Z",
+      "windowDays": 14,
+      "lmPipeline": "412732646",
+      "formReceivedStages": [
+        "635282146",
+        "635282147",
+        "1977318610",
+        "635282150",
+        "852712910",
+        "958692561"
+      ],
+      "groups": {
+        "IC": [
+          "Katie Walker",
+          "Yoana Chung",
+          "Deepinder Bhangoo",
+          "Dia Jhaveri",
+          "Khalid Soueidan",
+          "Freddie Bloor",
+          "Asya Wu",
+          "Ryan Welby",
+          "Andrew Paterson",
+          "Jorge Higueras",
+          "Scott Dixon",
+          "Chey Pienaar",
+          "Luke Worrell",
+          "Carlos Lam",
+          "Iglesias Ang",
+          "Billy Hunt",
+          "Florence Chan",
+          "Tristan Webel",
+          "David Paradis",
+          "Eamon Carpenter"
+        ],
+        "Lettings": [
+          "Katrina Scadding",
+          "Gordon Chirwa"
+        ],
+        "Support": [
+          "Danica Villegas",
+          "Courtney Dimaapi",
+          "Juliana Gomez",
+          "Micah Badajos"
+        ]
+      },
+      "emails": [
+        {
+          "label": "Next steps",
+          "id": "512786315491"
+        },
+        {
+          "label": "Insurance",
+          "id": "512987964611"
+        }
+      ],
+      "links": [
+        {
+          "label": "Post-purchase workflow",
+          "url": "https://app-eu1.hubspot.com/workflows/25516403/platform/flow/2219440365/edit"
+        },
+        {
+          "label": "Next-steps email",
+          "url": "https://app-eu1.hubspot.com/email/25516403/details/512786315491/performance"
+        },
+        {
+          "label": "Insurance email",
+          "url": "https://app-eu1.hubspot.com/email/25516403/details/512987964611/performance"
+        },
+        {
+          "label": "/complete-next-steps page",
+          "url": "https://www.getground.co.uk/complete-next-steps"
+        }
+      ]
     }
   ]
 }
