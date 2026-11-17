@@ -1,0 +1,25 @@
+{
+  "items": [
+    {
+      "key": "rra-cantonese-webinar-1126",
+      "title": "RRA Cantonese webinar (17 Nov)",
+      "description": "Florence + Yoana's Cantonese Renters' Rights webinar for influencer leads (SmallFishBa, HKEXLIVE, UK POA, Coco Gor, Moon Ma, Pure Sourcing). Goal: Complete Plan conversations.",
+      "status": "active",
+      "start": "2026-11-17T12:00:00Z",
+      "cohorts": [
+        { "label": "Registered", "listId": "24980" },
+        { "label": "Attended (name-matched)", "listId": "24972" },
+        { "label": "Follow-up send", "listId": "24979" }
+      ],
+      "owners": [
+        { "id": "279864776", "name": "Florence Chan" },
+        { "id": "29178925", "name": "Yoana Chung" }
+      ],
+      "emails": ["517533297888"],
+      "links": [
+        { "label": "Follow-up email", "url": "https://app-eu1.hubspot.com/email/25516403/edit/517533297888/content" },
+        { "label": "Enrolment workflow", "url": "https://app-eu1.hubspot.com/workflows/25516403/platform/flow/5258187973/edit" }
+      ]
+    }
+  ]
+}

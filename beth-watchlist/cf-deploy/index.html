@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beth Watchlist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Rethink+Sans:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f8f7; --card: #ffffff; --ink: #0d1b1d; --muted: #5d6b6c; --line: #e2e8e7;
+    --teal: #094C51; --cyan: #18B8BC; --soft: #e8f7f7; --hl: #fff7e0; --hl-line: #f0dca0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0c1213; --card: #141c1d; --ink: #eef3f3; --muted: #9aabab; --line: #243032;
+      --teal: #7fd9db; --cyan: #18B8BC; --soft: #16292b; --hl: #2a2412; --hl-line: #4d4120; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  header { padding: 28px 16px 8px; max-width: 1100px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between; }
+  h1 { font-family: "Rethink Sans", Inter, sans-serif; font-size: 28px; margin: 0; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); margin: 4px 0 0; font-size: 14px; }
+  .range { display: flex; gap: 6px; }
+  .range button { font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+  .range button.on { background: var(--teal); color: var(--bg); border-color: var(--teal); }
+  main { max-width: 1100px; margin: 0 auto; padding: 8px 16px 64px; display: grid; gap: 20px; }
+  .item { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 22px; }
+  .item h2 { font-family: "Rethink Sans", Inter, sans-serif; font-size: 21px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .meta { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  .desc { margin: 0 0 14px; font-size: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; }
+  .chip { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--soft); color: var(--teal); text-decoration: none; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 0 0 18px; }
+  .tile { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .tile .n { font-family: "Rethink Sans", Inter, sans-serif; font-size: 26px; font-weight: 700; line-height: 1.1; }
+  .tile .l { font-size: 12px; color: var(--muted); }
+  .tile.key { background: var(--soft); border-color: transparent; }
+  h3 { font-size: 14px; margin: 18px 0 8px; }
+  .feed { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .feed td { padding: 9px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+  .feed tr.hl td { background: var(--hl); }
+  .feed .when { white-space: nowrap; color: var(--muted); width: 90px; }
+  .feed a { color: var(--teal); font-weight: 600; text-decoration: none; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 6px; background: var(--soft); color: var(--teal); margin-left: 4px; }
+  .muted { color: var(--muted); }
+  .scroll { overflow-x: auto; }
+  .empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-top: 10px; }
+  @media (max-width: 600px) { .feed .hide-sm { display: none; } .item { padding: 18px 14px; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Watchlist</h1>
+    <p class="sub">What I'm keeping an eye on for you. Live from HubSpot · summary emailed Mondays 9am.</p>
+  </div>
+  <div class="range" id="range">
+    <button data-days="0" class="on">Since start</button>
+    <button data-days="7">Last 7 days</button>
+  </div>
+</header>
+<main id="main"><p class="empty">Loading…</p></main>
+<script>
+const TYPE = { meeting: "Meeting", deal: "Deal", won: "Won", call: "Call", form: "Form", reply: "Reply", visit: "Visit" };
+const KEY_TYPES = new Set(["meeting", "deal", "won", "reply", "form"]);
+const fmt = (ms) => new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+async function load(days) {
+  const main = document.getElementById("main");
+  main.innerHTML = '<p class="empty">Loading…</p>';
+  const r = await fetch(`/api/watchlist${days ? `?days=${days}` : ""}`);
+  const d = await r.json();
+  if (d.error) { main.innerHTML = `<p class="empty">Error: ${esc(d.error)}</p>`; return; }
+  main.innerHTML = d.items.map(render).join("") || '<p class="empty">Nothing on the watchlist yet.</p>';
+}
+
+function render(it) {
+  if (it.error) return `<section class="item"><h2>${esc(it.title)}</h2><p class="empty">Error: ${esc(it.error)}</p></section>`;
+  const s = it.summary;
+  const cohorts = Object.entries(it.cohortSizes).map(([k, v]) => `${esc(k)} ${v}`).join(" · ");
+  const owners = (it.owners || []).map((o) => esc(o.name)).join(" + ");
+  const plans = Object.entries(it.plans).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${esc(k)} ${v}`).join(" · ");
+  const key = it.events.filter((e) => KEY_TYPES.has(e.type) || e.type === "call");
+  const visits = it.events.filter((e) => e.type === "visit");
+  const row = (e) => `<tr class="${e.type === "won" || (e.type === "meeting" && e.ownerMatch) || (e.type === "deal") ? "hl" : ""}">
+      <td class="when">${fmt(e.at)}</td>
+      <td><a href="${e.contactUrl}" target="_blank" rel="noopener">${esc(e.contact)}</a>${e.plan ? `<span class="tag">${esc(e.plan)}</span>` : ""}
+        <div class="muted hide-sm">${esc(e.partner)}</div></td>
+      <td><strong>${TYPE[e.type]}</strong> · ${e.url ? `<a href="${e.url}" target="_blank" rel="noopener">${esc(e.text)}</a>` : esc(e.text)}</td>
+    </tr>`;
+  return `<section class="item">
+    <h2>${esc(it.title)}</h2>
+    <p class="meta">Since ${fmt(Date.parse(it.start.length > 10 ? it.start : it.start + "T00:00:00Z"))} · ${it.totalContacts} contacts (${cohorts}) · owners ${owners}</p>
+    <p class="desc">${esc(it.description || "")}</p>
+    <div class="chips">${(it.links || []).map((l) => `<a class="chip" href="${l.url}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join("")}
+      ${it.cohorts.map((c) => `<a class="chip" href="https://app-eu1.hubspot.com/contacts/25516403/objectLists/${c.listId}/filters" target="_blank" rel="noopener">${esc(c.label)} list ↗</a>`).join("")}</div>
+    <div class="tiles">
+      <div class="tile key"><div class="n">${s.meetingsWithOwners}</div><div class="l">Meetings with ${owners || "owners"}</div></div>
+      <div class="tile key"><div class="n">${s.deals}</div><div class="l">Deals opened</div></div>
+      <div class="tile key"><div class="n">${s.won}</div><div class="l">Closed won</div></div>
+      <div class="tile"><div class="n">${s.meetings}</div><div class="l">All meetings</div></div>
+      <div class="tile"><div class="n">${s.calls}</div><div class="l">Calls by owners</div></div>
+      <div class="tile"><div class="n">${s.replies}</div><div class="l">Replied</div></div>
+      <div class="tile"><div class="n">${s.formFills}</div><div class="l">Form fills</div></div>
+      <div class="tile"><div class="n">${s.visitors}</div><div class="l">Site visitors</div></div>
+    </div>
+    <p class="meta">Current plans: ${plans} · ${it.unsubscribed} unsubscribed</p>
+    <h3>Activity worth knowing about</h3>
+    ${key.length ? `<div class="scroll"><table class="feed">${key.map(row).join("")}</table></div>` : '<p class="empty">Nothing yet.</p>'}
+    ${visits.length ? `<details><summary>${visits.length} contacts visited the website</summary><div class="scroll"><table class="feed">${visits.map(row).join("")}</table></div></details>` : ""}
+  </section>`;
+}
+
+document.getElementById("range").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  document.querySelectorAll("#range button").forEach((x) => x.classList.toggle("on", x === b));
+  load(Number(b.dataset.days));
+});
+load(0);
+</script>
+</body>
+</html>
