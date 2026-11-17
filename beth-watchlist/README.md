@@ -7,7 +7,7 @@ HubSpot, and Claude emails Beth a summary every Monday at 9am UK.
   (list, owner and email IDs). Never put names, emails or other personal data in this file.
 - `cf-deploy/_worker.js` works out, for each item, the meetings, deals, closed-won deals, calls by the
   watched owners, form fills, replies and site visits for the contacts in its lists since `start`.
-- `/api/watchlist?days=7` returns the last 7 days, which is what the Monday email uses. Auth is the
+- `/api/watchlist?index=1` lists the cards, and `/api/watchlist?item=<key>[&days=7]` returns one card (one request per card, because Cloudflare Pages allows 50 subrequests per request and each card uses ~45). The Monday email uses `days=7`. Auth is the
   `SITE_PASSWORD` cookie, or the `x-digest-key` header for the scheduled routine.
 - Deploys automatically on push to `main` (Cloudflare Pages project `beth-watchlist`, which builds only
   on changes under `beth-watchlist/`).

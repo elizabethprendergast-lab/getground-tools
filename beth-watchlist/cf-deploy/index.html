@@ -74,13 +74,25 @@ let data = null, tab = "campaigns";
 
 async function load(days) {
   document.getElementById("main").innerHTML = '<p class="empty">Loading…</p>';
-  data = await (await fetch(`/api/watchlist${days ? `?days=${days}` : ""}`)).json();
+  // One request per card: Cloudflare caps HubSpot calls per request, so cards load independently.
+  const idx = await (await fetch("/api/watchlist?index=1")).json();
+  if (idx.error) { data = idx; draw(); return; }
+  data = { items: idx.items.map((i) => ({ ...i, loading: true })), tools: idx.tools.map((i) => ({ ...i, loading: true })) };
   draw();
+  const one = async (kind, i) => {
+    try {
+      const r = await (await fetch(`/api/watchlist?item=${encodeURIComponent(i.key)}${days ? `&days=${days}` : ""}`)).json();
+      data[kind][data[kind].findIndex((x) => x.key === i.key)] = (r[kind] || [])[0] || { ...i, error: r.error || "No data" };
+    } catch (e) { data[kind][data[kind].findIndex((x) => x.key === i.key)] = { ...i, error: String(e) }; }
+    draw();
+  };
+  await Promise.all([...idx.items.map((i) => one("items", i)), ...idx.tools.map((i) => one("tools", i))]);
 }
 function draw() {
   const main = document.getElementById("main");
   if (data.error) { main.innerHTML = `<p class="empty">Error: ${esc(data.error)}</p>`; return; }
-  const list = tab === "tools" ? (data.tools || []).map(tool) : data.items.map(campaign);
+  const card = (fn) => (it) => (it.loading ? `<section class="item"><h2>${esc(it.title)}</h2><p class="empty">Loading…</p></section>` : fn(it));
+  const list = tab === "tools" ? (data.tools || []).map(card(tool)) : (data.items || []).map(card(campaign));
   main.innerHTML = list.join("") || '<p class="empty">Nothing here yet.</p>';
 }
 const links = (it) => `<div class="links">${(it.links || []).map((l) => `<a href="${l.url}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join("")}${(it.cohorts || []).map((c) => `<a href="https://app-eu1.hubspot.com/contacts/25516403/objectLists/${c.listId}/filters" target="_blank" rel="noopener">${esc(c.label)} list ↗</a>`).join("")}</div>`;
