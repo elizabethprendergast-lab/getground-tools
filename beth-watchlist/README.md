@@ -13,7 +13,7 @@ HubSpot, and Claude emails Beth a summary every Monday at 9am UK.
   on changes under `beth-watchlist/`).
 
 ## Adding an item
-Add an entry to `items`. Each entry needs:
+Add an entry to `items` (campaigns) or `tools`. Each one is its own tab: tools come first, then items, in file order. `tab` is the short tab label. Each entry needs:
 - `key`, `title`, `description`
 - `start` (ISO date or datetime)
 - `cohorts` (`[{label, listId}]`, static HubSpot lists)

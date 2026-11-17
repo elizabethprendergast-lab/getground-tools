@@ -21,7 +21,8 @@
   h1 { font-family: "Rethink Sans", Inter, sans-serif; font-size: 28px; margin: 0; letter-spacing: -0.02em; }
   .sub { color: var(--muted); margin: 4px 0 16px; font-size: 14px; }
   .bar { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); }
-  .tabs { display: flex; gap: 4px; }
+  .tabs { display: flex; gap: 4px; overflow-x: auto; max-width: 100%; }
+  .tabs button { white-space: nowrap; }
   .tabs button { font: inherit; font-weight: 600; font-size: 14px; padding: 10px 14px; border: 0; background: none; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
   .tabs button.on { color: var(--ink); border-bottom-color: var(--teal); }
   .range { display: flex; gap: 6px; padding-bottom: 8px; }
@@ -61,7 +62,7 @@
   <h1>Watchlist</h1>
   <p class="sub">What I'm keeping an eye on for you, live from HubSpot. Summary emailed Mondays at 9am.</p>
   <div class="bar">
-    <div class="tabs" id="tabs"><button data-tab="campaigns" class="on">Campaigns</button><button data-tab="tools">Tools</button></div>
+    <div class="tabs" id="tabs"></div>
     <div class="range" id="range"><button data-days="0" class="on">Since start</button><button data-days="7">Last 7 days</button></div>
   </div>
 </header>
@@ -70,30 +71,34 @@
 const fmt = (ms) => new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const LABEL = { meeting: "Meeting", deal: "Deal", won: "Won", call: "Call", reply: "Reply" };
-let data = null, tab = "campaigns";
+// Every tracked thing is its own tab. Order: tools first (ticket tool, Complete post-purchase), then campaigns.
+let tabs = [], cur = null, days = 0;
+const cache = {};
 
-async function load(days) {
-  document.getElementById("main").innerHTML = '<p class="empty">Loading…</p>';
-  // One request per card: Cloudflare caps HubSpot calls per request, so cards load independently.
+async function init() {
   const idx = await (await fetch("/api/watchlist?index=1")).json();
-  if (idx.error) { data = idx; draw(); return; }
-  data = { items: idx.items.map((i) => ({ ...i, loading: true })), tools: idx.tools.map((i) => ({ ...i, loading: true })) };
-  draw();
-  const one = async (kind, i) => {
-    try {
-      const r = await (await fetch(`/api/watchlist?item=${encodeURIComponent(i.key)}${days ? `&days=${days}` : ""}`)).json();
-      data[kind][data[kind].findIndex((x) => x.key === i.key)] = (r[kind] || [])[0] || { ...i, error: r.error || "No data" };
-    } catch (e) { data[kind][data[kind].findIndex((x) => x.key === i.key)] = { ...i, error: String(e) }; }
-    draw();
-  };
-  await Promise.all([...idx.items.map((i) => one("items", i)), ...idx.tools.map((i) => one("tools", i))]);
+  if (idx.error) { document.getElementById("main").innerHTML = `<p class="empty">Error: ${esc(idx.error)}</p>`; return; }
+  tabs = [...idx.tools.map((t) => ({ ...t, kind: "tools" })), ...idx.items.map((t) => ({ ...t, kind: "items" }))];
+  const want = decodeURIComponent(location.hash.slice(1));
+  cur = (tabs.find((t) => t.key === want) || tabs[0] || {}).key;
+  drawTabs(); show();
 }
-function draw() {
+function drawTabs() {
+  document.getElementById("tabs").innerHTML = tabs.map((t) => `<button data-key="${esc(t.key)}" class="${t.key === cur ? "on" : ""}">${esc(t.tab)}</button>`).join("");
+}
+async function show() {
+  const t = tabs.find((x) => x.key === cur); if (!t) return;
   const main = document.getElementById("main");
-  if (data.error) { main.innerHTML = `<p class="empty">Error: ${esc(data.error)}</p>`; return; }
-  const card = (fn) => (it) => (it.loading ? `<section class="item"><h2>${esc(it.title)}</h2><p class="empty">Loading…</p></section>` : fn(it));
-  const list = tab === "tools" ? (data.tools || []).map(card(tool)) : (data.items || []).map(card(campaign));
-  main.innerHTML = list.join("") || '<p class="empty">Nothing here yet.</p>';
+  const ck = `${t.key}|${days}`;
+  if (!cache[ck]) {
+    main.innerHTML = `<section class="item"><h2>${esc(t.title)}</h2><p class="empty">Loading…</p></section>`;
+    try {
+      const r = await (await fetch(`/api/watchlist?item=${encodeURIComponent(t.key)}${days ? `&days=${days}` : ""}`)).json();
+      cache[ck] = (r[t.kind] || [])[0] || { ...t, error: r.error || "No data" };
+    } catch (e) { cache[ck] = { ...t, error: String(e) }; }
+  }
+  if (t.key !== cur) return; // user switched tab while loading
+  main.innerHTML = t.kind === "tools" ? tool(cache[ck]) : campaign(cache[ck]);
 }
 const links = (it) => `<div class="links">${(it.links || []).map((l) => `<a href="${l.url}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join("")}${(it.cohorts || []).map((c) => `<a href="https://app-eu1.hubspot.com/contacts/25516403/objectLists/${c.listId}/filters" target="_blank" rel="noopener">${esc(c.label)} list ↗</a>`).join("")}</div>`;
 
@@ -175,15 +180,14 @@ function completePP(t) {
 document.getElementById("range").addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b) return;
   document.querySelectorAll("#range button").forEach((x) => x.classList.toggle("on", x === b));
-  load(Number(b.dataset.days));
+  days = Number(b.dataset.days); show();
 });
 document.getElementById("tabs").addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b) return;
-  tab = b.dataset.tab;
-  document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x === b));
-  if (data) draw();
+  cur = b.dataset.key; history.replaceState(null, "", "#" + encodeURIComponent(cur));
+  drawTabs(); show();
 });
-load(0);
+init();
 </script>
 </body>
 </html>
