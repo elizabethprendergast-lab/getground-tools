@@ -566,6 +566,33 @@ const REPORTS = {
         meetingsAnyHost: true,
       },
       {
+        key: "rra-cantonese-webinar",
+        label: "Webinar follow-up — RRA Cantonese (Florence & Yoana)",
+        // Planned subject: "#1 | Call | Webinar follow-up | RRA Cantonese" for registrants/attendees of
+        // the 17 Nov 2026 Cantonese Renters' Rights webinar (influencer leads: SmallFishBa, HKEXLIVE,
+        // UK POA, Coco Gor, Moon Ma, Pure Sourcing), worked by Florence and Yoana, pitching Complete.
+        // Lists: registrants 24980, attendees 24972, follow-up send 24979.
+        match: (s) => s.includes("RRA Cantonese"),
+        namePattern: "Call | Webinar follow-up | RRA Cantonese",
+        searchTerm: "RRA Cantonese",
+        context: "Registrants and attendees of the 17 Nov Cantonese Renters' Rights webinar (influencer leads), called by Florence and Yoana about Complete.",
+        // Verified 17 Nov (before any tasks existed): "RRA" AND "Cantonese" returns 0 tasks portal-wide.
+        attributionSearch: { tokens: ["RRA", "Cantonese"], ownerFiltered: false },
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        campaignRepIds: ["279864776", "29178925"], // Florence Chan, Yoana Chung
+        onlyActualReps: true,
+        repNames: { "279864776": "Florence Chan", "29178925": "Yoana Chung" },
+        noCampaignEmail: true,
+        meetingsAnyHost: true,
+        emails: [
+          { id: 497998695632, label: "Invite 1 (Chinese)" },
+          { id: 506327640273, label: "Invite 2 (English, from Yoana)" },
+          { id: 516366363861, label: "Reminder (day of)" },
+          { id: 517533297888, label: "Follow-up (recording)" },
+        ],
+      },
+      {
         key: "landlord-savings-calculator",
         label: "Experiment — Landlord savings calculator (Plans)",
         // Real subject: "#1 |  Call | Experiment | Landlord savings calculator - Plans" (double space
@@ -1378,6 +1405,7 @@ const CAMPAIGN_WORKFLOWS = {
   "landlord-savings-calculator": ["5252951265"],
   "reengage-post-webinar-bf": ["4196785376"],
   "hapi-areas": ["4196785376"],
+  "rra-cantonese-webinar": ["5263564020", "5263566032", "4196785376"],
   "plan-close-month-end": ["4196785376"],
 };
 // Emails not sent by one of the workflows above (sent by hand / one-off sends).
