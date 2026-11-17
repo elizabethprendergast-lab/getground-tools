@@ -7,18 +7,80 @@
       "status": "active",
       "start": "2026-11-17T12:00:00Z",
       "cohorts": [
-        { "label": "Registered", "listId": "24980" },
-        { "label": "Attended (name-matched)", "listId": "24972" },
-        { "label": "Follow-up send", "listId": "24979" }
+        {
+          "label": "Registered",
+          "listId": "24980"
+        },
+        {
+          "label": "Attended (name-matched)",
+          "listId": "24972"
+        },
+        {
+          "label": "Follow-up send",
+          "listId": "24979"
+        }
       ],
       "owners": [
-        { "id": "279864776", "name": "Florence Chan" },
-        { "id": "29178925", "name": "Yoana Chung" }
+        {
+          "id": "279864776",
+          "name": "Florence Chan"
+        },
+        {
+          "id": "29178925",
+          "name": "Yoana Chung"
+        }
       ],
-      "emails": ["517533297888"],
+      "emails": [
+        {
+          "label": "Invite 1 (Chinese)",
+          "id": "497998695632"
+        },
+        {
+          "label": "Invite 2 (English, from Yoana)",
+          "id": "506327640273"
+        },
+        {
+          "label": "Reminder (day of)",
+          "id": "516366363861"
+        },
+        {
+          "label": "Follow-up (recording)",
+          "id": "517533297888"
+        }
+      ],
       "links": [
-        { "label": "Follow-up email", "url": "https://app-eu1.hubspot.com/email/25516403/edit/517533297888/content" },
-        { "label": "Enrolment workflow", "url": "https://app-eu1.hubspot.com/workflows/25516403/platform/flow/5258187973/edit" }
+        {
+          "label": "Follow-up email",
+          "url": "https://app-eu1.hubspot.com/email/25516403/edit/517533297888/content"
+        },
+        {
+          "label": "Enrolment workflow",
+          "url": "https://app-eu1.hubspot.com/workflows/25516403/platform/flow/5258187973/edit"
+        }
+      ],
+      "callTasks": {
+        "subjectContains": null,
+        "note": "Call tasks start 18 Nov"
+      }
+    }
+  ],
+  "tools": [
+    {
+      "key": "consultant-ticket-tool",
+      "title": "Consultant ticket tool (Gmail add-on)",
+      "description": "Consultants send a customer email to Support from Gmail. Shows how often it's used compared with the manual Ops Request Form.",
+      "type": "ops-form-split",
+      "formId": "8874fe6b-c1c8-4cda-b928-fec913823109",
+      "start": "2026-11-16T00:00:00Z",
+      "links": [
+        {
+          "label": "Ops Request Form",
+          "url": "https://app-eu1.hubspot.com/forms/25516403/editor/8874fe6b-c1c8-4cda-b928-fec913823109/edit/form"
+        },
+        {
+          "label": "n8n: Create Ticket",
+          "url": "https://getground.app.n8n.cloud/workflow/2ez4j7Vx6aDNVW5m"
+        }
       ]
     }
   ]

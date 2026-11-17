@@ -176,9 +176,44 @@ async function evaluate(env, item, sinceOverrideMs) {
   const plans = {};
   for (const cid of all) { const pl = contacts[cid]?.p_p___plan_type || "None"; plans[pl] = (plans[pl] || 0) + 1; }
 
+  // Emails: HubSpot's own all-time stats per email (not range-filtered).
+  const emailStats = [];
+  for (const e of item.emails || []) {
+    try {
+      const j = await hs(env, `/marketing/v3/emails/${e.id}?includeStats=true`);
+      const c = j.stats?.counters || {};
+      emailStats.push({ label: e.label, id: e.id, sent: c.sent || 0, delivered: c.delivered || 0, opens: c.open || 0, clicks: c.click || 0,
+        unsubscribed: c.unsubscribed || 0, url: `https://app-eu1.hubspot.com/email/${PORTAL}/details/${e.id}/performance` });
+    } catch (err) { emailStats.push({ label: e.label, id: e.id, error: String(err.message || err) }); }
+  }
+
+  // Call tasks: matched on subject text, created since start. Null until the tasks exist.
+  let callTasks = null;
+  if (item.callTasks?.subjectContains) {
+    const tasks = []; let after = null;
+    do {
+      const j = await hs(env, `/crm/v3/objects/tasks/search`, { method: "POST", body: JSON.stringify({
+        filterGroups: [{ filters: [
+          { propertyName: "hs_task_subject", operator: "CONTAINS_TOKEN", value: item.callTasks.subjectContains },
+          { propertyName: "hs_createdate", operator: "GTE", value: String(startMs) }] }],
+        properties: ["hs_task_status", "hubspot_owner_id"], limit: 200, ...(after ? { after } : {}) }) });
+      tasks.push(...(j.results || []));
+      after = j.paging?.next?.after || null;
+    } while (after && tasks.length < 2000);
+    const byOwner = {};
+    for (const t of tasks) {
+      const o = own[String(t.properties.hubspot_owner_id || "")] || "Unassigned";
+      byOwner[o] = byOwner[o] || { done: 0, open: 0 };
+      t.properties.hs_task_status === "COMPLETED" ? byOwner[o].done++ : byOwner[o].open++;
+    }
+    callTasks = { total: tasks.length, done: tasks.filter((t) => t.properties.hs_task_status === "COMPLETED").length,
+      byOwner: Object.entries(byOwner).map(([name, c]) => ({ name, ...c })) };
+  }
+
   return {
     ...item,
     sinceMs, generatedAt: Date.now(),
+    emailStats, callTasks: item.callTasks ? callTasks : undefined, callTasksNote: item.callTasks?.note || null,
     cohortSizes: Object.fromEntries(item.cohorts.map((c) => [c.label, cohortMembers[c.label].length])),
     totalContacts: all.length,
     plans,
@@ -189,6 +224,42 @@ async function evaluate(env, item, sinceOverrideMs) {
       formFills: uniq("form"), replies: uniq("reply"), visitors: uniq("visit"),
     },
     events,
+  };
+}
+
+// ---------- tools: tickets via the Gmail add-on vs the manual Ops Request Form ----------
+// The add-on (n8n "Create Ticket") submits the same HubSpot form through the API, so its
+// submissions have no pageUrl and ticket_requested_by is the consultant's verified email.
+// Manual fills come from the share-eu1 form link and have a typed name.
+function consultantName(v) {
+  const s = String(v || "").trim().toLowerCase().split("@")[0].split(/[.\s]/)[0];
+  return s ? s[0].toUpperCase() + s.slice(1) : "Unknown";
+}
+async function evaluateTool(env, tool, sinceOverrideMs) {
+  const startMs = Date.parse(tool.start.length > 10 ? tool.start : tool.start + "T00:00:00Z");
+  const sinceMs = Math.max(startMs, sinceOverrideMs || 0);
+  const subs = []; let after = null;
+  do {
+    const j = await hs(env, `/form-integrations/v1/submissions/forms/${tool.formId}?limit=50${after ? `&after=${after}` : ""}`);
+    const page = j.results || [];
+    subs.push(...page);
+    after = j.paging?.next?.after || null;
+    if (page.length && page[page.length - 1].submittedAt < sinceMs) break; // newest first
+  } while (after);
+  const byPerson = {};
+  let viaTool = 0, manual = 0;
+  for (const s of subs) {
+    if (s.submittedAt < sinceMs) continue;
+    const v = Object.fromEntries((s.values || []).map((x) => [x.name, x.value]));
+    const isTool = !s.pageUrl;
+    const who = consultantName(v.ticket_requested_by);
+    byPerson[who] = byPerson[who] || { tool: 0, manual: 0 };
+    if (isTool) { viaTool++; byPerson[who].tool++; } else { manual++; byPerson[who].manual++; }
+  }
+  return {
+    ...tool, sinceMs, viaTool, manual,
+    adoption: viaTool + manual ? Math.round((100 * viaTool) / (viaTool + manual)) : 0,
+    people: Object.entries(byPerson).map(([name, c]) => ({ name, ...c })).sort((a, b) => b.tool - a.tool || b.manual - a.manual),
   };
 }
 
@@ -203,7 +274,12 @@ async function watchlist(url, env) {
       try { items.push(await evaluate(env, it, sinceOverride)); }
       catch (e) { items.push({ ...it, error: String(e.message || e) }); }
     }
-    return json({ generatedAt: Date.now(), days: days || null, items });
+    const tools = [];
+    for (const t of (cfg.tools || []).filter((i) => (!only || i.key === only) && i.status !== "archived")) {
+      try { tools.push(await evaluateTool(env, t, sinceOverride)); }
+      catch (e) { tools.push({ ...t, error: String(e.message || e) }); }
+    }
+    return json({ generatedAt: Date.now(), days: days || null, items, tools });
   } catch (e) {
     return json({ error: String(e.message || e) }, 500);
   }
