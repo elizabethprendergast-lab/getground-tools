@@ -2500,20 +2500,22 @@ async function campaignMeetings(url, env) {
     for (const r of j.results || []) dealsOf[String(r.from.id)] = (r.to || []).map((t) => String(t.toObjectId));
   }
   const dp = await batchRead(API, H, "deals", [...new Set(Object.values(dealsOf).flat())], ["dealname", "dealstage", "pipeline", "createdate", "closedate"]);
+  const stageInfo = await dealStageInfo(API, H);
   const owners = {};
   try { for (const o of (await hsFetch(`${API}/crm/v3/owners?limit=500`, { headers: H })).results || []) owners[o.id] = [o.firstName, o.lastName].filter(Boolean).join(" ") || o.email; } catch (_) {}
   const meetings = recent.map(([id, m]) => {
     const cid = meetingContacts[id][0];
     const c = cp[cid] || {};
     const booked = Date.parse(m.hs_createdate);
-    const after = (dealsOf[cid] || []).map((d) => dp[d]).filter((d) => d && Date.parse(d.createdate) >= booked);
+    const after = (dealsOf[cid] || []).map((d) => dp[d] && { ...dp[d], id: d }).filter((d) => d && Date.parse(d.createdate) >= booked);
     const won = after.find((d) => isClosedPlansDeal(d));
     const verdict = MEETING_VERDICT[(m.hs_meeting_outcome || "").toUpperCase()];
     const result = won ? "Closed won" : after.length ? "Deal opened" : verdict ? verdict[0] : (Date.parse(m.hs_meeting_start_time) > Date.now() ? "Upcoming" : "No outcome logged");
     return { meetingId: id, contactId: cid, name: [c.firstname, c.lastname].filter(Boolean).join(" ") || c.email || cid, title: m.hs_meeting_title,
       host: owners[m.hubspot_owner_id] || "", bookedAt: m.hs_createdate, startTime: m.hs_meeting_start_time,
       status: MEETING_OUTCOMES[m.hs_meeting_outcome] || (Date.parse(m.hs_meeting_start_time) > Date.now() ? "Upcoming" : ""),
-      result, deals: after.map((d) => ({ name: d.dealname, createdate: d.createdate })), fromLink: m.hs_meeting_source === "MEETINGS_PUBLIC" };
+      result, deals: after.map((d) => { const st = stageInfo.stages[d.dealstage] || {};
+        return { id: d.id, name: d.dealname, createdate: d.createdate, pipeline: stageInfo.pipelines[d.pipeline] || d.pipeline, stage: st.label || d.dealstage, status: st.won ? "won" : st.lost ? "lost" : "open" }; }), fromLink: m.hs_meeting_source === "MEETINGS_PUBLIC" };
   }).sort((a, b) => b.bookedAt.localeCompare(a.bookedAt));
   return json({ generatedAt: new Date().toISOString(), meetings });
 }
