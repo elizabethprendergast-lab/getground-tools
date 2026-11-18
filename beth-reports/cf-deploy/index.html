@@ -564,7 +564,6 @@ function completionCardHtml(proj, sprintStart, hubspot) {
         <div class="stat-tile"><div class="label">Total tasks</div><div class="value">${t.total}</div></div>
         <div class="stat-tile done"><div class="label">Done</div><div class="value">${t.done}</div></div>
         <div class="stat-tile"><div class="label">Not done</div><div class="value">${t.notDone}</div></div>
-        ${priorityTileHtml(t.priorityBreakdown)}
       </div>
       ${reps.map(([name, r]) => {
         const link = hubspotTaskLink(hubspot, hubspot && hubspot.ownerViews && hubspot.ownerViews[name], proj.taskViewQuery);
@@ -989,7 +988,7 @@ function landingCardHtml(p) {
         <a class="landing-card${isClosed(p) ? " closed" : ""}" href="/?campaign=${p.key}">
           <div class="landing-card-head">
             <h3>${esc(p.label)}</h3>
-            ${isClosed(p) ? closedPillHtml() : priorityPillHtml(dominantPriority(p))}
+            ${isClosed(p) ? closedPillHtml() : ""}
           </div>
           <p>${esc(p.context || "")}</p>
           <div class="landing-stats">
@@ -1011,7 +1010,7 @@ function reportCardHtml(r) {
 // Home (18 Nov, v2): one simple list per section — name, tasks left, priority. No descriptions.
 function homeRowHtml(p, sec) {
   const pct = p.tasks.total ? Math.round(100 * p.tasks.done / p.tasks.total) : 0;
-  return `<a class="home-row" href="${projectHref(p, sec)}" title="${pct}% done"><span class="nm">${esc(NAV_SHORT[p.key] || p.label)}</span><span class="mini"><i style="width:${pct}%"></i></span><span class="left">${p.tasks.notDone.toLocaleString()} left</span>${priorityPillHtml(dominantPriority(p))}</a>`;
+  return `<a class="home-row" href="${projectHref(p, sec)}" title="${pct}% done"><span class="nm">${esc(NAV_SHORT[p.key] || p.label)}</span><span class="mini"><i style="width:${pct}%"></i></span><span class="left">${p.tasks.notDone.toLocaleString()} left</span></a>`;
 }
 function landingHtml(stats) {
   const projects = sortedByPriority(stats.projects || []);
@@ -1067,9 +1066,9 @@ const SECTION_OF = {};
 // Groups inside a section: sub-tabs and section-page cards are laid out in this order, under
 // these labels. Keys not listed land in "Other".
 const NAV_GROUPS = [
-  { title: "Black Friday", keys: ["black-friday", "black-friday-reengage"], section: "campaigns", links: [{ href: "/black-friday-pages/", label: "Black Friday pages (web)" }] },
+  { title: "Black Friday", keys: ["black-friday", "black-friday-reengage", "reengage-post-webinar-bf"], section: "campaigns", links: [{ href: "/black-friday-pages/", label: "Black Friday pages (web)" }] },
   { title: "Upsell / Complete", keys: ["upsell-complete", "experiment-epc", "rent-anniversary", "hapi-areas"] },
-  { title: "Reengage & follow-up", keys: ["rra-cantonese-webinar", "reengage-post-webinar-bf", "properties-outside", "reengage-property-closed-lost", "reengage-ltd-core-plan", "reengage-nonpaying-master"] },
+  { title: "Reengage & follow-up", keys: ["rra-cantonese-webinar", "properties-outside", "reengage-property-closed-lost", "reengage-ltd-core-plan", "reengage-nonpaying-master"] },
   { title: "Active Lead & offers", keys: ["active-lead", "plan-close-month-end", "landlord-savings-calculator"] },
   // Web/funnel report pages (separate pages, or the Referral tab) — shown as links in Campaigns.
   { title: "Web & funnels", keys: [], section: "campaigns", links: [
@@ -1140,7 +1139,7 @@ function renderNav(stats, activeKey) {
   if (sec) {
     const groups = groupsFor(liveIn(sec), sec);
     sub = groups.map((g) => `<div class="sub-group"><span class="grp">${esc(g.title)}</span><div class="sub-items">`
-      + g.items.map((p) => `<a href="${projectHref(p, sec)}" class="${p.key === activeKey ? "on" : ""}">${esc(NAV_SHORT[p.key] || p.label)}${priorityPillHtml(dominantPriority(p))}</a>`).join("")
+      + g.items.map((p) => `<a href="${projectHref(p, sec)}" class="${p.key === activeKey ? "on" : ""}">${esc(NAV_SHORT[p.key] || p.label)}</a>`).join("")
       + g.links.map((l) => `<a href="${l.href}" class="${isLinkOn(l.href) ? "on" : ""}">${esc(l.label)}${l.href.startsWith("/?") ? "" : " ↗"}</a>`).join("") + `</div></div>`).join("");
   }
   const closed = sec ? projects.filter((p) => isClosed(p) && inSection(p, sec)) : [];
