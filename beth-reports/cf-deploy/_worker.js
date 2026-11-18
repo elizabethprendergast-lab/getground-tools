@@ -567,7 +567,7 @@ const REPORTS = {
       },
       {
         key: "rra-cantonese-webinar",
-        label: "Webinar follow-up — RRA Cantonese (Florence & Yoana)",
+        label: "Webinar follow-up — RRA Cantonese (Carlos)",
         // Planned subject: "#1 | Call | Webinar follow-up | RRA Cantonese" for registrants/attendees of
         // the 17 Nov 2026 Cantonese Renters' Rights webinar (influencer leads: SmallFishBa, HKEXLIVE,
         // UK POA, Coco Gor, Moon Ma, Pure Sourcing), worked by Florence and Yoana, pitching Complete.
@@ -575,14 +575,14 @@ const REPORTS = {
         match: (s) => s.includes("RRA Cantonese"),
         namePattern: "Call | Webinar follow-up | RRA Cantonese",
         searchTerm: "RRA Cantonese",
-        context: "Registrants and attendees of the 17 Nov Cantonese Renters' Rights webinar (influencer leads), called by Florence and Yoana about Complete.",
+        context: "Registrants and attendees of the 17 Nov Cantonese Renters' Rights webinar (influencer leads), called by Carlos about Complete.",
         // Verified 17 Nov (before any tasks existed): "RRA" AND "Cantonese" returns 0 tasks portal-wide.
         attributionSearch: { tokens: ["RRA", "Cantonese"], ownerFiltered: false },
         outcomeMatching: "enrollment",
         campaignRepsOnly: true,
-        campaignRepIds: ["279864776", "29178925"], // Florence Chan, Yoana Chung
+        campaignRepIds: ["30035011", "279864776", "29178925"], // Carlos Lam (18 Nov: 186 #1 tasks, now contact owner), Florence Chan, Yoana Chung
         onlyActualReps: true,
-        repNames: { "279864776": "Florence Chan", "29178925": "Yoana Chung" },
+        repNames: { "30035011": "Carlos Lam", "279864776": "Florence Chan", "29178925": "Yoana Chung" },
         noCampaignEmail: true,
         meetingsAnyHost: true,
         emails: [
