@@ -450,6 +450,15 @@
   .lead-stats { display: flex; gap: 22px; margin: 4px 0 6px; }
   .lead-stats div { display: flex; flex-direction: column; } .lead-stats b { font-family: var(--head-font); font-size: 24px; } .lead-stats span { font-size: 12px; color: var(--text-muted); }
   a.chip.win { border-color: #13a6aa; background: color-mix(in srgb, #13a6aa 10%, transparent); }
+  .dl-stats { display: flex; flex-wrap: wrap; gap: 14px 30px; margin: 4px 0 4px; }
+  .dl-stats div { display: flex; flex-direction: column; } .dl-stats b { font-family: var(--head-font); font-size: 28px; font-weight: 800; letter-spacing: -0.02em; } .dl-stats span { font-size: 12px; color: var(--text-muted); }
+  .dl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; max-height: 620px; overflow-y: auto; padding: 2px; }
+  .dl-card { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border: 1px solid var(--border); border-left: 4px solid var(--c); border-radius: 12px; background: var(--surface-1); text-decoration: none; color: var(--text-primary); transition: border-color .15s, transform .15s; }
+  .dl-card:hover { border-color: var(--c); transform: translateY(-1px); }
+  .dl-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .dl-pipe { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dl-name { font-family: var(--head-font); font-weight: 700; font-size: 16px; }
+  .dl-card .badge { justify-self: start; align-self: flex-start; max-width: 100%; }
 
   .ch-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
   .ch-card { border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; border-top: 4px solid var(--c); background: linear-gradient(180deg, color-mix(in srgb, var(--c) 7%, var(--surface-1)), var(--surface-1) 60%); }
@@ -1384,6 +1393,32 @@ function initiativePageHtml(stats, ini) {
     </div>`).join("");
 
   const dealsList = [...dealMap.values()];
+  // Deals & plans: status bar + pipeline bars + roomy cards (18 Nov).
+  const dTone = (d) => d.status === "won" ? "win" : d.status === "lost" ? "fail" : "pending";
+  const dCount = dealsList.reduce((a, d) => (a[dTone(d)]++, a), { win: 0, pending: 0, fail: 0 });
+  const D_LABEL = { win: "Won", pending: "Open", fail: "Lost" };
+  const byPipe = {}; for (const d of dealsList) byPipe[d.pipeline || "Other"] = (byPipe[d.pipeline || "Other"] || 0) + 1;
+  const pipes = Object.entries(byPipe).sort((a, b) => b[1] - a[1]); const pMax = Math.max(1, ...pipes.map((p) => p[1]));
+  const pipeColour = Object.fromEntries(pipes.map(([k], i) => [k, SERIES[i % SERIES.length]]));
+  const hsDeal = (id) => `https://app-eu1.hubspot.com/contacts/25516403/record/0-3/${id}`;
+  const dealCard = (d) => { const t = dTone(d); const href = /^\d+$/.test(String(d.id || "")) ? hsDeal(d.id) : d.contactId ? hsContact(d.contactId) : "#";
+    return `<a class="dl-card t-${t}" href="${href}" target="_blank" rel="noopener" style="--c:${pipeColour[d.pipeline || "Other"] || "var(--series-1)"}">
+      <div class="dl-top"><span class="dl-pipe">${esc(d.pipeline || "Deal")}</span>${d.createdMs ? `<span class="muted small">${fmtDate(new Date(d.createdMs).toISOString())}</span>` : ""}</div>
+      <div class="dl-name">${esc(d.contactName || d.name)}</div>
+      <span class="badge t-${t}">${esc(d.stage || D_LABEL[t])}</span></a>`; };
+  const wonCards = [...won.values()].map((c) => `<a class="dl-card t-win" href="${hsContact(c.id)}" target="_blank" rel="noopener" style="--c:#13a6aa">
+      <div class="dl-top"><span class="dl-pipe">Plan won</span></div><div class="dl-name">${esc(c.name)}</div><span class="badge t-win">${esc(c.plan || "Closed won")}</span></a>`).join("");
+  const dealsHtml = dealsList.length || won.size ? `<section class="card ov-wide"><h2>Deals &amp; plans</h2>
+      ${dealsList.length ? `<div class="dl-stats">
+        <div><b>${dealsList.length}</b><span>deals opened</span></div>
+        <div><b>${won.size}</b><span>plans won</span></div>
+        ${["pending", "win", "fail"].map((t) => `<div class="t-${t}"><b style="color:var(--t)">${dCount[t]}</b><span>${D_LABEL[t].toLowerCase()}</span></div>`).join("")}
+      </div>
+      <div class="mt-bar">${["win", "pending", "fail"].map((t) => dCount[t] ? `<i class="t-${t}" style="flex:${dCount[t]}" title="${D_LABEL[t]}: ${dCount[t]}"></i>` : "").join("")}</div>
+      <h4 class="ov-h4">By pipeline</h4>${pipes.map(([k, n]) => `<div class="outcome-bar-row"><span class="name" title="${esc(k)}">${esc(k)}</span><div class="track"><div class="fill" style="width:${Math.max(2, Math.round(100 * n / pMax))}%; background:${pipeColour[k]}"></div></div><span class="count">${n}</span></div>`).join("")}` : ""}
+      ${won.size ? `<h4 class="ov-h4">Plans won</h4><div class="dl-grid">${wonCards}</div>` : ""}
+      ${dealsList.length ? `<h4 class="ov-h4">Deals opened</h4><div class="dl-grid">${dealsList.map(dealCard).join("")}</div>` : ""}
+    </section>` : "";
   return `
     <div class="meta-row">
       <p id="meta-line">Loading…</p>
@@ -1398,11 +1433,8 @@ function initiativePageHtml(stats, ini) {
     <div class="ov-grid">
       ${channelHtml ? `<section class="card ov-wide"><h2>By channel</h2><p class="sub">Where people came from, and what that produced. Calls are how we followed up, counted under the channel the person came from.</p>${channelHtml}</section>` : ""}
       <section class="card ov-wide"><h2>Meetings booked</h2>${meetings.length ? mtgSummary + `<div class="mt-list">${mtgRows}</div>` : `<p class="muted">${callsLoading || cohortLoading ? "Loading…" : "No meetings yet."}</p>`}</section>
+      ${dealsHtml}
       ${leadsKey ? `<section class="card"><h2>Paid leads</h2>${leadsHtml}</section>` : ""}
-      ${dealsList.length || won.size ? `<section class="card"><h2>Deals &amp; plans</h2>
-        ${won.size ? `<h4 class="ov-h4">Plans won</h4><div class="chips">${[...won.values()].map((c) => `<a class="chip win" href="${hsContact(c.id)}" target="_blank" rel="noopener">${esc(c.name)} <span class="muted">${esc(c.plan || "")}</span></a>`).join("")}</div>` : ""}
-        ${dealsList.length ? `<h4 class="ov-h4">Deals opened</h4><div class="chips">${dealsList.slice(0, 20).map((d) => `<a class="chip" href="${d.contactId ? hsContact(d.contactId) : "#"}" target="_blank" rel="noopener">${esc(d.contactName || d.name)} <span class="muted">${esc(d.pipeline || "")}${d.stage ? ` · ${esc(d.stage)}` : ""}</span></a>`).join("")}</div>` : ""}
-      </section>` : ""}
       <section class="card ov-wide"><h2>What's running</h2>
         <div class="overflow-x"><table class="ov-table"><thead><tr><th>Part</th><th class="num">Emails sent</th><th>Calls done</th><th class="num">Reached</th><th class="num">Meetings</th><th class="num">Plans won</th><th></th></tr></thead><tbody>${partRows}</tbody></table></div></section>
       ${emails.length || emailsLoading ? `<section class="card ov-wide"><h2>Emails</h2>${emailsLoading && !emails.length ? '<p class="muted">Loading…</p>' : `<div class="overflow-x"><table class="ov-table"><thead><tr><th>Email</th><th class="num">Sent</th><th>Opened</th><th class="num">Clicked</th><th class="num">Unsubs</th></tr></thead><tbody>${emailRows}</tbody></table></div>`}</section>` : ""}
