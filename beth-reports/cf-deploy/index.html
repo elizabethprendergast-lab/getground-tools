@@ -93,6 +93,8 @@
   .subnav details.nav-closed summary.active { color: var(--text-primary); border-style: solid; border-color: var(--series-1); background: var(--accent-soft); font-weight: 600; }
   .subnav .nav-closed-menu a { display: block; font-size: 13px; padding: 7px 10px; border-radius: 6px; text-decoration: none; color: var(--text-secondary); border: 0; }
   .subnav .nav-closed-menu a:hover, .subnav .nav-closed-menu a.on { background: var(--accent-soft); color: var(--text-primary); }
+  .calls-view #emails-slot, .calls-view #assets-slot { display: none; }
+  .pick-hint { color: var(--text-muted); font-size: 14px; text-align: center; padding: 48px 0; }
   .home-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
   .home-panel { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px 10px; }
   a.home-panel-head { display: block; font-size: 16px; font-weight: 700; color: var(--text-primary); text-decoration: none; margin-bottom: 6px; }
@@ -1007,27 +1009,22 @@ function reportCardHtml(r) {
 }
 
 // Home (18 Nov, v2): one simple list per section — name, tasks left, priority. No descriptions.
-function homeRowHtml(p) {
+function homeRowHtml(p, sec) {
   const pct = p.tasks.total ? Math.round(100 * p.tasks.done / p.tasks.total) : 0;
-  return `<a class="home-row" href="/?campaign=${p.key}" title="${pct}% done"><span class="nm">${esc(NAV_SHORT[p.key] || p.label)}</span><span class="mini"><i style="width:${pct}%"></i></span><span class="left">${p.tasks.notDone.toLocaleString()} left</span>${priorityPillHtml(dominantPriority(p))}</a>`;
+  return `<a class="home-row" href="${projectHref(p, sec)}" title="${pct}% done"><span class="nm">${esc(NAV_SHORT[p.key] || p.label)}</span><span class="mini"><i style="width:${pct}%"></i></span><span class="left">${p.tasks.notDone.toLocaleString()} left</span>${priorityPillHtml(dominantPriority(p))}</a>`;
 }
 function landingHtml(stats) {
   const projects = sortedByPriority(stats.projects || []);
   const panel = (sec) => {
-    let rows;
-    if (sec.key === "reports") {
-      rows = WEB_REPORTS.map((r) => `<a class="home-row" href="${r.href}"><span class="nm">${esc(r.label)}</span><span class="left">open →</span></a>`).join("");
-    } else {
-      const groups = groupsFor(projects.filter((p) => !isClosed(p) && sectionOf(p) === sec.key));
-      rows = groups.map((g) => `<div class="home-grp">${esc(g.title)}</div>${g.items.map(homeRowHtml).join("")}`).join("");
-    }
+    const groups = groupsFor(projects.filter((p) => !isClosed(p) && inSection(p, sec.key)), sec.key);
+    const rows = groups.map((g) => `<div class="home-grp">${esc(g.title)}</div>${g.items.map((p) => homeRowHtml(p, sec.key)).join("")}`
+      + g.links.map((l) => `<a class="home-row" href="${l.href}"><span class="nm">${esc(l.label)}</span><span class="left">web report →</span></a>`).join("")).join("");
     return `<section class="home-panel" style="--c:${SECTION_COLOR[sec.key]}"><a class="home-panel-head" href="/?section=${sec.key}"><span class="dot"></span>${sec.label}<span class="go">Open →</span></a>${rows || '<p class="sub">Nothing live.</p>'}</section>`;
   };
   const hero = (sec) => {
-    if (sec.key === "reports") return `<a class="hero-tile" style="--c:${SECTION_COLOR.reports}" href="/?section=reports"><div class="k">${sec.label}</div><div class="v">${WEB_REPORTS.length}</div><div class="s">funnels &amp; programme reports</div></a>`;
-    const live = projects.filter((p) => !isClosed(p) && sectionOf(p) === sec.key);
+    const live = projects.filter((p) => !isClosed(p) && inSection(p, sec.key));
     const left = live.reduce((n, p) => n + (p.tasks.notDone || 0), 0);
-    return `<a class="hero-tile" style="--c:${SECTION_COLOR[sec.key]}" href="/?section=${sec.key}"><div class="k">${sec.label}</div><div class="v">${left.toLocaleString()}</div><div class="s">tasks left · ${live.length} live</div></a>`;
+    return `<a class="hero-tile" style="--c:${SECTION_COLOR[sec.key]}" href="/?section=${sec.key}"><div class="k">${sec.label}</div><div class="v">${left.toLocaleString()}</div><div class="s">tasks left · ${live.length} live${sec.key === "campaigns" ? ` · ${WEB_REPORTS.length} web reports` : ""}</div></a>`;
   };
   const closed = projects.filter(isClosed);
   return `
@@ -1044,27 +1041,9 @@ function landingHtml(stats) {
     <footer id="footer-line"></footer>`;
 }
 
-// A section's own page: its live items as cards (the sub-tabs above jump straight to each one).
+// A section's own page: deliberately empty (Beth, 18 Nov: no overview cards) — pick from the tabs above.
 function sectionPageHtml(stats, secKey) {
-  const sec = SECTIONS.find((x) => x.key === secKey);
-  const projects = sortedByPriority(stats.projects || []);
-  const live = secKey === "reports" ? [] : projects.filter((p) => !isClosed(p) && sectionOf(p) === secKey);
-  const closed = secKey === "reports" ? [] : projects.filter((p) => isClosed(p) && sectionOf(p) === secKey);
-  const groups = groupsFor(live);
-  const cards = secKey === "reports" ? `<div class="landing-grid">${WEB_REPORTS.map(reportCardHtml).join("")}</div>`
-    : groups.map((g) => `${groups.length > 1 ? `<h3 class="group-heading">${esc(g.title)}</h3>` : ""}<div class="landing-grid">${g.items.map(landingCardHtml).join("")}${(g.links || []).map((l) => reportCardHtml(WEB_REPORTS.find((r) => r.href === l.href) || { href: l.href, label: l.label, desc: "" })).join("")}</div>`).join("");
-  return `
-    <div class="meta-row">
-      <p id="meta-line">Loading…</p>
-      ${secKey === "reports" ? "" : `<div class="meta-actions">${rangeControlHtml()}<button id="update-btn">Update</button></div>`}
-    </div>
-    <p class="sub" style="margin:0 0 12px">${esc(sec.desc)}</p>
-    ${cards || '<div class="empty-state">Nothing live right now.</div>'}
-    ${closed.length ? `
-    <details class="closed-list"><summary>Closed (${closed.length})</summary>
-      <div class="landing-grid">${closed.map(landingCardHtml).join("")}</div>
-    </details>` : ""}
-    <footer id="footer-line"></footer>`;
+  return `<p class="pick-hint">${secKey === "calls" ? "Pick a call queue above." : "Pick a campaign above."}</p>`;
 }
 
 function referralPageHtml() {
@@ -1077,30 +1056,42 @@ function referralPageHtml() {
     <footer id="footer-line"></footer>`;
 }
 
-// Sections (18 Nov): Campaigns = has its own emails (email + calls); Call tasks = calling queues
-// only; Web reports = separate funnel pages. SECTION_OF overrides the automatic split.
+// Sections (18 Nov): Campaigns = has its own emails (email + calls) plus the web/funnel report
+// pages, grouped by initiative; Call tasks = calling queues only. SECTION_OF overrides the split.
 const SECTIONS = [
-  { key: "campaigns", label: "Campaigns", desc: "Email campaigns with call follow-up — sends, outcomes, meetings and deals." },
+  { key: "campaigns", label: "Campaigns", desc: "Email campaigns, their call follow-up and web pages — sends, outcomes, meetings, deals and visitors." },
   { key: "calls", label: "Call tasks", desc: "Calling queues — tasks done vs left, call outcomes, meetings and deals." },
-  { key: "reports", label: "Web reports", desc: "Landing pages, funnels and programme reports." },
 ];
 const SECTION_COLOR = { campaigns: "var(--teal)", calls: "var(--purple)", reports: "var(--teal-ink)" };
-const SECTION_OF = { "black-friday": "calls", "black-friday-reengage": "calls" };
+const SECTION_OF = {};
 // Groups inside a section: sub-tabs and section-page cards are laid out in this order, under
 // these labels. Keys not listed land in "Other".
 const NAV_GROUPS = [
-  { title: "Black Friday", keys: ["black-friday", "black-friday-reengage"], links: [{ href: "/black-friday-pages/", label: "BF pages (web funnel)" }] },
+  { title: "Black Friday", keys: ["black-friday", "black-friday-reengage"], section: "campaigns", links: [{ href: "/black-friday-pages/", label: "Black Friday pages (web)" }] },
   { title: "Upsell / Complete", keys: ["upsell-complete", "experiment-epc", "rent-anniversary", "hapi-areas"] },
   { title: "Reengage & follow-up", keys: ["rra-cantonese-webinar", "reengage-post-webinar-bf", "properties-outside", "reengage-property-closed-lost", "reengage-ltd-core-plan", "reengage-nonpaying-master"] },
   { title: "Active Lead & offers", keys: ["active-lead", "plan-close-month-end", "landlord-savings-calculator"] },
+  // Web/funnel report pages (separate pages, or the Referral tab) — shown as links in Campaigns.
+  { title: "Web & funnels", keys: [], section: "campaigns", links: [
+    { href: "/meetings-booked/", label: "Meetings booked" },
+    { href: "/btl-calculator-page/", label: "BTL calculator page" },
+    { href: "/chatgpt-ltd-company/", label: "ChatGPT ads – Ltd company" },
+    { href: `/?campaign=${REFERRAL_TAB_KEY}`, label: "Referral programme" },
+  ] },
 ];
-const groupsFor = (list) => {
+// A group's report links only show in its own section (g.section).
+const groupsFor = (list, sec) => {
   const known = new Set(NAV_GROUPS.flatMap((g) => g.keys));
-  return NAV_GROUPS.map((g) => ({ ...g, items: list.filter((p) => g.keys.includes(p.key)) }))
-    .concat([{ title: "Other", items: list.filter((p) => !known.has(p.key)) }])
-    .filter((g) => g.items.length);
+  return NAV_GROUPS.map((g) => ({ ...g, items: list.filter((p) => g.keys.includes(p.key)), links: g.section === sec ? (g.links || []) : [] }))
+    .concat([{ title: "Other", items: list.filter((p) => !known.has(p.key)), links: [] }])
+    .filter((g) => g.items.length || g.links.length);
 };
+const isLinkOn = (href) => href === location.pathname + location.search;
 const sectionOf = (p) => SECTION_OF[p.key] || (p.hasEmails ? "campaigns" : "calls");
+// Call tasks lists EVERY calling queue (campaigns' calls too) and shows only the call cards
+// (?view=calls hides emails + workflows). Campaigns = the full picture.
+const inSection = (p, sec) => sec === "calls" || sectionOf(p) === sec;
+const projectHref = (p, sec) => `/?campaign=${p.key}${sec === "calls" && sectionOf(p) !== "calls" ? "&view=calls" : ""}`;
 const WEB_REPORTS = [
   { href: "/black-friday-pages/", label: "Black Friday pages", desc: "/black-friday and its cost comparison page — visitors by source, book-a-call and claim clicks, meetings, plans bought." },
   { href: "/meetings-booked/", label: "Meetings booked", desc: "Every meeting booked through a HubSpot meeting link — by link, GetGrounder, contact and UTM." },
@@ -1127,10 +1118,11 @@ const NAV_SHORT = {
 
 function currentSection(stats) {
   const q = new URLSearchParams(location.search);
-  if (q.get("section")) return q.get("section");
+  if (q.get("section")) return q.get("section") === "reports" ? "campaigns" : q.get("section");
+  if (q.get("view") === "calls") return "calls";
   const key = currentCampaignKey();
   if (!key) return null;
-  if (key === REFERRAL_TAB_KEY) return "reports";
+  if (key === REFERRAL_TAB_KEY) return "campaigns";
   const p = (stats.projects || []).find((x) => x.key === key);
   return p ? sectionOf(p) : null;
 }
@@ -1139,26 +1131,24 @@ function renderNav(stats, activeKey) {
   const nav = document.getElementById("campaign-nav");
   const projects = sortedByPriority(stats.projects || []);
   const sec = currentSection(stats);
-  const liveIn = (k) => projects.filter((p) => !isClosed(p) && sectionOf(p) === k);
+  const liveIn = (k) => projects.filter((p) => !isClosed(p) && inSection(p, k));
   const top = [`<a href="/" class="${!sec ? "on" : ""}">Home</a>`].concat(SECTIONS.map((x) => {
-    const n = x.key === "reports" ? WEB_REPORTS.length : liveIn(x.key).length;
+    const n = liveIn(x.key).length;
     return `<a href="/?section=${x.key}" class="${sec === x.key ? "on" : ""}">${x.label}<span class="count">${n}</span></a>`;
   })).join("");
   let sub = "";
-  if (sec === "reports") {
-    sub = `<div class="sub-group"><span class="grp">Reports</span><div class="sub-items">` + WEB_REPORTS.map((r) => `<a href="${r.href}" class="${r.href === `/?campaign=${activeKey}` ? "on" : ""}">${esc(r.label)}</a>`).join("") + `</div></div>`;
-  } else if (sec) {
-    const groups = groupsFor(liveIn(sec));
+  if (sec) {
+    const groups = groupsFor(liveIn(sec), sec);
     sub = groups.map((g) => `<div class="sub-group"><span class="grp">${esc(g.title)}</span><div class="sub-items">`
-      + g.items.map((p) => `<a href="/?campaign=${p.key}" class="${p.key === activeKey ? "on" : ""}">${esc(NAV_SHORT[p.key] || p.label)}${priorityPillHtml(dominantPriority(p))}</a>`).join("")
-      + (g.links || []).map((l) => `<a href="${l.href}">${esc(l.label)} ↗</a>`).join("") + `</div></div>`).join("");
+      + g.items.map((p) => `<a href="${projectHref(p, sec)}" class="${p.key === activeKey ? "on" : ""}">${esc(NAV_SHORT[p.key] || p.label)}${priorityPillHtml(dominantPriority(p))}</a>`).join("")
+      + g.links.map((l) => `<a href="${l.href}" class="${isLinkOn(l.href) ? "on" : ""}">${esc(l.label)}${l.href.startsWith("/?") ? "" : " ↗"}</a>`).join("") + `</div></div>`).join("");
   }
-  const closed = sec && sec !== "reports" ? projects.filter((p) => isClosed(p) && sectionOf(p) === sec) : [];
+  const closed = sec ? projects.filter((p) => isClosed(p) && inSection(p, sec)) : [];
   const closedActive = closed.some((p) => p.key === activeKey);
   const closedMenu = closed.length ? `
     <details class="nav-closed">
       <summary class="${closedActive ? "active" : ""}">Closed (${closed.length})</summary>
-      <div class="nav-closed-menu">${closed.map((p) => `<a href="/?campaign=${p.key}" class="${p.key === activeKey ? "on" : ""}">${esc(p.label)}</a>`).join("")}</div>
+      <div class="nav-closed-menu">${closed.map((p) => `<a href="${projectHref(p, sec)}" class="${p.key === activeKey ? "on" : ""}">${esc(p.label)}</a>`).join("")}</div>
     </details>` : "";
   nav.innerHTML = `<div class="tabs-row"><div class="tabs">${top}</div></div>`
     + (sub || closedMenu ? `<div class="subnav">${sub}${closedMenu ? `<div class="sub-group"><span class="grp"></span><div class="sub-items">${closedMenu}</div></div>` : ""}</div>` : "");
@@ -1549,8 +1539,9 @@ function render() {
 
   renderNav(statsRes, key);
   const main = document.getElementById("main");
+  main.classList.toggle("calls-view", new URLSearchParams(location.search).get("view") === "calls");
 
-  const secParam = new URLSearchParams(location.search).get("section");
+  const secParam = ((s) => s === "reports" ? "campaigns" : s)(new URLSearchParams(location.search).get("section"));
   if (!key && secParam && SECTIONS.some((x) => x.key === secParam)) {
     main.innerHTML = sectionPageHtml(statsRes, secParam);
   } else if (!key) {
