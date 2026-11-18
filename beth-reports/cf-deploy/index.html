@@ -55,21 +55,47 @@
     display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
     border-bottom: 1px solid var(--border);
   }
+  /* Navigation (18 Nov): Watchlist-style section tabs, then a row of sub-tabs for that section. */
+  header { flex-direction: column; align-items: stretch; gap: 0; padding-bottom: 0; }
+  #campaign-nav { max-width: calc(1000px - 2 * clamp(16px, 4vw, 40px)); width: 100%; margin: 0 auto; }
+  #campaign-nav .tabs:first-child a:first-child { padding-left: 0; }
+  .tabs-row { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
+  .tabs { display: flex; gap: 4px; overflow-x: auto; min-width: 0; scrollbar-width: thin; }
+  .tabs a { white-space: nowrap; font-weight: 600; font-size: 14px; padding: 10px 14px; text-decoration: none;
+    color: var(--text-muted); border-bottom: 2px solid transparent; display: inline-flex; align-items: center; gap: 6px; }
+  .tabs a:hover { color: var(--text-primary); }
+  .tabs a.on { color: var(--text-primary); border-bottom-color: var(--series-1); }
+  .tabs a .count { font-size: 11px; font-weight: 600; color: var(--text-muted); background: var(--accent-soft); border-radius: 999px; padding: 1px 7px; }
+  .subtabs-row { border-top: 1px solid var(--border); }
+  .subtabs a { font-size: 13px; font-weight: 500; padding: 9px 12px; }
+  .subtabs a.on { font-weight: 600; }
+  .subtabs .grp { flex: none; align-self: center; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--text-muted); padding: 0 4px 0 14px; border-left: 1px solid var(--border); margin-left: 6px; white-space: nowrap; }
+  .subtabs .grp:first-child { border-left: 0; margin-left: 0; padding-left: 4px; }
+  .group-heading { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin: 22px 0 10px; }
+  .tabs-row details.nav-closed { position: relative; flex: none; padding-bottom: 6px; }
+  .tabs-row details.nav-closed summary { list-style: none; cursor: pointer; font-size: 13px; padding: 5px 10px; border-radius: 999px;
+    color: var(--text-muted); border: 1px dashed var(--baseline); white-space: nowrap; user-select: none; }
+  .tabs-row details.nav-closed summary::-webkit-details-marker { display: none; }
+  .tabs-row details.nav-closed summary::after { content: " ▾"; font-size: 10px; }
+  .tabs-row details.nav-closed summary.active { color: var(--text-primary); border-style: solid; border-color: var(--series-1); background: var(--accent-soft); font-weight: 600; }
+  .tabs-row .nav-closed-menu { right: 0; left: auto; }
+  .tabs-row .nav-closed-menu a { font-size: 13px; padding: 7px 10px; border-radius: 6px; text-decoration: none; color: var(--text-secondary); }
+  .tabs-row .nav-closed-menu a:hover, .tabs-row .nav-closed-menu a.on { background: var(--accent-soft); color: var(--text-primary); }
+  .overview-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 8px; }
+  a.overview-tile { display: block; background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; text-decoration: none; color: inherit; }
+  a.overview-tile:hover, a.landing-card:hover { border-color: var(--series-1); }
+  a.overview-tile .label { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+  a.overview-tile .value { font-size: 30px; font-weight: 700; margin: 4px 0 2px; }
+  a.overview-tile .sub { font-size: 12px; color: var(--text-secondary); }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 28px 0 10px; }
+  .section-head .section-heading { margin: 0; }
+  .section-head a { font-size: 13px; color: var(--series-1); text-decoration: none; }
+  details.closed-list { margin-top: 28px; }
+  details.closed-list summary { cursor: pointer; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
   header .brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
   header h1 { font-size: 18px; margin: 0; font-weight: 600; }
   header h1 a { color: inherit; text-decoration: none; }
-  nav.campaign-nav { display: flex; flex-direction: column; gap: 10px; min-width: 0; max-width: 100%; }
-  nav.campaign-nav .nav-top { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-  nav.campaign-nav .nav-group { display: flex; flex-direction: column; gap: 5px; }
-  nav.campaign-nav .nav-group-title { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
-  nav.campaign-nav .nav-group-items { display: flex; gap: 6px; flex-wrap: wrap; }
-  @media (max-width: 700px) { nav.campaign-nav a { white-space: normal; } }
-  nav.campaign-nav a {
-    font-size: 13px; padding: 6px 12px; border-radius: 999px; text-decoration: none;
-    color: var(--text-secondary); border: 1px solid var(--border); white-space: nowrap;
-    display: inline-flex; align-items: center; gap: 6px;
-  }
-  nav.campaign-nav a.active { color: var(--text-primary); background: var(--accent-soft); border-color: var(--series-1); font-weight: 600; }
   .priority-pill {
     font-size: 10px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase;
     padding: 2px 7px; border-radius: 999px; white-space: nowrap; line-height: 1.4;
@@ -80,22 +106,11 @@
   .priority-pill.none { color: var(--text-muted); background: transparent; border: 1px solid var(--border); }
   .priority-pill.closed { color: var(--text-muted); background: transparent; border: 1px solid var(--baseline); }
   /* Closed campaigns: one "Closed (n)" dropdown in the nav instead of a pill each. */
-  nav.campaign-nav details.nav-closed { position: relative; }
-  nav.campaign-nav details.nav-closed summary {
-    list-style: none; cursor: pointer; font-size: 13px; padding: 6px 12px; border-radius: 999px;
-    color: var(--text-muted); border: 1px dashed var(--baseline); white-space: nowrap; user-select: none;
-  }
-  nav.campaign-nav details.nav-closed summary::-webkit-details-marker { display: none; }
-  nav.campaign-nav details.nav-closed summary::after { content: " ▾"; font-size: 10px; }
-  nav.campaign-nav details.nav-closed[open] summary::after { content: " ▴"; }
-  nav.campaign-nav details.nav-closed summary.active { color: var(--text-primary); border-style: solid; border-color: var(--series-1); background: var(--accent-soft); font-weight: 600; }
   .nav-closed-menu {
     position: absolute; top: calc(100% + 6px); left: 0; z-index: 10; min-width: 240px; max-width: calc(100vw - 32px);
     background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 6px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.12); display: flex; flex-direction: column; gap: 2px;
   }
-  nav.campaign-nav .nav-closed-menu a { border: none; border-radius: 6px; padding: 7px 10px; white-space: normal; }
-  nav.campaign-nav .nav-closed-menu a:hover { background: var(--accent-soft); }
   .section-heading {
     font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
     color: var(--text-muted); margin: 28px 0 10px;
@@ -267,9 +282,7 @@
 </head>
 <body>
 <header>
-  <div class="brand">
-    <nav class="campaign-nav" id="campaign-nav"></nav>
-  </div>
+  <nav id="campaign-nav"></nav>
 </header>
 <main id="main">Loading…</main>
 <div id="contact-popover"></div>
@@ -895,52 +908,70 @@ function landingCardHtml(p) {
         </a>`;
 }
 
+function reportCardHtml(r) {
+  return `
+      <a class="landing-card" href="${r.href}">
+        <div class="landing-card-head"><h3>${esc(r.label)}</h3></div>
+        <p>${esc(r.desc)}</p>
+        <div class="landing-stats"><span>open report →</span></div>
+      </a>`;
+}
+
+// Home: one tile per section (click = that section), then each section's live items, closed ones folded away.
 function landingHtml(stats) {
   const projects = sortedByPriority(stats.projects || []);
-  const active = projects.filter((p) => !isClosed(p));
+  const tile = (sec) => {
+    if (sec.key === "reports") return `<a class="overview-tile" href="/?section=reports"><div class="label">${sec.label}</div><div class="value">${WEB_REPORTS.length}</div><div class="sub">web funnels &amp; programme reports</div></a>`;
+    const live = projects.filter((p) => !isClosed(p) && sectionOf(p) === sec.key);
+    const left = live.reduce((n, p) => n + (p.tasks.notDone || 0), 0);
+    return `<a class="overview-tile" href="/?section=${sec.key}"><div class="label">${sec.label}</div><div class="value">${live.length}</div><div class="sub">live · ${left.toLocaleString()} tasks left to do</div></a>`;
+  };
+  const block = (sec) => {
+    const live = projects.filter((p) => !isClosed(p) && sectionOf(p) === sec.key);
+    const groups = groupsFor(live);
+    const body = sec.key === "reports" ? `<div class="landing-grid">${WEB_REPORTS.map(reportCardHtml).join("")}</div>`
+      : groups.map((g) => `${groups.length > 1 ? `<h3 class="group-heading">${esc(g.title)}</h3>` : ""}<div class="landing-grid">${g.items.map(landingCardHtml).join("")}</div>`).join("");
+    if (sec.key !== "reports" && !live.length) return "";
+    return `
+    <div class="section-head"><h2 class="section-heading">${sec.label}</h2><a href="/?section=${sec.key}">Open ${sec.label.toLowerCase()} →</a></div>
+    <p class="sub" style="margin:0 0 12px">${esc(sec.desc)}</p>
+    ${body}`;
+  };
   const closed = projects.filter(isClosed);
   return `
     <div class="meta-row">
       <p id="meta-line">Loading…</p>
       <div class="meta-actions">${rangeControlHtml()}<button id="update-btn">Update</button></div>
     </div>
-    <h2 class="section-heading">Active campaigns</h2>
-    <div class="landing-grid">
-      ${active.map(landingCardHtml).join("")}
-    </div>
-    <h2 class="section-heading">Reports</h2>
-    <div class="landing-grid">
-      <a class="landing-card" href="/meetings-booked/">
-        <div class="landing-card-head"><h3>Meetings booked</h3></div>
-        <p>Every meeting booked through a HubSpot meeting link — by link, GetGrounder, contact and UTM.</p>
-        <div class="landing-stats"><span>open report →</span></div>
-      </a>
-      <a class="landing-card" href="/btl-calculator-page/">
-        <div class="landing-card-head"><h3>BTL calculator page</h3></div>
-        <p>Company Google Ads landing page — visits, clicks, sign-ups, form leads and plans, before vs since the 6 Oct relaunch.</p>
-        <div class="landing-stats"><span>open report →</span></div>
-      </a>
-      <a class="landing-card" href="/?campaign=${REFERRAL_TAB_KEY}">
-        <div class="landing-card-head"><h3>Referral programme</h3></div>
-        <p>Copy-link &amp; referral conversions across the whole programme.</p>
-        <div class="landing-stats"><span>open report →</span></div>
-      </a>
-      <a class="landing-card" href="/black-friday-pages/">
-        <div class="landing-card-head"><h3>Black Friday pages</h3></div>
-        <p>/black-friday and its cost comparison page — visitors by source (email, banner, ads…), book-a-call and claim clicks, meetings booked, plans bought.</p>
-        <div class="landing-stats"><span>open report →</span></div>
-      </a>
-      <a class="landing-card" href="/chatgpt-ltd-company/">
-        <div class="landing-card-head"><h3>ChatGPT ads – Ltd company</h3></div>
-        <p>Visits, pages, clicks, meetings, sign-ups and plans from the ChatGPT Ltd company ads, before vs after the ad link switch.</p>
-        <div class="landing-stats"><span>open report →</span></div>
-      </a>
-    </div>
+    <div class="overview-strip">${SECTIONS.map(tile).join("")}</div>
+    ${SECTIONS.map(block).join("")}
     ${closed.length ? `
-    <h2 class="section-heading">Closed campaigns</h2>
-    <div class="landing-grid">
-      ${closed.map(landingCardHtml).join("")}
-    </div>` : ""}
+    <details class="closed-list"><summary>Closed (${closed.length})</summary>
+      <div class="landing-grid">${closed.map(landingCardHtml).join("")}</div>
+    </details>` : ""}
+    <footer id="footer-line"></footer>`;
+}
+
+// A section's own page: its live items as cards (the sub-tabs above jump straight to each one).
+function sectionPageHtml(stats, secKey) {
+  const sec = SECTIONS.find((x) => x.key === secKey);
+  const projects = sortedByPriority(stats.projects || []);
+  const live = secKey === "reports" ? [] : projects.filter((p) => !isClosed(p) && sectionOf(p) === secKey);
+  const closed = secKey === "reports" ? [] : projects.filter((p) => isClosed(p) && sectionOf(p) === secKey);
+  const groups = groupsFor(live);
+  const cards = secKey === "reports" ? `<div class="landing-grid">${WEB_REPORTS.map(reportCardHtml).join("")}</div>`
+    : groups.map((g) => `${groups.length > 1 ? `<h3 class="group-heading">${esc(g.title)}</h3>` : ""}<div class="landing-grid">${g.items.map(landingCardHtml).join("")}${(g.links || []).map((l) => reportCardHtml(WEB_REPORTS.find((r) => r.href === l.href) || { href: l.href, label: l.label, desc: "" })).join("")}</div>`).join("");
+  return `
+    <div class="meta-row">
+      <p id="meta-line">Loading…</p>
+      ${secKey === "reports" ? "" : `<div class="meta-actions">${rangeControlHtml()}<button id="update-btn">Update</button></div>`}
+    </div>
+    <p class="sub" style="margin:0 0 12px">${esc(sec.desc)}</p>
+    ${cards || '<div class="empty-state">Nothing live right now.</div>'}
+    ${closed.length ? `
+    <details class="closed-list"><summary>Closed (${closed.length})</summary>
+      <div class="landing-grid">${closed.map(landingCardHtml).join("")}</div>
+    </details>` : ""}
     <footer id="footer-line"></footer>`;
 }
 
@@ -954,58 +985,97 @@ function referralPageHtml() {
     <footer id="footer-line"></footer>`;
 }
 
-// Open campaigns are shown in rows by type. Keys not listed land in "Other", so a new
-// campaign still appears before it's been given a group here.
+// Sections (18 Nov): Campaigns = has its own emails (email + calls); Call tasks = calling queues
+// only; Web reports = separate funnel pages. SECTION_OF overrides the automatic split.
+const SECTIONS = [
+  { key: "campaigns", label: "Campaigns", desc: "Email campaigns with call follow-up — sends, outcomes, meetings and deals." },
+  { key: "calls", label: "Call tasks", desc: "Calling queues — tasks done vs left, call outcomes, meetings and deals." },
+  { key: "reports", label: "Web reports", desc: "Landing pages, funnels and programme reports." },
+];
+const SECTION_OF = { "black-friday": "calls", "black-friday-reengage": "calls" };
+// Groups inside a section: sub-tabs and section-page cards are laid out in this order, under
+// these labels. Keys not listed land in "Other".
 const NAV_GROUPS = [
+  { title: "Black Friday", keys: ["black-friday", "black-friday-reengage"], links: [{ href: "/black-friday-pages/", label: "BF pages (web funnel)" }] },
   { title: "Upsell / Complete", keys: ["upsell-complete", "experiment-epc", "rent-anniversary", "hapi-areas"] },
   { title: "Reengage & follow-up", keys: ["rra-cantonese-webinar", "reengage-post-webinar-bf", "properties-outside", "reengage-property-closed-lost", "reengage-ltd-core-plan", "reengage-nonpaying-master"] },
-  { title: "Active Lead & offers", keys: ["plan-close-month-end", "black-friday", "black-friday-reengage", "active-lead", "landlord-savings-calculator"],
-    // Separate report pages shown as chips in this row (they navigate away, not rendered in place).
-    links: [{ href: "/black-friday-pages/", label: "Black Friday pages (web funnel)" }] },
+  { title: "Active Lead & offers", keys: ["active-lead", "plan-close-month-end", "landlord-savings-calculator"] },
 ];
+const groupsFor = (list) => {
+  const known = new Set(NAV_GROUPS.flatMap((g) => g.keys));
+  return NAV_GROUPS.map((g) => ({ ...g, items: list.filter((p) => g.keys.includes(p.key)) }))
+    .concat([{ title: "Other", items: list.filter((p) => !known.has(p.key)) }])
+    .filter((g) => g.items.length);
+};
+const sectionOf = (p) => SECTION_OF[p.key] || (p.hasEmails ? "campaigns" : "calls");
+const WEB_REPORTS = [
+  { href: "/black-friday-pages/", label: "Black Friday pages", desc: "/black-friday and its cost comparison page — visitors by source, book-a-call and claim clicks, meetings, plans bought." },
+  { href: "/meetings-booked/", label: "Meetings booked", desc: "Every meeting booked through a HubSpot meeting link — by link, GetGrounder, contact and UTM." },
+  { href: "/btl-calculator-page/", label: "BTL calculator page", desc: "Company Google Ads landing page — visits, clicks, sign-ups, form leads and plans, before vs since the 6 Oct relaunch." },
+  { href: "/chatgpt-ltd-company/", label: "ChatGPT ads – Ltd company", desc: "Visits, pages, clicks, meetings, sign-ups and plans from the ChatGPT Ltd company ads." },
+  { href: `/?campaign=${REFERRAL_TAB_KEY}`, label: "Referral programme", desc: "Copy-link & referral conversions across the whole programme." },
+];
+// Short sub-tab labels (the section tab already says what kind of thing it is).
 const NAV_SHORT = {
   "upsell-complete": "Complete plan upsell",
   "experiment-epc": "EPC list (experiment)",
   "rent-anniversary": "Rent anniversary (experiment)",
+  "active-lead": "Active Lead – Ltd company",
   "hapi-areas": "hapi areas (Gordon)",
-  "rra-cantonese-webinar": "RRA Cantonese webinar (Florence & Yoana)",
+  "rra-cantonese-webinar": "RRA Cantonese webinar",
   "properties-outside": "Properties outside GG company",
   "reengage-property-closed-lost": "Property closed lost",
-  "reengage-post-webinar-bf": "Post BF webinar email (follow up)",
+  "reengage-post-webinar-bf": "Post BF webinar email",
   "plan-close-month-end": "Plan close (month end)",
-  "landlord-savings-calculator": "Landlord savings calculator (experiment)",
+  "landlord-savings-calculator": "Landlord savings calculator",
+  "black-friday": "Black Friday",
+  "black-friday-reengage": "Black Friday reengage",
 };
+
+function currentSection(stats) {
+  const q = new URLSearchParams(location.search);
+  if (q.get("section")) return q.get("section");
+  const key = currentCampaignKey();
+  if (!key) return null;
+  if (key === REFERRAL_TAB_KEY) return "reports";
+  const p = (stats.projects || []).find((x) => x.key === key);
+  return p ? sectionOf(p) : null;
+}
 
 function renderNav(stats, activeKey) {
   const nav = document.getElementById("campaign-nav");
   const projects = sortedByPriority(stats.projects || []);
-  const allLink = `<a href="/" class="${!activeKey ? "active" : ""}">All campaigns</a>`;
-  // In the grouped rows the group title carries the campaign type, so chips drop that prefix
-  // ("Upsell — Complete plan upsell" -> "Complete plan upsell"); full names stay everywhere else.
-  const shortLabel = (p) => NAV_SHORT[p.key] || p.label;
-  const link = (p) => `<a href="/?campaign=${p.key}" class="${p.key === activeKey ? "active" : ""}">${esc(isClosed(p) ? p.label : shortLabel(p))}${isClosed(p) ? "" : priorityPillHtml(dominantPriority(p))}</a>`;
-  const closed = projects.filter(isClosed);
+  const sec = currentSection(stats);
+  const liveIn = (k) => projects.filter((p) => !isClosed(p) && sectionOf(p) === k);
+  const top = [`<a href="/" class="${!sec ? "on" : ""}">Home</a>`].concat(SECTIONS.map((x) => {
+    const n = x.key === "reports" ? WEB_REPORTS.length : liveIn(x.key).length;
+    return `<a href="/?section=${x.key}" class="${sec === x.key ? "on" : ""}">${x.label}<span class="count">${n}</span></a>`;
+  })).join("");
+  let sub = "";
+  if (sec === "reports") {
+    sub = WEB_REPORTS.map((r) => `<a href="${r.href}" class="${r.href === `/?campaign=${activeKey}` ? "on" : ""}">${esc(r.label)}</a>`).join("");
+  } else if (sec) {
+    const groups = groupsFor(liveIn(sec));
+    sub = groups.map((g) => (groups.length > 1 ? `<span class="grp">${esc(g.title)}</span>` : "")
+      + g.items.map((p) => `<a href="/?campaign=${p.key}" class="${p.key === activeKey ? "on" : ""}">${esc(NAV_SHORT[p.key] || p.label)}${priorityPillHtml(dominantPriority(p))}</a>`).join("")
+      + (g.links || []).map((l) => `<a href="${l.href}">${esc(l.label)} ↗</a>`).join("")).join("");
+  }
+  const closed = sec && sec !== "reports" ? projects.filter((p) => isClosed(p) && sectionOf(p) === sec) : [];
   const closedActive = closed.some((p) => p.key === activeKey);
   const closedMenu = closed.length ? `
     <details class="nav-closed">
       <summary class="${closedActive ? "active" : ""}">Closed (${closed.length})</summary>
-      <div class="nav-closed-menu">${closed.map(link).join("")}</div>
+      <div class="nav-closed-menu">${closed.map((p) => `<a href="/?campaign=${p.key}" class="${p.key === activeKey ? "on" : ""}">${esc(p.label)}</a>`).join("")}</div>
     </details>` : "";
-  const open = projects.filter((p) => !isClosed(p));
-  const groups = NAV_GROUPS.map((g) => ({ ...g, items: open.filter((p) => g.keys.includes(p.key)) }));
-  const known = new Set(NAV_GROUPS.flatMap((g) => g.keys));
-  groups.push({ title: "Other", items: open.filter((p) => !known.has(p.key)) });
-  const rows = groups.filter((g) => g.items.length).map((g) => `
-    <div class="nav-group">
-      <span class="nav-group-title">${esc(g.title)}</span>
-      <div class="nav-group-items">${g.items.map(link).join("")}${(g.links || []).map((l) => `<a href="${l.href}">${esc(l.label)} ↗</a>`).join("")}</div>
-    </div>`).join("");
-  nav.innerHTML = `<div class="nav-top">${allLink}${closedMenu}</div>${rows}`;
+  nav.innerHTML = `<div class="tabs-row"><div class="tabs">${top}</div></div>`
+    + (sub || closedMenu ? `<div class="tabs-row subtabs-row"><div class="tabs subtabs">${sub}</div>${closedMenu}</div>` : "");
+  const on = nav.querySelector(".subtabs a.on");
+  if (on) on.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 // The Closed dropdown is a <details>, which doesn't close itself on an outside click.
 document.addEventListener("click", (e) => {
-  const d = document.querySelector("nav.campaign-nav details.nav-closed[open]");
+  const d = document.querySelector("#campaign-nav details.nav-closed[open]");
   if (d && !d.contains(e.target)) d.removeAttribute("open");
 });
 
@@ -1389,7 +1459,10 @@ function render() {
   renderNav(statsRes, key);
   const main = document.getElementById("main");
 
-  if (!key) {
+  const secParam = new URLSearchParams(location.search).get("section");
+  if (!key && secParam && SECTIONS.some((x) => x.key === secParam)) {
+    main.innerHTML = sectionPageHtml(statsRes, secParam);
+  } else if (!key) {
     main.innerHTML = landingHtml(statsRes);
   } else if (key === REFERRAL_TAB_KEY) {
     main.innerHTML = referralPageHtml();

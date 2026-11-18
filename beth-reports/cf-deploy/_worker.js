@@ -134,7 +134,7 @@ const REPORTS = {
       },
       {
         key: "active-lead",
-        closed: true, // Moved under "Closed" on the dashboard (5 Oct) — data still computed/shown.
+        // Closed 5 Oct, reopened 18 Nov (back under Call tasks → Active Lead & offers).
         label: "Active Lead — Ltd Company Set-up",
         match: (s) => s.includes("Active Lead") && !s.includes("Plan close - month end"),
         // Real naming convention (verified live against actual task subjects, not guessed):
@@ -373,6 +373,7 @@ const REPORTS = {
       },
       {
         key: "experiment-epc",
+        closed: true, // Moved under "Closed" on the dashboard (18 Nov).
         label: "Experiment — EPC list Complete upsell",
         // Real subject: "#1 |  Call | Experiment | Complete upsell - EPC list mrr" (double space
         // after "#1 |"), from workflow 5096773821. Doesn't collide with Upsell-Complete's match
