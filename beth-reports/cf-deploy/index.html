@@ -95,6 +95,39 @@
   .subnav .nav-closed-menu a:hover, .subnav .nav-closed-menu a.on { background: var(--accent-soft); color: var(--text-primary); }
   .calls-view #emails-slot, .calls-view #assets-slot { display: none; }
   .pick-hint { color: var(--text-muted); font-size: 14px; text-align: center; padding: 48px 0; }
+  .ov-hero { background: var(--surface-1); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); padding: 24px 26px; margin-bottom: 20px;
+    background-image: radial-gradient(1200px 200px at 0% 0%, var(--accent-soft), transparent 60%), radial-gradient(800px 200px at 100% 0%, var(--purple-soft), transparent 60%); }
+  .ov-hero h1 { margin: 0 0 6px; font-size: 26px; font-weight: 800; }
+  .ov-hero > p { margin: 0 0 18px; color: var(--text-secondary); font-size: 14px; line-height: 1.5; max-width: 720px; }
+  .flow { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; }
+  .flow-step { flex: 1 1 140px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; position: relative; overflow: hidden; }
+  .flow-step::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--c); }
+  .flow-step .k { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+  .flow-step .v { font-family: var(--head-font); font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin: 4px 0 2px; }
+  .flow-step .v small { font-size: 15px; color: var(--text-muted); font-weight: 600; }
+  .flow-step .s { font-size: 12px; color: var(--text-secondary); }
+  .flow-arrow { align-self: center; color: var(--baseline); font-size: 18px; }
+  @media (max-width: 700px) { .flow-arrow { display: none; } }
+  .ld { color: var(--text-muted); }
+  table.ov-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.ov-table th { text-align: left; font-weight: 600; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  table.ov-table td { padding: 10px; border-bottom: 1px solid var(--gridline); vertical-align: middle; }
+  table.ov-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.ov-table a { color: var(--teal-ink); text-decoration: none; font-weight: 500; }
+  table.ov-table .muted, .muted { color: var(--text-muted); font-size: 12px; }
+  .small { font-size: 12px; }
+  .nowrap { white-space: nowrap; }
+  .cellbar { display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cellbar .mini { width: 70px; height: 6px; border-radius: 999px; background: var(--not-done); overflow: hidden; display: inline-block; }
+  .cellbar .mini i { display: block; height: 100%; background: linear-gradient(90deg, var(--teal), var(--purple)); }
+  .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .card-head a { font-size: 13px; color: var(--teal-ink); text-decoration: none; font-weight: 600; }
+  .web-pages { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 12px 0 8px; }
+  .wp { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+  .wp .k { font-size: 12px; color: var(--text-muted); } .wp .v { font-family: var(--head-font); font-size: 24px; font-weight: 800; } .wp .s { font-size: 11px; color: var(--text-muted); }
+  .ov-h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin: 16px 0 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  a.chip { font-size: 13px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border); text-decoration: none; color: var(--text-primary); }
   .home-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
   .home-panel { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px 10px; }
   a.home-panel-head { display: block; font-size: 16px; font-weight: 700; color: var(--text-primary); text-decoration: none; margin-bottom: 6px; }
@@ -368,6 +401,22 @@
   a.home-row .mini i { display: block; height: 100%; background: linear-gradient(90deg, var(--teal), var(--purple)); border-radius: 999px; }
   a.home-row .left { min-width: 56px; text-align: right; font-variant-numeric: tabular-nums; }
   details.closed-list summary { color: var(--text-secondary); }
+
+  /* Section identity (18 Nov): Campaigns = teal overview, Call tasks = purple task detail. */
+  body[data-sec="campaigns"] { --sec: var(--teal); --sec-ink: var(--teal-ink); --sec-soft: var(--accent-soft); }
+  body[data-sec="calls"] { --sec: var(--purple); --sec-ink: var(--purple); --sec-soft: var(--purple-soft); }
+  body[data-sec="home"] { --sec: var(--teal); --sec-ink: var(--teal-ink); --sec-soft: var(--accent-soft); }
+  .tabs a.on { color: var(--sec-ink); border-bottom-color: var(--sec); }
+  body[data-sec="calls"] header { background: linear-gradient(180deg, var(--surface-1), color-mix(in srgb, var(--purple) 5%, var(--surface-1))); }
+  body[data-sec="campaigns"] header { background: linear-gradient(180deg, var(--surface-1), color-mix(in srgb, var(--teal) 5%, var(--surface-1))); }
+  /* Sub-nav groups as separate boxes. */
+  .subnav { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; padding: 12px 0 14px; }
+  .sub-group { display: flex; flex-direction: column; gap: 8px; align-items: stretch; background: var(--surface-1); border: 1px solid var(--border); border-top: 3px solid var(--sec); border-radius: 12px; padding: 10px 12px 12px; }
+  .sub-group .grp { color: var(--sec-ink); }
+  .sub-group.sub-closed { align-self: start; border-top-color: var(--baseline); background: transparent; border-style: dashed; justify-content: center; }
+  .sub-items { gap: 6px; }
+  .sub-items a.on { background: var(--sec-soft); border-color: var(--sec); color: var(--sec-ink); }
+  @media (max-width: 700px) { .sub-group { grid-template-columns: none; } }
 </style>
 </head>
 <body>
@@ -1015,15 +1064,22 @@ function homeRowHtml(p, sec) {
 function landingHtml(stats) {
   const projects = sortedByPriority(stats.projects || []);
   const panel = (sec) => {
+    if (sec.key === "campaigns") {
+      const webLinks = NAV_GROUPS.filter((g) => g.section === "campaigns" && !g.keys.length).flatMap((g) => g.links || []);
+      const rowsC = `<div class="home-grp">Campaigns</div>` + initiativesList(stats).map((i) => `<a class="home-row" href="/?initiative=${i.key}"><span class="nm">${esc(i.label)}</span><span class="left">${i.parts.length > 1 ? `${i.parts.length} parts · ` : ""}overview →</span></a>`).join("")
+        + `<div class="home-grp">Web &amp; funnels</div>` + webLinks.map((l) => `<a class="home-row" href="${l.href}"><span class="nm">${esc(l.label)}</span><span class="left">web report →</span></a>`).join("");
+      return `<section class="home-panel" style="--c:${SECTION_COLOR[sec.key]}"><a class="home-panel-head" href="/?section=${sec.key}"><span class="dot"></span>${sec.label}<span class="go">Open →</span></a>${rowsC}</section>`;
+    }
     const groups = groupsFor(projects.filter((p) => !isClosed(p) && inSection(p, sec.key)), sec.key);
     const rows = groups.map((g) => `<div class="home-grp">${esc(g.title)}</div>${g.items.map((p) => homeRowHtml(p, sec.key)).join("")}`
       + g.links.map((l) => `<a class="home-row" href="${l.href}"><span class="nm">${esc(l.label)}</span><span class="left">web report →</span></a>`).join("")).join("");
     return `<section class="home-panel" style="--c:${SECTION_COLOR[sec.key]}"><a class="home-panel-head" href="/?section=${sec.key}"><span class="dot"></span>${sec.label}<span class="go">Open →</span></a>${rows || '<p class="sub">Nothing live.</p>'}</section>`;
   };
   const hero = (sec) => {
+    if (sec.key === "campaigns") return `<a class="hero-tile" style="--c:${SECTION_COLOR[sec.key]}" href="/?section=campaigns"><div class="k">${sec.label}</div><div class="v">${initiativesList(stats).length}</div><div class="s">live campaigns · ${WEB_REPORTS.length} web reports</div></a>`;
     const live = projects.filter((p) => !isClosed(p) && inSection(p, sec.key));
     const left = live.reduce((n, p) => n + (p.tasks.notDone || 0), 0);
-    return `<a class="hero-tile" style="--c:${SECTION_COLOR[sec.key]}" href="/?section=${sec.key}"><div class="k">${sec.label}</div><div class="v">${left.toLocaleString()}</div><div class="s">tasks left · ${live.length} live${sec.key === "campaigns" ? ` · ${WEB_REPORTS.length} web reports` : ""}</div></a>`;
+    return `<a class="hero-tile" style="--c:${SECTION_COLOR[sec.key]}" href="/?section=${sec.key}"><div class="k">${sec.label}</div><div class="v">${left.toLocaleString()}</div><div class="s">tasks left · ${live.length} live queues</div></a>`;
   };
   const closed = projects.filter(isClosed);
   return `
@@ -1043,6 +1099,144 @@ function landingHtml(stats) {
 // A section's own page: deliberately empty (Beth, 18 Nov: no overview cards) — pick from the tabs above.
 function sectionPageHtml(stats, secKey) {
   return `<p class="pick-hint">${secKey === "calls" ? "Pick a call queue above." : "Pick a campaign above."}</p>`;
+}
+
+// ---- Campaign overview pages (18 Nov) --------------------------------------------------
+// The Campaigns tab shows one top-line page per campaign (?initiative=<key>): emails, web
+// visits, calls, meetings and plans won, with the task-level detail left to Call tasks.
+// Live campaign-type projects not listed here get a one-part page of their own automatically.
+const INITIATIVES = [
+  { key: "black-friday", label: "Black Friday", parts: ["black-friday", "black-friday-reengage", "reengage-post-webinar-bf"], web: "bf-pages", webLink: "/black-friday-pages/",
+    desc: "Everything running for Black Friday: ads leads, the database reengage emails, the post-webinar email, the /black-friday pages and the calls behind them." },
+];
+function initiativesList(stats) {
+  const projects = stats.projects || [];
+  const used = new Set(INITIATIVES.flatMap((i) => i.parts));
+  const auto = sortedByPriority(projects).filter((p) => !isClosed(p) && sectionOf(p) === "campaigns" && !used.has(p.key))
+    .map((p) => ({ key: p.key, label: NAV_SHORT[p.key] || p.label, parts: [p.key], desc: p.context || "" }));
+  return [...INITIATIVES, ...auto];
+}
+const currentInitiativeKey = () => new URLSearchParams(location.search).get("initiative");
+let initEmails = {};   // part key -> /api/emails payload (null = failed)
+let initWeb = {};      // web key -> payload
+const initInFlight = new Set();
+function initFetch(store, key, url) {
+  if (key in store || initInFlight.has(url)) return;
+  initInFlight.add(url);
+  fetch(url).then((r) => r.json()).catch(() => null).then((res) => {
+    store[key] = res; initInFlight.delete(url);
+    if (currentInitiativeKey()) render();
+  });
+}
+const pct = (n, d) => d ? `${(100 * n / d).toFixed(n / d < 0.1 ? 1 : 0)}%` : "–";
+const hsContact = (id) => `https://app-eu1.hubspot.com/contacts/25516403/record/0-1/${id}`;
+
+function initiativePageHtml(stats, ini) {
+  const projects = Object.fromEntries((stats.projects || []).map((p) => [p.key, p]));
+  const outcomesByKey = Object.fromEntries(((cache.outcomes && cache.outcomes.projects) || []).map((p) => [p.key, p]));
+  const dealsByKey = Object.fromEntries(((cache.deals && cache.deals.projects) || []).map((p) => [p.key, p]));
+  const has = rangeTest();
+  const parts = ini.parts.filter((k) => projects[k]).map((k) => {
+    const p = projects[k];
+    const o = resolveScoped("outcomes", k, outcomesByKey);
+    const d = resolveScoped("deals", k, dealsByKey);
+    if (p.hasEmails) initFetch(initEmails, k, `/api/emails?report=${REPORT_KEY}&campaign=${encodeURIComponent(k)}`);
+    return { key: k, p, o: sliceOutcomes(o.data), d: sliceDeals(d.data), loading: o.loading || d.loading, emails: initEmails[k] };
+  });
+  if (ini.web) initFetch(initWeb, ini.web, `/api/${ini.web}`);
+  const web = ini.web ? initWeb[ini.web] : null;
+  const webLoading = ini.web && !(ini.web in initWeb);
+
+  // Emails (all time — HubSpot only gives totals), de-duplicated across parts.
+  const emailMap = new Map();
+  for (const pt of parts) for (const e of ((pt.emails && pt.emails.emails) || [])) if (!emailMap.has(String(e.id))) emailMap.set(String(e.id), { ...e, part: pt.key });
+  const emails = [...emailMap.values()];
+  const emailsLoading = parts.some((pt) => pt.p.hasEmails && pt.emails === undefined);
+  const es = emails.reduce((a, e) => { const t = e.stats || {}; for (const k of ["sent", "delivered", "opened", "clicked", "unsubscribed"]) a[k] += Number(t[k] || 0); return a; }, { sent: 0, delivered: 0, opened: 0, clicked: 0, unsubscribed: 0 });
+
+  // Calls
+  const tasks = parts.reduce((a, pt) => ({ total: a.total + pt.p.tasks.total, done: a.done + pt.p.tasks.done }), { total: 0, done: 0 });
+  const reached = parts.reduce((n, pt) => n + ((pt.o && pt.o.totalReached) || 0), 0);
+  const callsLoading = parts.some((pt) => pt.loading);
+
+  // Meetings: call/email-credited (outcomes) + bookings from the web pages, de-duplicated.
+  const mtg = new Map();
+  for (const pt of parts) for (const m of ((pt.o && pt.o.meetings) || [])) mtg.set(String(m.meetingId), { id: m.meetingId, contactId: m.contactId, name: m.name, bookedAt: m.bookedAt, startTime: m.startTime, status: m.status, result: m.result, via: m.fromEmail ? "Email" : "Call", part: NAV_SHORT[pt.key] || pt.p.label });
+  if (web) for (const m of [...(web.meetings || []), ...(web.emailMeetings || [])]) {
+    if (has && !has(Date.parse(m.bookedAt))) continue;
+    if (!mtg.has(String(m.id))) mtg.set(String(m.id), { id: m.id, contactId: m.contactId, name: m.name, bookedAt: m.bookedAt, startTime: m.startsAt, status: Date.parse(m.startsAt) > Date.now() ? "Upcoming" : "", result: "", via: m.source || "Web", part: "Web page" });
+  }
+  const meetings = [...mtg.values()].sort((a, b) => String(b.bookedAt).localeCompare(String(a.bookedAt)));
+
+  // Plans won (contacts with a closed Plans deal since enrolling), de-duplicated across parts.
+  const won = new Map();
+  for (const pt of parts) for (const r of ((pt.d && pt.d.rows) || [])) if (!/^\(no /.test(r.label || "")) for (const c of r.contacts || []) won.set(String(c.id), { ...c, plan: r.label });
+  const webVisitors = web && web.pages && web.pages.some((pg) => pg.visitors != null) ? web.pages.reduce((n, pg) => n + (pg.visitors || 0), 0) : null;
+  const webCheckouts = web && web.checkout ? web.checkout.complete : null;
+
+  const L = (v, loading) => loading ? '<span class="ld">…</span>' : v;
+  const step = (label, value, sub, color) => `<div class="flow-step" style="--c:${color}"><div class="k">${label}</div><div class="v">${value}</div><div class="s">${sub}</div></div>`;
+  const steps = [];
+  if (parts.some((pt) => pt.p.hasEmails)) steps.push(step("Emails", L(es.sent.toLocaleString(), emailsLoading), `${L(pct(es.opened, es.delivered), emailsLoading)} opened · ${L(pct(es.clicked, es.delivered), emailsLoading)} clicked`, "var(--teal)"));
+  if (ini.web) steps.push(step("Web visitors", L(webVisitors == null ? "–" : webVisitors.toLocaleString(), webLoading), webCheckouts != null ? `${webCheckouts} checkouts completed` : (web && web.errors && web.errors.mixpanel ? "visits unavailable" : "&nbsp;"), "var(--series-5)"));
+  steps.push(step("Calls", `${tasks.done.toLocaleString()}<small> / ${tasks.total.toLocaleString()}</small>`, `${L(reached.toLocaleString(), callsLoading)} reached`, "var(--purple)"));
+  steps.push(step("Meetings", L(meetings.length, callsLoading || webLoading), `${meetings.filter((m) => m.status === "Upcoming").length} upcoming`, "var(--series-4)"));
+  steps.push(step("Plans won", L(won.size, callsLoading), "contacts with a closed Plans deal", "var(--teal-ink)"));
+
+  const partRows = parts.map((pt) => {
+    const mt = ((pt.o && pt.o.meetings) || []).length;
+    const w = new Set(((pt.d && pt.d.rows) || []).filter((r) => !/^\(no /.test(r.label || "")).flatMap((r) => (r.contacts || []).map((c) => c.id))).size;
+    const sent = ((pt.emails && pt.emails.emails) || []).reduce((n, e) => n + Number((e.stats || {}).sent || 0), 0);
+    const pc = pt.p.tasks.total ? Math.round(100 * pt.p.tasks.done / pt.p.tasks.total) : 0;
+    return `<tr><td><b>${esc(NAV_SHORT[pt.key] || pt.p.label)}</b></td>
+      <td class="num">${pt.p.hasEmails ? L(sent.toLocaleString(), pt.emails === undefined) : "–"}</td>
+      <td><div class="cellbar"><span class="mini"><i style="width:${pc}%"></i></span>${pt.p.tasks.done}/${pt.p.tasks.total}</div></td>
+      <td class="num">${L((pt.o && pt.o.totalReached) || 0, pt.loading)}</td><td class="num">${L(mt, pt.loading)}</td><td class="num">${L(w, pt.loading)}</td>
+      <td class="num"><a href="/?campaign=${pt.key}&view=calls">Calls →</a></td></tr>`;
+  }).join("");
+
+  const emailRows = emails.map((e) => { const t = e.stats || {}; return `<tr><td><a href="${e.link}" target="_blank" rel="noopener">${esc(e.label || e.name)}</a><div class="muted">${esc(prettyTokensClient(e.subject || ""))}</div></td>
+    <td class="num">${Number(t.sent || 0).toLocaleString()}</td><td class="num">${pct(t.opened, t.delivered)}</td><td class="num">${pct(t.clicked, t.delivered)}</td><td class="num">${pct(t.unsubscribed, t.delivered)}</td></tr>`; }).join("");
+
+  let webHtml = "";
+  if (ini.web) {
+    if (webLoading) webHtml = `<p class="muted">Loading web data…</p>`;
+    else if (!web || !web.pages) webHtml = `<p class="muted">Web data unavailable.</p>`;
+    else {
+      const srcs = {};
+      for (const pg of web.pages) for (const r of pg.sources || []) srcs[r.source] = (srcs[r.source] || 0) + r.visitors;
+      const top = Object.entries(srcs).sort((a, b) => b[1] - a[1]).slice(0, 6);
+      const max = Math.max(1, ...top.map((t) => t[1]));
+      webHtml = `<div class="web-pages">${web.pages.map((pg) => `<div class="wp"><div class="k">${esc(pg.label)}</div><div class="v">${pg.visitors != null ? pg.visitors.toLocaleString() : "–"}</div><div class="s">${esc(pg.path)}</div></div>`).join("")}</div>
+        ${top.length ? `<h4 class="ov-h4">Top sources</h4>${top.map(([src, n], i) => `<div class="outcome-bar-row"><span class="name" title="${esc(src)}">${esc(src)}</span><div class="track"><div class="fill" style="width:${Math.max(2, Math.round(100 * n / max))}%; background:${SERIES[i % SERIES.length]}"></div></div><span class="count">${n.toLocaleString()}</span></div>`).join("")}` : ""}
+        ${web.errors && web.errors.mixpanel ? `<p class="muted">Visits: ${esc(web.errors.mixpanel)}</p>` : ""}`;
+    }
+  }
+
+  const mtgRows = meetings.slice(0, 12).map((m) => `<tr><td><a href="${hsContact(m.contactId)}" target="_blank" rel="noopener">${esc(m.name || "Contact")}</a></td><td>${esc(m.part)}</td><td class="muted">${esc(m.via)}</td>
+    <td class="nowrap">${m.bookedAt ? fmtDate(m.bookedAt) : ""}</td><td class="nowrap">${m.startTime ? fmtDate(m.startTime) : ""}</td><td>${esc(m.result || m.status || "")}</td></tr>`).join("");
+
+  return `
+    <div class="meta-row">
+      <p id="meta-line">Loading…</p>
+      <div class="meta-actions">${rangeControlHtml()}<button id="update-btn">Update</button></div>
+    </div>
+    <section class="ov-hero">
+      <h1>${esc(ini.label)}</h1>
+      ${ini.desc ? `<p>${esc(ini.desc)}</p>` : ""}
+      <div class="flow">${steps.join('<span class="flow-arrow">→</span>')}</div>
+      ${rangeIsSet() ? `<p class="muted small">Calls, meetings and plans: ${esc(rangeLabel())}. Emails and web visits: all time.</p>` : ""}
+    </section>
+    ${parts.length > 1 || parts.length === 1 ? `<section class="card"><h2>What's running</h2>
+      <div class="overflow-x"><table class="ov-table"><thead><tr><th>Part</th><th class="num">Emails sent</th><th>Calls done</th><th class="num">Reached</th><th class="num">Meetings</th><th class="num">Plans won</th><th></th></tr></thead><tbody>${partRows}</tbody></table></div></section>` : ""}
+    ${emails.length || emailsLoading ? `<section class="card"><h2>Emails</h2>${emailsLoading && !emails.length ? '<p class="muted">Loading…</p>' : `<div class="overflow-x"><table class="ov-table"><thead><tr><th>Email</th><th class="num">Sent</th><th class="num">Opened</th><th class="num">Clicked</th><th class="num">Unsubs</th></tr></thead><tbody>${emailRows}</tbody></table></div>`}</section>` : ""}
+    ${ini.web ? `<section class="card"><div class="card-head"><h2>Web pages</h2><a href="${ini.webLink}">Full web report →</a></div>${webHtml}</section>` : ""}
+    <section class="card"><h2>Meetings booked</h2>${meetings.length ? `<div class="overflow-x"><table class="ov-table"><thead><tr><th>Contact</th><th>From</th><th>Via</th><th>Booked</th><th>Meeting</th><th>Status</th></tr></thead><tbody>${mtgRows}</tbody></table></div>${meetings.length > 12 ? `<p class="muted small">Showing latest 12 of ${meetings.length}.</p>` : ""}` : `<p class="muted">${callsLoading ? "Loading…" : "No meetings yet."}</p>`}</section>
+    ${won.size ? `<section class="card"><h2>Plans won</h2><div class="chips">${[...won.values()].map((c) => `<a class="chip" href="${hsContact(c.id)}" target="_blank" rel="noopener">${esc(c.name)} <span class="muted">${esc(c.plan || "")}</span></a>`).join("")}</div></section>` : ""}
+    <footer id="footer-line"></footer>`;
+}
+function prettyTokensClient(s) {
+  return String(s || "").replace(/\{\{\s*personalization_token\(\s*'[\w]+\.([\w.]+)'[^}]*\}\}/g, (_, f) => `[${f.split(".").pop()}]`).replace(/\{\{\s*(?:contact|custom|company)\.([\w.]+)\s*\}\}/g, (_, f) => `[${f.split(".").pop()}]`);
 }
 
 function referralPageHtml() {
@@ -1119,6 +1313,7 @@ function currentSection(stats) {
   const q = new URLSearchParams(location.search);
   if (q.get("section")) return q.get("section") === "reports" ? "campaigns" : q.get("section");
   if (q.get("view") === "calls") return "calls";
+  if (q.get("initiative")) return "campaigns";
   const key = currentCampaignKey();
   if (!key) return null;
   if (key === REFERRAL_TAB_KEY) return "campaigns";
@@ -1130,13 +1325,19 @@ function renderNav(stats, activeKey) {
   const nav = document.getElementById("campaign-nav");
   const projects = sortedByPriority(stats.projects || []);
   const sec = currentSection(stats);
+  document.body.dataset.sec = sec || "home";
   const liveIn = (k) => projects.filter((p) => !isClosed(p) && inSection(p, k));
   const top = [`<a href="/" class="${!sec ? "on" : ""}">Home</a>`].concat(SECTIONS.map((x) => {
-    const n = liveIn(x.key).length;
+    const n = x.key === "campaigns" ? initiativesList(stats).length : liveIn(x.key).length;
     return `<a href="/?section=${x.key}" class="${sec === x.key ? "on" : ""}">${x.label}<span class="count">${n}</span></a>`;
   })).join("");
   let sub = "";
-  if (sec) {
+  if (sec === "campaigns") {
+    const iniKey = currentInitiativeKey();
+    const webLinks = NAV_GROUPS.filter((g) => g.section === "campaigns" && !g.keys.length).flatMap((g) => g.links || []);
+    sub = `<div class="sub-group"><span class="grp">Campaigns</span><div class="sub-items">${initiativesList(stats).map((i) => `<a href="/?initiative=${i.key}" class="${i.key === iniKey || (!iniKey && i.parts.includes(activeKey)) ? "on" : ""}">${esc(i.label)}</a>`).join("")}</div></div>`
+      + (webLinks.length ? `<div class="sub-group"><span class="grp">Web &amp; funnels</span><div class="sub-items">${webLinks.map((l) => `<a href="${l.href}" class="${isLinkOn(l.href) ? "on" : ""}">${esc(l.label)}${l.href.startsWith("/?") ? "" : " ↗"}</a>`).join("")}</div></div>` : "");
+  } else if (sec) {
     const groups = groupsFor(liveIn(sec), sec);
     sub = groups.map((g) => `<div class="sub-group"><span class="grp">${esc(g.title)}</span><div class="sub-items">`
       + g.items.map((p) => `<a href="${projectHref(p, sec)}" class="${p.key === activeKey ? "on" : ""}">${esc(NAV_SHORT[p.key] || p.label)}</a>`).join("")
@@ -1150,7 +1351,7 @@ function renderNav(stats, activeKey) {
       <div class="nav-closed-menu">${closed.map((p) => `<a href="${projectHref(p, sec)}" class="${p.key === activeKey ? "on" : ""}">${esc(p.label)}</a>`).join("")}</div>
     </details>` : "";
   nav.innerHTML = `<div class="tabs-row"><div class="tabs">${top}</div></div>`
-    + (sub || closedMenu ? `<div class="subnav">${sub}${closedMenu ? `<div class="sub-group"><span class="grp"></span><div class="sub-items">${closedMenu}</div></div>` : ""}</div>` : "");
+    + (sub || closedMenu ? `<div class="subnav">${sub}${closedMenu ? `<div class="sub-group sub-closed"><div class="sub-items">${closedMenu}</div></div>` : ""}</div>` : "");
 }
 
 // The Closed dropdown is a <details>, which doesn't close itself on an outside click.
@@ -1487,7 +1688,7 @@ async function fetchScoped(kind, key) {
     scopedInFlight.delete(flightKey);
     scopedRefreshing.delete(flightKey);
     const cur = currentCampaignKey();
-    if (cur === (MERGED_INTO[key] || key) || (OUTCOME_BENCHMARKS[cur] && OUTCOME_BENCHMARKS[cur].key === key)) render();
+    if (cur === (MERGED_INTO[key] || key) || (OUTCOME_BENCHMARKS[cur] && OUTCOME_BENCHMARKS[cur].key === key) || currentInitiativeKey()) render();
   }
 }
 
@@ -1541,7 +1742,11 @@ function render() {
   main.classList.toggle("calls-view", new URLSearchParams(location.search).get("view") === "calls");
 
   const secParam = ((s) => s === "reports" ? "campaigns" : s)(new URLSearchParams(location.search).get("section"));
-  if (!key && secParam && SECTIONS.some((x) => x.key === secParam)) {
+  const iniKey = currentInitiativeKey();
+  const ini = iniKey && initiativesList(statsRes).find((x) => x.key === iniKey);
+  if (!key && ini) {
+    main.innerHTML = initiativePageHtml(statsRes, ini);
+  } else if (!key && secParam && SECTIONS.some((x) => x.key === secParam)) {
     main.innerHTML = sectionPageHtml(statsRes, secParam);
   } else if (!key) {
     main.innerHTML = landingHtml(statsRes);
