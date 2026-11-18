@@ -1353,8 +1353,7 @@ function initiativePageHtml(stats, ini) {
       const by = {}; for (const c of leads) { const k = c.conversion || c.source; by[k] = (by[k] || 0) + 1; }
       const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 6); const mx = Math.max(1, ...top.map((t) => t[1]));
       leadsHtml = `<div class="lead-stats"><div><b>${leads.length}</b><span>leads</span></div><div><b>${leads.filter((c) => c.isNew).length}</b><span>new to HubSpot</span></div><div><b>${leads.filter((c) => /^Paid/.test(c.source)).length}</b><span>original source paid</span></div></div>
-        <h4 class="ov-h4">Where they came from</h4>${top.map(([k, n], i) => `<div class="outcome-bar-row"><span class="name" title="${esc(k)}">${esc(k)}</span><div class="track"><div class="fill" style="width:${Math.max(2, Math.round(100 * n / mx))}%; background:${SERIES[i % SERIES.length]}"></div></div><span class="count">${n}</span></div>`).join("")}
-        <h4 class="ov-h4">Latest</h4><div class="chips">${leads.slice(0, 12).map((c) => `<a class="chip" href="${hsContact(c.id)}" target="_blank" rel="noopener">${esc(c.name)} <span class="muted">${fmtDate(new Date(c.createdMs).toISOString())}${c.isNew ? " · new" : ""}</span></a>`).join("")}</div>`;
+        <h4 class="ov-h4">Where they came from</h4>${top.map(([k, n], i) => `<div class="outcome-bar-row"><span class="name" title="${esc(k)}">${esc(k)}</span><div class="track"><div class="fill" style="width:${Math.max(2, Math.round(100 * n / mx))}%; background:${SERIES[i % SERIES.length]}"></div></div><span class="count">${n}</span></div>`).join("")}`;
     }
   }
 
