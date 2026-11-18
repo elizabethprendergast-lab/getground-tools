@@ -1573,7 +1573,7 @@ function meetingSummary(cid, id, m, ctx) {
   let status;
   if (oc === "CANCELED" || oc === "CANCELLED") status = "Cancelled";
   else if (oc === "NO_SHOW") status = "No-show";
-  else if (startMs && startMs > now) status = "Upcoming";
+  else if (startMs && startMs > now && !MEETING_VERDICT[oc]) status = "Upcoming";
   else status = "Happened";
 
   let result = null, tone = "neutral";
@@ -1585,6 +1585,7 @@ function meetingSummary(cid, id, m, ctx) {
     const opened = ds.filter((d) => Date.parse(d.createdate) >= bookedMs - 3600 * 1000);
     if (won) { result = `Closed won — ${won.plans___product_type || "plan"}`; tone = "positive"; }
     else if (opened.length) { result = `Deal opened — ${opened[0].dealname || "deal"}`; tone = "positive"; }
+    else if (MEETING_VERDICT[oc]) { [result, tone] = MEETING_VERDICT[oc]; }
     else {
       const after = (contactToCalls[cid] || []).map((c) => calls[c])
         .filter((c) => c && c.hs_timestamp && c.hs_call_disposition && Date.parse(c.hs_timestamp) >= (startMs || bookedMs))
@@ -2464,7 +2465,11 @@ async function listSizes(url, env) {
 // `since` by contacts on the campaign's audience lists, with HubSpot outcome and what happened
 // next (closed-won Plans deal / any deal opened after booking). Catches bookings made before
 // any call task existed (e.g. straight after a webinar), which /api/outcomes can't credit.
-const MEETING_OUTCOMES = { SCHEDULED: "Scheduled", COMPLETED: "Completed", NO_SHOW: "No show", CANCELED: "Cancelled", RESCHEDULED: "Rescheduled" };
+// Includes this portal's custom meeting outcomes (Positive, Follow up, Not a fit, GG product too generic).
+const MEETING_OUTCOMES = { SCHEDULED: "Scheduled", COMPLETED: "Completed", NO_SHOW: "No show", CANCELED: "Cancelled", RESCHEDULED: "Rescheduled",
+  POSITIVE: "Positive", "FOLLOW UP": "Follow up", "NOT A FIT": "Not a fit", "GG PRODUCT TOO GENERIC": "GG product too generic" };
+// A rep-logged meeting outcome that says how it went (not just Scheduled/Completed).
+const MEETING_VERDICT = { POSITIVE: ["Positive", "positive"], "FOLLOW UP": ["Follow up", "neutral"], "NOT A FIT": ["Not a fit", "negative"], "GG PRODUCT TOO GENERIC": ["GG product too generic", "negative"] };
 async function campaignMeetings(url, env) {
   const API = "https://api.hubapi.com";
   const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
@@ -2503,7 +2508,8 @@ async function campaignMeetings(url, env) {
     const booked = Date.parse(m.hs_createdate);
     const after = (dealsOf[cid] || []).map((d) => dp[d]).filter((d) => d && Date.parse(d.createdate) >= booked);
     const won = after.find((d) => isClosedPlansDeal(d));
-    const result = won ? "Closed won" : after.length ? "Deal opened" : (Date.parse(m.hs_meeting_start_time) > Date.now() ? "Upcoming" : "No outcome logged");
+    const verdict = MEETING_VERDICT[(m.hs_meeting_outcome || "").toUpperCase()];
+    const result = won ? "Closed won" : after.length ? "Deal opened" : verdict ? verdict[0] : (Date.parse(m.hs_meeting_start_time) > Date.now() ? "Upcoming" : "No outcome logged");
     return { meetingId: id, contactId: cid, name: [c.firstname, c.lastname].filter(Boolean).join(" ") || c.email || cid, title: m.hs_meeting_title,
       host: owners[m.hubspot_owner_id] || "", bookedAt: m.hs_createdate, startTime: m.hs_meeting_start_time,
       status: MEETING_OUTCOMES[m.hs_meeting_outcome] || (Date.parse(m.hs_meeting_start_time) > Date.now() ? "Upcoming" : ""),
