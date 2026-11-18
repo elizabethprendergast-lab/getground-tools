@@ -1397,13 +1397,22 @@ function initiativePageHtml(stats, ini) {
   const dTone = (d) => d.status === "won" ? "win" : d.status === "lost" ? "fail" : "pending";
   const dCount = dealsList.reduce((a, d) => (a[dTone(d)]++, a), { win: 0, pending: 0, fail: 0 });
   const D_LABEL = { win: "Won", pending: "Open", fail: "Lost" };
-  const byPipe = {}; for (const d of dealsList) byPipe[d.pipeline || "Other"] = (byPipe[d.pipeline || "Other"] || 0) + 1;
-  const pipes = Object.entries(byPipe).sort((a, b) => b[1] - a[1]); const pMax = Math.max(1, ...pipes.map((p) => p[1]));
-  const pipeColour = Object.fromEntries(pipes.map(([k], i) => [k, SERIES[i % SERIES.length]]));
+  // Group pipelines into the products Beth cares about (18 Nov), each with a clearly different colour.
+  const DEAL_CATS = { "Core plan": "#18B8BC", "Complete plan": "#7B5CF0", "Mortgages": "#F2994A", "Property": "#E0457B", "A&T": "#2F80ED", "Other": "#8A96A3" };
+  const dealCat = (d) => { const pl = String(d.pipeline || ""), nm = String(d.name || "");
+    if (/^Plans$/i.test(pl)) return /complete/i.test(nm) ? "Complete plan" : "Core plan";
+    if (/mortgage/i.test(pl)) return "Mortgages";
+    if (/new build|property|sell/i.test(pl)) return "Property";
+    if (/accounting|tax/i.test(pl)) return "A&T";
+    return "Other"; };
+  for (const d of dealsList) d.cat = dealCat(d);
+  const byPipe = {}; for (const d of dealsList) byPipe[d.cat] = (byPipe[d.cat] || 0) + 1;
+  const pipes = Object.keys(DEAL_CATS).filter((k) => byPipe[k]).map((k) => [k, byPipe[k]]); const pMax = Math.max(1, ...pipes.map((p) => p[1]));
+  const pipeColour = DEAL_CATS;
   const hsDeal = (id) => `https://app-eu1.hubspot.com/contacts/25516403/record/0-3/${id}`;
   const dealCard = (d) => { const t = dTone(d); const href = /^\d+$/.test(String(d.id || "")) ? hsDeal(d.id) : d.contactId ? hsContact(d.contactId) : "#";
-    return `<a class="dl-card t-${t}" href="${href}" target="_blank" rel="noopener" style="--c:${pipeColour[d.pipeline || "Other"] || "var(--series-1)"}">
-      <div class="dl-top"><span class="dl-pipe">${esc(d.pipeline || "Deal")}</span>${d.createdMs ? `<span class="muted small">${fmtDate(new Date(d.createdMs).toISOString())}</span>` : ""}</div>
+    return `<a class="dl-card t-${t}" href="${href}" target="_blank" rel="noopener" style="--c:${pipeColour[d.cat]}">
+      <div class="dl-top"><span class="dl-pipe" title="${esc(d.pipeline || "")}">${esc(d.cat)}${d.cat === "Other" && d.pipeline ? ` · ${esc(d.pipeline)}` : ""}</span>${d.createdMs ? `<span class="muted small">${fmtDate(new Date(d.createdMs).toISOString())}</span>` : ""}</div>
       <div class="dl-name">${esc(d.contactName || d.name)}</div>
       <span class="badge t-${t}">${esc(d.stage || D_LABEL[t])}</span></a>`; };
   const wonCards = [...won.values()].map((c) => `<a class="dl-card t-win" href="${hsContact(c.id)}" target="_blank" rel="noopener" style="--c:#13a6aa">
@@ -1415,9 +1424,9 @@ function initiativePageHtml(stats, ini) {
         ${["pending", "win", "fail"].map((t) => `<div class="t-${t}"><b style="color:var(--t)">${dCount[t]}</b><span>${D_LABEL[t].toLowerCase()}</span></div>`).join("")}
       </div>
       <div class="mt-bar">${["win", "pending", "fail"].map((t) => dCount[t] ? `<i class="t-${t}" style="flex:${dCount[t]}" title="${D_LABEL[t]}: ${dCount[t]}"></i>` : "").join("")}</div>
-      <h4 class="ov-h4">By pipeline</h4>${pipes.map(([k, n]) => `<div class="outcome-bar-row"><span class="name" title="${esc(k)}">${esc(k)}</span><div class="track"><div class="fill" style="width:${Math.max(2, Math.round(100 * n / pMax))}%; background:${pipeColour[k]}"></div></div><span class="count">${n}</span></div>`).join("")}` : ""}
+      <h4 class="ov-h4">By product</h4>${pipes.map(([k, n]) => `<div class="outcome-bar-row"><span class="name" title="${esc(k)}">${esc(k)}</span><div class="track"><div class="fill" style="width:${Math.max(2, Math.round(100 * n / pMax))}%; background:${pipeColour[k]}"></div></div><span class="count">${n}</span></div>`).join("")}` : ""}
       ${won.size ? `<h4 class="ov-h4">Plans won</h4><div class="dl-grid">${wonCards}</div>` : ""}
-      ${dealsList.length ? `<h4 class="ov-h4">Deals opened</h4><div class="dl-grid">${dealsList.map(dealCard).join("")}</div>` : ""}
+      ${dealsList.length ? `<h4 class="ov-h4">Deals opened</h4><div class="dl-grid">${[...dealsList].sort((a, b) => Object.keys(DEAL_CATS).indexOf(a.cat) - Object.keys(DEAL_CATS).indexOf(b.cat) || (b.createdMs || 0) - (a.createdMs || 0)).map(dealCard).join("")}</div>` : ""}
     </section>` : "";
   return `
     <div class="meta-row">
