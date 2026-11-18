@@ -107,6 +107,10 @@ const REPORTS = {
         outcomeMatching: "enrollment",
         // Tasks are split by the month in the title instead of by call attempt (see monthOfSubject).
         breakdownBy: "month",
+        // 18 Nov: track the four ICs only (drop Talha / Carlos #2s that landed with them as contact owners).
+        taskOwnerIds: ["76256251", "1297173186", "29178925", "78571230"], // Asya, Chey, Yoana, Ryan
+        campaignRepsOnly: true,
+        campaignRepIds: ["76256251", "1297173186", "29178925", "78571230"],
       },
       {
         key: "reengage-nonpaying-master",
@@ -946,6 +950,10 @@ async function searchTasksForAttribution(API, H, report, opts = {}) {
     await tagLtdCoreTesting(API, H, results);
     results = results.filter((t) => !t.properties.hs_task_subject.includes("LTD missed leads - Core Plan") || classifyProject(report, t.properties) !== "other");
   }
+  // Projects can limit tracking to tasks owned by named reps (taskOwnerIds), e.g. plan-close
+  // counts only the ICs' tasks, not stray #2s that landed with other contact owners.
+  results = results.filter((t) => { const pc = (report.projects || []).find((x) => x.key === classifyProject(report, t.properties || {}));
+    return !(pc && pc.taskOwnerIds && !pc.taskOwnerIds.includes(String((t.properties || {}).hubspot_owner_id))); });
   return { total, results, truncated };
 }
 
