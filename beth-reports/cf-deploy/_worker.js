@@ -262,6 +262,12 @@ const REPORTS = {
           filters: [{ propertyName: "hs_object_source_detail_1", operator: "NEQ", value: LTD_CORE_TESTING_WF }],
         },
         // Same team, same rules as reengage-ltd — see that project's comments.
+        // 18 Nov: at ~1,300 done tasks the live computation needs 102 (outcomes) / 52 (deals)
+        // subrequests, over Cloudflare's 50, so both cards came back empty. Served from snapshots
+        // until the account moves to Workers Paid; refresh by running /api/outcomes + /api/deals
+        // ?campaign=reengage-ltd-core-plan locally and stripping contact names (public repo).
+        outcomesSnapshot: "reengage-ltd-core-plan/outcomes-snapshot.json",
+        dealsSnapshot: "reengage-ltd-core-plan/deals-snapshot.json",
         outcomeMatching: "enrollment",
         campaignRepsOnly: true,
         campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
@@ -1724,6 +1730,7 @@ async function outcomesFromSnapshot(url, env, API, H, PORTAL_ID, reportKey, repo
     const repName = (id) => (reportConfig.ownerNames || {})[id] || ownerNameMap[id] || `Owner ${id}`;
     const byRep = {};
     for (const [id, v] of Object.entries(snap.byRepOwnerId || {})) byRep[repName(id)] = v;
+    Object.assign(byRep, snap.byRep || {});
     return json({
       generatedAt: new Date().toISOString(),
       report: reportKey,
@@ -2147,6 +2154,18 @@ async function dealAttribution(url, env) {
   if (campaignKey) {
     const proj = (reportConfig.projects || []).find((p) => p.key === campaignKey);
     if (!proj) return json({ error: `unknown campaign '${campaignKey}'` }, 404);
+    if (proj.dealsSnapshot) {
+      // Same reason as outcomesFromSnapshot: too many subrequests to compute live.
+      try {
+        const r = await env.ASSETS.fetch(new Request(`${url.origin}/${proj.dealsSnapshot}`));
+        if (!r.ok) throw new Error(`snapshot ${r.status}`);
+        const snap = await r.json();
+        return json({ generatedAt: new Date().toISOString(), report: reportKey, portalId: PORTAL_ID,
+          projects: [{ ...snap.project, key: proj.key, label: proj.label, computed: true }] });
+      } catch (err) {
+        return json({ error: String(err) }, 502);
+      }
+    }
     report = { ...reportConfig, projects: [proj] };
     searchOpts = {};
     computedKeys = new Set([proj.key]);
