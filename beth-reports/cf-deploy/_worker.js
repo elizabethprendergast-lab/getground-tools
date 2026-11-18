@@ -1576,7 +1576,7 @@ function meetingSummary(cid, id, m, ctx) {
   else status = "Happened";
 
   let result = null, tone = "neutral";
-  if (status === "Upcoming") { result = "Yet to happen"; }
+  if (status === "Upcoming") { result = "Upcoming"; }
   else if (status !== "Happened") { result = status; tone = "negative"; }
   else {
     const ds = (contactToDeals[cid] || []).map((d) => deals[d]).filter(Boolean);
@@ -2502,7 +2502,7 @@ async function campaignMeetings(url, env) {
     const booked = Date.parse(m.hs_createdate);
     const after = (dealsOf[cid] || []).map((d) => dp[d]).filter((d) => d && Date.parse(d.createdate) >= booked);
     const won = after.find((d) => isClosedPlansDeal(d));
-    const result = won ? "Closed won" : after.length ? "Deal opened" : (Date.parse(m.hs_meeting_start_time) > Date.now() ? "Yet to happen" : "No outcome logged");
+    const result = won ? "Closed won" : after.length ? "Deal opened" : (Date.parse(m.hs_meeting_start_time) > Date.now() ? "Upcoming" : "No outcome logged");
     return { meetingId: id, contactId: cid, name: [c.firstname, c.lastname].filter(Boolean).join(" ") || c.email || cid, title: m.hs_meeting_title,
       host: owners[m.hubspot_owner_id] || "", bookedAt: m.hs_createdate, startTime: m.hs_meeting_start_time,
       status: MEETING_OUTCOMES[m.hs_meeting_outcome] || (Date.parse(m.hs_meeting_start_time) > Date.now() ? "Upcoming" : ""),
