@@ -1282,7 +1282,7 @@ function initiativePageHtml(stats, ini) {
   // Deals opened (any pipeline) by people in the campaign since they were enrolled / booked.
   const dealMap = new Map();
   for (const pt of parts) for (const d of ((pt.dRaw && pt.dRaw.dealActivity && pt.dRaw.dealActivity.deals) || [])) if (inR(d.createdMs)) dealMap.set(String(d.id), d);
-  for (const m of ((cohort && cohort.meetings) || [])) for (const d of m.deals || []) if (inR(Date.parse(d.createdate))) dealMap.set(`c:${m.contactId}:${d.name}`, { name: d.name, contactName: m.name, contactId: m.contactId, status: "open" });
+  for (const m of ((cohort && cohort.meetings) || [])) for (const d of m.deals || []) if (inR(Date.parse(d.createdate))) dealMap.set(d.id ? String(d.id) : `c:${m.contactId}:${d.name}`, { ...(dealMap.get(String(d.id)) || {}), id: d.id, name: d.name, pipeline: d.pipeline, stage: d.stage, status: d.status || "open", createdMs: Date.parse(d.createdate), contactName: m.name, contactId: m.contactId });
   const won = new Map();
   for (const pt of parts) for (const r of ((pt.d && pt.d.rows) || [])) if (!/^\(no /.test(r.label || "")) for (const c of r.contacts || []) won.set(String(c.id), { ...c, plan: r.label });
   const webVisitors = web && web.pages && web.pages.some((pg) => pg.visitors != null) ? web.pages.reduce((n, pg) => n + (pg.visitors || 0), 0) : null;
