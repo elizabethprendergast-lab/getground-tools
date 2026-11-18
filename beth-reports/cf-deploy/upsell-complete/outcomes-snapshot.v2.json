@@ -1,0 +1,2678 @@
+{
+ "snapshotAt": "2026-11-18T14:34:00Z",
+ "source": "Live /api/outcomes computed locally 2026-11-18 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
+ "project": {
+  "key": "upsell-complete",
+  "label": "Upsell — Complete plan upsell",
+  "computed": true,
+  "meetings": [
+   {
+    "meetingId": "537077906668",
+    "contactId": "103959",
+    "title": "Mortgage Consultation with GetGround",
+    "host": "Luke Worrell",
+    "bookedAt": "2026-11-02T10:29:46.473Z",
+    "startTime": "2026-11-18T12:30:00Z",
+    "status": "Happened",
+    "result": "No outcome logged",
+    "tone": "neutral",
+    "taskIds": [
+     "522530793717"
+    ],
+    "callNo": "1"
+   },
+   {
+    "meetingId": "541884093687",
+    "contactId": "39953061366",
+    "title": "Canceled: GetGround | Consultation",
+    "host": "Chey Pienaar",
+    "bookedAt": "2026-11-10T16:37:47.806Z",
+    "startTime": "2026-11-13T17:00:00Z",
+    "status": "Cancelled",
+    "result": "Cancelled",
+    "tone": "negative",
+    "taskIds": [
+     "526586010837"
+    ],
+    "callNo": "1"
+   },
+   {
+    "meetingId": "541612331214",
+    "contactId": "112871",
+    "title": "BTL Terms - Apartment 804 Vendor House, 223 Ordsall Lane, Salford, M5 4UZ",
+    "host": "Deepinder Bhangoo",
+    "bookedAt": "2026-11-10T12:45:39Z",
+    "startTime": "2026-11-11T16:00:00Z",
+    "status": "Happened",
+    "result": "No outcome logged",
+    "tone": "neutral",
+    "taskIds": [
+     "526599370994"
+    ],
+    "callNo": "1"
+   },
+   {
+    "meetingId": "537124124871",
+    "contactId": "316899534071",
+    "title": "GetGround | Consultation",
+    "host": "Ryan Welby",
+    "bookedAt": "2026-11-02T14:00:35.077Z",
+    "startTime": "2026-11-03T10:00:00Z",
+    "status": "Happened",
+    "result": "No outcome logged",
+    "tone": "neutral",
+    "taskIds": [
+     "526528636117"
+    ],
+    "callNo": "1"
+   },
+   {
+    "meetingId": "532944345332",
+    "contactId": "7844451",
+    "title": "Introduction to GetGround",
+    "host": "Chey Pienaar",
+    "bookedAt": "2026-10-26T12:48:18.559Z",
+    "startTime": "2026-10-30T12:15:00Z",
+    "status": "Happened",
+    "result": "No outcome logged",
+    "tone": "neutral",
+    "taskIds": [
+     "521803999457"
+    ],
+    "callNo": "1"
+   },
+   {
+    "meetingId": "529319042257",
+    "contactId": "4718105",
+    "title": "GetGround | Consultation",
+    "host": "Yoana Chung",
+    "bookedAt": "2026-10-18T15:20:11.169Z",
+    "startTime": "2026-10-27T11:00:00Z",
+    "status": "Happened",
+    "result": "Call after: No answer",
+    "tone": "neutral",
+    "taskIds": [
+     "526590713078"
+    ],
+    "callNo": "1"
+   },
+   {
+    "meetingId": "526601639160",
+    "contactId": "30829201",
+    "title": "Canceled: Introduction to GetGround",
+    "host": "Chey Pienaar",
+    "bookedAt": "2026-10-12T19:31:09.118Z",
+    "startTime": "2026-10-14T10:00:00Z",
+    "status": "Cancelled",
+    "result": "Cancelled",
+    "tone": "negative",
+    "taskIds": [
+     "526582512885"
+    ],
+    "callNo": "1"
+   },
+   {
+    "meetingId": "526682320075",
+    "contactId": "16978991048",
+    "title": "GetGround Complete Plan - WhatsApp call",
+    "host": "Yoana Chung",
+    "bookedAt": "2026-10-13T09:34:54Z",
+    "startTime": "2026-10-13T14:30:00Z",
+    "status": "Happened",
+    "result": "Deal opened — {{name}} - Lettings & Management - IC Playbook",
+    "tone": "positive",
+    "taskIds": [
+     "526590714055"
+    ],
+    "callNo": "1"
+   },
+   {
+    "meetingId": "526682320075",
+    "contactId": "16978991048",
+    "title": "GetGround Complete Plan - WhatsApp call",
+    "host": "Yoana Chung",
+    "bookedAt": "2026-10-13T09:34:54Z",
+    "startTime": "2026-10-13T14:30:00Z",
+    "status": "Happened",
+    "result": "Deal opened — {{name}} - Lettings & Management - IC Playbook",
+    "tone": "positive",
+    "taskIds": [
+     "526671835385"
+    ],
+    "callNo": "2"
+   },
+   {
+    "meetingId": "525971411160",
+    "contactId": "4798953",
+    "title": "Canceled: Introduction to GetGround",
+    "host": "Chey Pienaar",
+    "bookedAt": "2026-10-08T15:09:43.071Z",
+    "startTime": "2026-10-09T15:45:00Z",
+    "status": "Cancelled",
+    "result": "Cancelled",
+    "tone": "negative",
+    "taskIds": [
+     "522541581543"
+    ],
+    "callNo": "1"
+   },
+   {
+    "meetingId": "525971411160",
+    "contactId": "4798953",
+    "title": "Canceled: Introduction to GetGround",
+    "host": "Chey Pienaar",
+    "bookedAt": "2026-10-08T15:09:43.071Z",
+    "startTime": "2026-10-09T15:45:00Z",
+    "status": "Cancelled",
+    "result": "Cancelled",
+    "tone": "negative",
+    "taskIds": [
+     "523931274471"
+    ],
+    "callNo": "2"
+   },
+   {
+    "meetingId": "525971411160",
+    "contactId": "4798953",
+    "title": "Canceled: Introduction to GetGround",
+    "host": "Chey Pienaar",
+    "bookedAt": "2026-10-08T15:09:43.071Z",
+    "startTime": "2026-10-09T15:45:00Z",
+    "status": "Cancelled",
+    "result": "Cancelled",
+    "tone": "negative",
+    "taskIds": [
+     "524702951628"
+    ],
+    "callNo": "3"
+   },
+   {
+    "meetingId": "526168333532",
+    "contactId": "77125762253",
+    "title": "GetGround | Consultation",
+    "host": "Asya Wu",
+    "bookedAt": "2026-10-09T11:26:36.946Z",
+    "startTime": "2026-10-09T14:00:00Z",
+    "status": "Happened",
+    "result": "No outcome logged",
+    "tone": "neutral",
+    "taskIds": [
+     "522525288643"
+    ],
+    "callNo": "1"
+   },
+   {
+    "meetingId": "523020769512",
+    "contactId": "55113146564",
+    "title": "GetGround Lettings & Property Management Service",
+    "host": "Asya Wu",
+    "bookedAt": "2026-09-29T13:40:54Z",
+    "startTime": "2026-10-09T12:00:00Z",
+    "status": "Happened",
+    "result": "Call after: Connected",
+    "tone": "neutral",
+    "taskIds": [
+     "522496732376"
+    ],
+    "callNo": "1"
+   },
+   {
+    "meetingId": "525334303934",
+    "contactId": "1673401",
+    "title": "GetGround - Complete Plan Discussion ",
+    "host": "Chey Pienaar",
+    "bookedAt": "2026-10-06T10:36:13.401Z",
+    "startTime": "2026-10-08T15:00:00Z",
+    "status": "Happened",
+    "result": "No outcome logged",
+    "tone": "neutral",
+    "taskIds": [
+     "522507446495"
+    ],
+    "callNo": "1"
+   },
+   {
+    "meetingId": "525334303934",
+    "contactId": "1673401",
+    "title": "GetGround - Complete Plan Discussion ",
+    "host": "Chey Pienaar",
+    "bookedAt": "2026-10-06T10:36:13.401Z",
+    "startTime": "2026-10-08T15:00:00Z",
+    "status": "Happened",
+    "result": "No outcome logged",
+    "tone": "neutral",
+    "taskIds": [
+     "525293657274"
+    ],
+    "callNo": "2"
+   },
+   {
+    "meetingId": "522976697547",
+    "contactId": "35869351",
+    "title": "Lettings & Management with GetGround",
+    "host": "Asya Wu",
+    "bookedAt": "2026-09-29T09:59:38.315Z",
+    "startTime": "2026-10-02T13:30:00Z",
+    "status": "Happened",
+    "result": "No outcome logged",
+    "tone": "neutral",
+    "taskIds": [
+     "522561636561"
+    ],
+    "callNo": "1"
+   },
+   {
+    "meetingId": "523678344390",
+    "contactId": "10368101",
+    "title": "GetGround | Consultation",
+    "host": "Yoana Chung",
+    "bookedAt": "2026-09-30T20:13:29.574Z",
+    "startTime": "2026-10-02T09:15:00Z",
+    "status": "Happened",
+    "result": "Call after: No answer",
+    "tone": "neutral",
+    "taskIds": [
+     "522468010193"
+    ],
+    "callNo": "1"
+   },
+   {
+    "meetingId": "523037265141",
+    "contactId": "27556551",
+    "title": "GetGround Lettings & Property Management",
+    "host": "Yoana Chung",
+    "bookedAt": "2026-09-29T14:35:17Z",
+    "startTime": "2026-10-01T10:00:00Z",
+    "status": "Happened",
+    "result": "No outcome logged",
+    "tone": "neutral",
+    "taskIds": [
+     "522498537717"
+    ],
+    "callNo": "1"
+   },
+   {
+    "meetingId": "522658583779",
+    "contactId": "37736558555",
+    "title": "Introduction to GetGround",
+    "host": "Chey Pienaar",
+    "bookedAt": "2026-09-28T17:16:04.032Z",
+    "startTime": "2026-09-30T14:30:00Z",
+    "status": "Happened",
+    "result": "Call after: Connected",
+    "tone": "neutral",
+    "taskIds": [
+     "522487982308"
+    ],
+    "callNo": "1"
+   },
+   {
+    "meetingId": "522694609087",
+    "contactId": "179213069515",
+    "title": "Introduction to GetGround",
+    "host": "Chey Pienaar",
+    "bookedAt": "2026-09-29T06:32:24.509Z",
+    "startTime": "2026-09-30T10:30:00Z",
+    "status": "Happened",
+    "result": "No outcome logged",
+    "tone": "neutral",
+    "taskIds": [
+     "522505697504"
+    ],
+    "callNo": "1"
+   }
+  ],
+  "totalCompleted": 206,
+  "totalMatchedToCall": 99,
+  "totalReached": 152,
+  "dispositions": [
+   {
+    "outcome": "No answer",
+    "tasks": 58,
+    "category": "no_contact",
+    "contacts": [
+     {
+      "id": "44260880084",
+      "taskId": "521799407844"
+     },
+     {
+      "id": "8169701",
+      "taskId": "521804323016"
+     },
+     {
+      "id": "30775744487",
+      "taskId": "521798122738"
+     },
+     {
+      "id": "45858214373",
+      "taskId": "521798984951"
+     },
+     {
+      "id": "26924001",
+      "taskId": "521804559574"
+     },
+     {
+      "id": "8408251",
+      "taskId": "521753707718"
+     },
+     {
+      "id": "906661",
+      "taskId": "521798230242"
+     },
+     {
+      "id": "19135851",
+      "taskId": "522541581515"
+     },
+     {
+      "id": "12999851",
+      "taskId": "522489748690"
+     },
+     {
+      "id": "24931651",
+      "taskId": "522482518239"
+     },
+     {
+      "id": "11011001",
+      "taskId": "522541581545"
+     },
+     {
+      "id": "122369108158",
+      "taskId": "522528802009"
+     },
+     {
+      "id": "31800901",
+      "taskId": "522469855454"
+     },
+     {
+      "id": "30997101",
+      "taskId": "522527030480"
+     },
+     {
+      "id": "2853751",
+      "taskId": "522475339985"
+     },
+     {
+      "id": "3962451",
+      "taskId": "522456892640"
+     },
+     {
+      "id": "5628451",
+      "taskId": "522455168248"
+     },
+     {
+      "id": "911245",
+      "taskId": "522477175004"
+     },
+     {
+      "id": "908737",
+      "taskId": "522456953081"
+     },
+     {
+      "id": "3625701",
+      "taskId": "522550594789"
+     },
+     {
+      "id": "165855922394",
+      "taskId": "522498537719"
+     },
+     {
+      "id": "215585288412",
+      "taskId": "522539801814"
+     },
+     {
+      "id": "8660151",
+      "taskId": "522539801815"
+     },
+     {
+      "id": "310966711507",
+      "taskId": "522505697507"
+     },
+     {
+      "id": "163803",
+      "taskId": "522482580725"
+     },
+     {
+      "id": "17649851",
+      "taskId": "522541628638"
+     },
+     {
+      "id": "112676",
+      "taskId": "522420923630"
+     },
+     {
+      "id": "13638467536",
+      "taskId": "522420923631"
+     },
+     {
+      "id": "14680151",
+      "taskId": "522558119106"
+     },
+     {
+      "id": "17788004",
+      "taskId": "522466272456"
+     },
+     {
+      "id": "163803",
+      "taskId": "523962685639"
+     },
+     {
+      "id": "163803",
+      "taskId": "523975197927"
+     },
+     {
+      "id": "30997101",
+      "taskId": "524608444664"
+     },
+     {
+      "id": "11011001",
+      "taskId": "524687704265"
+     },
+     {
+      "id": "112676",
+      "taskId": "524698760382"
+     },
+     {
+      "id": "19135851",
+      "taskId": "524700769514"
+     },
+     {
+      "id": "3625701",
+      "taskId": "524702903513"
+     },
+     {
+      "id": "19135851",
+      "taskId": "525091568861"
+     },
+     {
+      "id": "3625701",
+      "taskId": "525688452339"
+     },
+     {
+      "id": "215585288412",
+      "taskId": "525691455676"
+     },
+     {
+      "id": "909476",
+      "taskId": "526583165129"
+     },
+     {
+      "id": "1224851",
+      "taskId": "526590713076"
+     },
+     {
+      "id": "17724701",
+      "taskId": "526591062256"
+     },
+     {
+      "id": "867822979299",
+      "taskId": "526583291075"
+     },
+     {
+      "id": "37056951",
+      "taskId": "526590938360"
+     },
+     {
+      "id": "101316",
+      "taskId": "526582382812"
+     },
+     {
+      "id": "80584374473",
+      "taskId": "526599636185"
+     },
+     {
+      "id": "33204637121",
+      "taskId": "526583291076"
+     },
+     {
+      "id": "10742731460",
+      "taskId": "526589668581"
+     },
+     {
+      "id": "904654",
+      "taskId": "526590011633"
+     },
+     {
+      "id": "32208571378",
+      "taskId": "526583291081"
+     },
+     {
+      "id": "29114001",
+      "taskId": "526591063232"
+     },
+     {
+      "id": "36795001",
+      "taskId": "526590597320"
+     },
+     {
+      "id": "469803",
+      "taskId": "526582683848"
+     },
+     {
+      "id": "18275854",
+      "taskId": "526590283973"
+     },
+     {
+      "id": "101316",
+      "taskId": "527074902222"
+     },
+     {
+      "id": "10368101",
+      "taskId": "539786294475"
+     },
+     {
+      "id": "18275854",
+      "taskId": "539839020245"
+     }
+    ]
+   },
+   {
+    "outcome": "(no outreach found)",
+    "tasks": 54,
+    "category": "unmatched",
+    "contacts": [
+     {
+      "id": "377454004458",
+      "taskId": "521804172535"
+     },
+     {
+      "id": "909324",
+      "taskId": "524683401408"
+     },
+     {
+      "id": "11011001",
+      "taskId": "525089821929"
+     },
+     {
+      "id": "2853751",
+      "taskId": "525280978126"
+     },
+     {
+      "id": "35574202",
+      "taskId": "526582683834"
+     },
+     {
+      "id": "276501",
+      "taskId": "526585790654"
+     },
+     {
+      "id": "20082001",
+      "taskId": "526590504175"
+     },
+     {
+      "id": "37525251",
+      "taskId": "526590596341"
+     },
+     {
+      "id": "6556701",
+      "taskId": "526582013116"
+     },
+     {
+      "id": "11430151",
+      "taskId": "526586218686"
+     },
+     {
+      "id": "135994",
+      "taskId": "526582512879"
+     },
+     {
+      "id": "6463601",
+      "taskId": "526586218687"
+     },
+     {
+      "id": "141789",
+      "taskId": "526582382806"
+     },
+     {
+      "id": "904905",
+      "taskId": "526585895138"
+     },
+     {
+      "id": "731351",
+      "taskId": "526591062257"
+     },
+     {
+      "id": "6750851",
+      "taskId": "526582512881"
+     },
+     {
+      "id": "12697103",
+      "taskId": "526586218689"
+     },
+     {
+      "id": "7484151",
+      "taskId": "526589210855"
+     },
+     {
+      "id": "910875",
+      "taskId": "526589119712"
+     },
+     {
+      "id": "545289481461",
+      "taskId": "526579906785"
+     },
+     {
+      "id": "22377051",
+      "taskId": "526599370996"
+     },
+     {
+      "id": "97810",
+      "taskId": "526599780583"
+     },
+     {
+      "id": "11695301",
+      "taskId": "526582765809"
+     },
+     {
+      "id": "908413",
+      "taskId": "526589668576"
+     },
+     {
+      "id": "8230501",
+      "taskId": "526497365230"
+     },
+     {
+      "id": "36492651",
+      "taskId": "526591317196"
+     },
+     {
+      "id": "14133701",
+      "taskId": "526582304963"
+     },
+     {
+      "id": "903860",
+      "taskId": "526586218690"
+     },
+     {
+      "id": "1293751",
+      "taskId": "526586082517"
+     },
+     {
+      "id": "910411",
+      "taskId": "526581188843"
+     },
+     {
+      "id": "28710951",
+      "taskId": "526590842067"
+     },
+     {
+      "id": "3712051",
+      "taskId": "526586302680"
+     },
+     {
+      "id": "14061152",
+      "taskId": "526589928663"
+     },
+     {
+      "id": "26552001",
+      "taskId": "526581535969"
+     },
+     {
+      "id": "23833951",
+      "taskId": "526586302681"
+     },
+     {
+      "id": "111276",
+      "taskId": "526442436830"
+     },
+     {
+      "id": "911818",
+      "taskId": "526579906788"
+     },
+     {
+      "id": "74351",
+      "taskId": "526599780587"
+     },
+     {
+      "id": "105523",
+      "taskId": "526599371972"
+     },
+     {
+      "id": "8402124239",
+      "taskId": "526591182032"
+     },
+     {
+      "id": "19439101",
+      "taskId": "526579906791"
+     },
+     {
+      "id": "906202",
+      "taskId": "526528636118"
+     },
+     {
+      "id": "905828",
+      "taskId": "526590504181"
+     },
+     {
+      "id": "3988701",
+      "taskId": "526589119718"
+     },
+     {
+      "id": "196536672448",
+      "taskId": "526591650014"
+     },
+     {
+      "id": "19291601",
+      "taskId": "526585790665"
+     },
+     {
+      "id": "106535",
+      "taskId": "526582513853"
+     },
+     {
+      "id": "5971701",
+      "taskId": "526582191303"
+     },
+     {
+      "id": "8937551",
+      "taskId": "527451066589"
+     },
+     {
+      "id": "33204637121",
+      "taskId": "527425505525"
+     },
+     {
+      "id": "904654",
+      "taskId": "527388873920"
+     },
+     {
+      "id": "27469151",
+      "taskId": "527381753058"
+     },
+     {
+      "id": "909476",
+      "taskId": "532488964304"
+     },
+     {
+      "id": "101316",
+      "taskId": "537799351513"
+     }
+    ]
+   },
+   {
+    "outcome": "Contacted — note logged",
+    "tasks": 25,
+    "category": "reached_other",
+    "contacts": [
+     {
+      "id": "910899",
+      "taskId": "521798484184"
+     },
+     {
+      "id": "7132701",
+      "taskId": "521804495049"
+     },
+     {
+      "id": "175909",
+      "taskId": "522545149168"
+     },
+     {
+      "id": "19111251",
+      "taskId": "522503932097"
+     },
+     {
+      "id": "349116489933",
+      "taskId": "522507502831"
+     },
+     {
+      "id": "2534501",
+      "taskId": "522502110435"
+     },
+     {
+      "id": "165855922394",
+      "taskId": "524602699983"
+     },
+     {
+      "id": "20298251",
+      "taskId": "525183530225"
+     },
+     {
+      "id": "31800901",
+      "taskId": "525207194840"
+     },
+     {
+      "id": "15065094133",
+      "taskId": "526591779029"
+     },
+     {
+      "id": "3426757851",
+      "taskId": "526591317195"
+     },
+     {
+      "id": "8291651",
+      "taskId": "526586082518"
+     },
+     {
+      "id": "30030651",
+      "taskId": "526589548781"
+     },
+     {
+      "id": "745928960225",
+      "taskId": "526589210860"
+     },
+     {
+      "id": "910152",
+      "taskId": "526582512888"
+     },
+     {
+      "id": "909064",
+      "taskId": "526583291079"
+     },
+     {
+      "id": "136202",
+      "taskId": "526583045364"
+     },
+     {
+      "id": "383730683093",
+      "taskId": "526591449290"
+     },
+     {
+      "id": "12730001",
+      "taskId": "526589210862"
+     },
+     {
+      "id": "13776451",
+      "taskId": "526586623169"
+     },
+     {
+      "id": "1146952",
+      "taskId": "526469268716"
+     },
+     {
+      "id": "170444854469",
+      "taskId": "526528636123"
+     },
+     {
+      "id": "15851101",
+      "taskId": "526586082525"
+     },
+     {
+      "id": "11358151",
+      "taskId": "539787810017"
+     },
+     {
+      "id": "29114001",
+      "taskId": "539813028056"
+     }
+    ]
+   },
+   {
+    "outcome": "Not a fit",
+    "tasks": 15,
+    "category": "answered",
+    "contacts": [
+     {
+      "id": "306427",
+      "taskId": "521798804687"
+     },
+     {
+      "id": "221185348839",
+      "taskId": "521805171952"
+     },
+     {
+      "id": "14493602",
+      "taskId": "522473526486"
+     },
+     {
+      "id": "10589751",
+      "taskId": "522539801812"
+     },
+     {
+      "id": "8581228750",
+      "taskId": "526591317193"
+     },
+     {
+      "id": "3347302",
+      "taskId": "526591063228"
+     },
+     {
+      "id": "23882103",
+      "taskId": "526590842063"
+     },
+     {
+      "id": "108614",
+      "taskId": "526589668578"
+     },
+     {
+      "id": "484624010488",
+      "taskId": "526590939322"
+     },
+     {
+      "id": "677275846875",
+      "taskId": "526585790662"
+     },
+     {
+      "id": "107682",
+      "taskId": "526582013126"
+     },
+     {
+      "id": "10292051",
+      "taskId": "526589038813"
+     },
+     {
+      "id": "2220618",
+      "taskId": "526581761234"
+     },
+     {
+      "id": "10742731460",
+      "taskId": "526702272734"
+     },
+     {
+      "id": "8581228750",
+      "taskId": "526702273747"
+     }
+    ]
+   },
+   {
+    "outcome": "Meeting booked — from email",
+    "tasks": 12,
+    "category": "meeting",
+    "contacts": [
+     {
+      "id": "7844451",
+      "taskId": "521803999457"
+     },
+     {
+      "id": "4798953",
+      "taskId": "522541581543"
+     },
+     {
+      "id": "10368101",
+      "taskId": "522468010193"
+     },
+     {
+      "id": "103959",
+      "taskId": "522530793717"
+     },
+     {
+      "id": "179213069515",
+      "taskId": "522505697504"
+     },
+     {
+      "id": "37736558555",
+      "taskId": "522487982308"
+     },
+     {
+      "id": "4798953",
+      "taskId": "523931274471"
+     },
+     {
+      "id": "4798953",
+      "taskId": "524702951628"
+     },
+     {
+      "id": "4718105",
+      "taskId": "526590713078"
+     },
+     {
+      "id": "39953061366",
+      "taskId": "526586010837"
+     },
+     {
+      "id": "316899534071",
+      "taskId": "526528636117"
+     },
+     {
+      "id": "30829201",
+      "taskId": "526582512885"
+     }
+    ]
+   },
+   {
+    "outcome": "Follow up",
+    "tasks": 10,
+    "category": "unclassified_connected",
+    "contacts": [
+     {
+      "id": "909324",
+      "taskId": "522494869743"
+     },
+     {
+      "id": "840195468534",
+      "taskId": "522507447499"
+     },
+     {
+      "id": "5433251",
+      "taskId": "522487982305"
+     },
+     {
+      "id": "20298251",
+      "taskId": "522471783611"
+     },
+     {
+      "id": "485692912870",
+      "taskId": "522558119103"
+     },
+     {
+      "id": "910624",
+      "taskId": "522505697511"
+     },
+     {
+      "id": "165855922394",
+      "taskId": "523955164391"
+     },
+     {
+      "id": "485692912870",
+      "taskId": "523943112941"
+     },
+     {
+      "id": "20298251",
+      "taskId": "523964697803"
+     },
+     {
+      "id": "4765501",
+      "taskId": "526591063233"
+     }
+    ]
+   },
+   {
+    "outcome": "Meeting booked — by rep",
+    "tasks": 9,
+    "category": "meeting",
+    "contacts": [
+     {
+      "id": "35869351",
+      "taskId": "522561636561"
+     },
+     {
+      "id": "1673401",
+      "taskId": "522507446495"
+     },
+     {
+      "id": "27556551",
+      "taskId": "522498537717"
+     },
+     {
+      "id": "55113146564",
+      "taskId": "522496732376"
+     },
+     {
+      "id": "77125762253",
+      "taskId": "522525288643"
+     },
+     {
+      "id": "1673401",
+      "taskId": "525293657274"
+     },
+     {
+      "id": "112871",
+      "taskId": "526599370994"
+     },
+     {
+      "id": "16978991048",
+      "taskId": "526590714055"
+     },
+     {
+      "id": "16978991048",
+      "taskId": "526671835385"
+     }
+    ]
+   },
+   {
+    "outcome": "Connected",
+    "tasks": 8,
+    "category": "unclassified_connected",
+    "contacts": [
+     {
+      "id": "911009",
+      "taskId": "522426257656"
+     },
+     {
+      "id": "216495439059",
+      "taskId": "522541581544"
+     },
+     {
+      "id": "9745501",
+      "taskId": "522534400227"
+     },
+     {
+      "id": "106364",
+      "taskId": "522527083722"
+     },
+     {
+      "id": "9745501",
+      "taskId": "524702367934"
+     },
+     {
+      "id": "12999851",
+      "taskId": "525071880420"
+     },
+     {
+      "id": "12999851",
+      "taskId": "525170695358"
+     },
+     {
+      "id": "42771937723",
+      "taskId": "526583291068"
+     }
+    ]
+   },
+   {
+    "outcome": "Uninterested",
+    "tasks": 4,
+    "category": "answered",
+    "contacts": [
+     {
+      "id": "147767",
+      "taskId": "521804323018"
+     },
+     {
+      "id": "554337053883",
+      "taskId": "522489748718"
+     },
+     {
+      "id": "16814252",
+      "taskId": "526589548770"
+     },
+     {
+      "id": "92719503581",
+      "taskId": "526590011630"
+     }
+    ]
+   },
+   {
+    "outcome": "Positive",
+    "tasks": 3,
+    "category": "answered",
+    "contacts": [
+     {
+      "id": "44047553481",
+      "taskId": "522494932164"
+     },
+     {
+      "id": "14426302",
+      "taskId": "522424527092"
+     },
+     {
+      "id": "27808787919",
+      "taskId": "526582304962"
+     }
+    ]
+   },
+   {
+    "outcome": "Busy",
+    "tasks": 3,
+    "category": "no_contact",
+    "contacts": [
+     {
+      "id": "198036471031",
+      "taskId": "526583291073"
+     },
+     {
+      "id": "27469151",
+      "taskId": "526579906790"
+     },
+     {
+      "id": "8937551",
+      "taskId": "526581664958"
+     }
+    ]
+   },
+   {
+    "outcome": "Contacted via email",
+    "tasks": 2,
+    "category": "reached_other",
+    "contacts": [
+     {
+      "id": "30910280416",
+      "taskId": "522460508365"
+     },
+     {
+      "id": "306416",
+      "taskId": "526589548786"
+     }
+    ]
+   },
+   {
+    "outcome": "Closed won — Core new",
+    "tasks": 1,
+    "category": "converted",
+    "contacts": [
+     {
+      "id": "437549703411",
+      "taskId": "521804993746"
+     }
+    ]
+   },
+   {
+    "outcome": "Closed won — Complete upsell",
+    "tasks": 1,
+    "category": "converted",
+    "contacts": [
+     {
+      "id": "339410780356",
+      "taskId": "521753707719"
+     }
+    ]
+   },
+   {
+    "outcome": "Wrong number",
+    "tasks": 1,
+    "category": "invalid",
+    "contacts": [
+     {
+      "id": "907442",
+      "taskId": "522527030460"
+     }
+    ]
+   }
+  ],
+  "byRep": {
+   "Asya Wu": {
+    "total": 43,
+    "outcomes": {
+     "Not a fit": 2,
+     "No answer": 16,
+     "Closed won — Core new": 1,
+     "Closed won — Complete upsell": 1,
+     "Meeting booked — by rep": 2,
+     "Wrong number": 1,
+     "Follow up": 7,
+     "Contacted — note logged": 4,
+     "Meeting booked — from email": 2,
+     "Positive": 1,
+     "(no outreach found)": 6
+    }
+   },
+   "Yoana Chung": {
+    "total": 73,
+    "outcomes": {
+     "No answer": 16,
+     "Contacted — note logged": 12,
+     "(no outreach found)": 19,
+     "Connected": 3,
+     "Meeting booked — from email": 2,
+     "Follow up": 1,
+     "Contacted via email": 2,
+     "Meeting booked — by rep": 4,
+     "Positive": 1,
+     "Not a fit": 10,
+     "Uninterested": 1,
+     "Busy": 2
+    }
+   },
+   "Chey Pienaar": {
+    "total": 35,
+    "outcomes": {
+     "No answer": 15,
+     "Uninterested": 2,
+     "Not a fit": 2,
+     "Meeting booked — from email": 5,
+     "Meeting booked — by rep": 2,
+     "Follow up": 1,
+     "Connected": 5,
+     "(no outreach found)": 1,
+     "Positive": 1,
+     "Contacted — note logged": 1
+    }
+   },
+   "Billy Hunt": {
+    "total": 35,
+    "outcomes": {
+     "No answer": 9,
+     "(no outreach found)": 18,
+     "Meeting booked — by rep": 1,
+     "Busy": 1,
+     "Meeting booked — from email": 2,
+     "Uninterested": 1,
+     "Not a fit": 1,
+     "Follow up": 1,
+     "Contacted — note logged": 1
+    }
+   },
+   "Ryan Welby": {
+    "total": 19,
+    "outcomes": {
+     "(no outreach found)": 9,
+     "Contacted — note logged": 7,
+     "Meeting booked — from email": 1,
+     "No answer": 2
+    }
+   },
+   "Carlos Lam": {
+    "total": 1,
+    "outcomes": {
+     "(no outreach found)": 1
+    }
+   }
+  },
+  "taskInfo": {
+   "521798804687": [
+    1790325396549,
+    "Asya Wu",
+    "Not a fit",
+    0
+   ],
+   "521799407844": [
+    1790325319850,
+    "Asya Wu",
+    "No answer",
+    0
+   ],
+   "521804323016": [
+    1790256000328,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "521798484184": [
+    1790604568085,
+    "Yoana Chung",
+    "Contacted — note logged",
+    0
+   ],
+   "521798122738": [
+    1790261574160,
+    "Chey Pienaar",
+    "No answer",
+    0
+   ],
+   "521804323018": [
+    1790262352961,
+    "Chey Pienaar",
+    "Uninterested",
+    0
+   ],
+   "521804993746": [
+    1790257385512,
+    "Asya Wu",
+    "Closed won — Core new",
+    0
+   ],
+   "521805171952": [
+    1790261745471,
+    "Chey Pienaar",
+    "Not a fit",
+    0
+   ],
+   "521798984951": [
+    1790262827731,
+    "Chey Pienaar",
+    "No answer",
+    0
+   ],
+   "521804559574": [
+    1790262252282,
+    "Chey Pienaar",
+    "No answer",
+    0
+   ],
+   "521803999457": [
+    1790261831042,
+    "Chey Pienaar",
+    "Meeting booked — from email",
+    0
+   ],
+   "521753707718": [
+    1790590984758,
+    "Asya Wu",
+    "No answer",
+    0
+   ],
+   "521804172535": [
+    1790588546891,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "521753707719": [
+    1790257602824,
+    "Asya Wu",
+    "Closed won — Complete upsell",
+    0
+   ],
+   "521804495049": [
+    1790588624679,
+    "Yoana Chung",
+    "Contacted — note logged",
+    0
+   ],
+   "521798230242": [
+    1790258212372,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "522541581515": [
+    1791199088428,
+    "Asya Wu",
+    "No answer",
+    0
+   ],
+   "522561636561": [
+    1790676067541,
+    "Asya Wu",
+    "Meeting booked — by rep",
+    0
+   ],
+   "522473526486": [
+    1790862819553,
+    "Asya Wu",
+    "Not a fit",
+    0
+   ],
+   "522489748690": [
+    1791281963277,
+    "Chey Pienaar",
+    "No answer",
+    0
+   ],
+   "522482518239": [
+    1791197674399,
+    "Chey Pienaar",
+    "No answer",
+    0
+   ],
+   "522507446495": [
+    1791282980970,
+    "Chey Pienaar",
+    "Meeting booked — by rep",
+    0
+   ],
+   "522527030460": [
+    1790862725993,
+    "Asya Wu",
+    "Wrong number",
+    0
+   ],
+   "522541581543": [
+    1790869875767,
+    "Chey Pienaar",
+    "Meeting booked — from email",
+    0
+   ],
+   "522494869743": [
+    1791196840839,
+    "Asya Wu",
+    "Follow up",
+    0
+   ],
+   "522426257656": [
+    1791295169227,
+    "Yoana Chung",
+    "Connected",
+    0
+   ],
+   "522541581544": [
+    1791295539871,
+    "Yoana Chung",
+    "Connected",
+    0
+   ],
+   "522541581545": [
+    1791196760402,
+    "Asya Wu",
+    "No answer",
+    0
+   ],
+   "522528802009": [
+    1791296095831,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "522469855454": [
+    1791296459284,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "522489748718": [
+    1790870252020,
+    "Chey Pienaar",
+    "Uninterested",
+    0
+   ],
+   "522468010193": [
+    1790696946028,
+    "Yoana Chung",
+    "Meeting booked — from email",
+    0
+   ],
+   "522527030480": [
+    1791196045511,
+    "Asya Wu",
+    "No answer",
+    0
+   ],
+   "522475339985": [
+    1791285792016,
+    "Chey Pienaar",
+    "No answer",
+    0
+   ],
+   "522507447499": [
+    1790696502234,
+    "Yoana Chung",
+    "Follow up",
+    0
+   ],
+   "522545149168": [
+    1790861130857,
+    "Asya Wu",
+    "Contacted — note logged",
+    0
+   ],
+   "522456892640": [
+    1790696249480,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "522530793717": [
+    1791281516036,
+    "Asya Wu",
+    "Meeting booked — from email",
+    0
+   ],
+   "522460508365": [
+    1790695983654,
+    "Yoana Chung",
+    "Contacted via email",
+    0
+   ],
+   "522487982305": [
+    1791284286541,
+    "Chey Pienaar",
+    "Follow up",
+    0
+   ],
+   "522471783611": [
+    1790861010339,
+    "Asya Wu",
+    "Follow up",
+    0
+   ],
+   "522498537717": [
+    1790692598158,
+    "Yoana Chung",
+    "Meeting booked — by rep",
+    0
+   ],
+   "522539801812": [
+    1791282101672,
+    "Chey Pienaar",
+    "Not a fit",
+    0
+   ],
+   "522505697504": [
+    1790675132661,
+    "Chey Pienaar",
+    "Meeting booked — from email",
+    0
+   ],
+   "522534400227": [
+    1791200006609,
+    "Chey Pienaar",
+    "Connected",
+    0
+   ],
+   "522487982308": [
+    1790675373761,
+    "Asya Wu",
+    "Meeting booked — from email",
+    0
+   ],
+   "522455168248": [
+    1790677084463,
+    "Asya Wu",
+    "No answer",
+    0
+   ],
+   "522477175004": [
+    1790695727646,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "522456953081": [
+    1790695685527,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "522550594789": [
+    1791200298120,
+    "Chey Pienaar",
+    "No answer",
+    0
+   ],
+   "522558119103": [
+    1790860496881,
+    "Asya Wu",
+    "Follow up",
+    0
+   ],
+   "522498537719": [
+    1790860433684,
+    "Asya Wu",
+    "No answer",
+    0
+   ],
+   "522496732376": [
+    1790689127624,
+    "Yoana Chung",
+    "Meeting booked — by rep",
+    0
+   ],
+   "522539801814": [
+    1791285911101,
+    "Chey Pienaar",
+    "No answer",
+    0
+   ],
+   "522539801815": [
+    1790687583854,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "522505697507": [
+    1790690143351,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "522503932097": [
+    1790689542777,
+    "Yoana Chung",
+    "Contacted — note logged",
+    0
+   ],
+   "522507502831": [
+    1790860392260,
+    "Asya Wu",
+    "Contacted — note logged",
+    0
+   ],
+   "522482580725": [
+    1790860325299,
+    "Asya Wu",
+    "No answer",
+    0
+   ],
+   "522527083722": [
+    1791200557012,
+    "Chey Pienaar",
+    "Connected",
+    0
+   ],
+   "522541628638": [
+    1791282272315,
+    "Chey Pienaar",
+    "No answer",
+    0
+   ],
+   "522494932164": [
+    1790768340840,
+    "Asya Wu",
+    "Positive",
+    0
+   ],
+   "522424527092": [
+    1790688053464,
+    "Yoana Chung",
+    "Positive",
+    0
+   ],
+   "522525288643": [
+    1790767839766,
+    "Asya Wu",
+    "Meeting booked — by rep",
+    0
+   ],
+   "522420923630": [
+    1791197531704,
+    "Chey Pienaar",
+    "No answer",
+    0
+   ],
+   "522420923631": [
+    1790767764703,
+    "Asya Wu",
+    "No answer",
+    0
+   ],
+   "522502110435": [
+    1790688230975,
+    "Yoana Chung",
+    "Contacted — note logged",
+    0
+   ],
+   "522558119106": [
+    1790677321017,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "522505697511": [
+    1790767622562,
+    "Asya Wu",
+    "Follow up",
+    0
+   ],
+   "522466272456": [
+    1790767359659,
+    "Asya Wu",
+    "No answer",
+    0
+   ],
+   "523962685639": [
+    1791192225832,
+    "Asya Wu",
+    "No answer",
+    0
+   ],
+   "523955164391": [
+    1791192538533,
+    "Asya Wu",
+    "Follow up",
+    0
+   ],
+   "523943112941": [
+    1791192513413,
+    "Asya Wu",
+    "Follow up",
+    0
+   ],
+   "523964697803": [
+    1791281297452,
+    "Asya Wu",
+    "Follow up",
+    0
+   ],
+   "523975197927": [
+    1791192228309,
+    "Asya Wu",
+    "No answer",
+    0
+   ],
+   "523931274471": [
+    1791200118657,
+    "Chey Pienaar",
+    "Meeting booked — from email",
+    0
+   ],
+   "524602699983": [
+    1791196514515,
+    "Asya Wu",
+    "Contacted — note logged",
+    0
+   ],
+   "524608444664": [
+    1791196720615,
+    "Asya Wu",
+    "No answer",
+    0
+   ],
+   "524687704265": [
+    1791275879426,
+    "Asya Wu",
+    "No answer",
+    0
+   ],
+   "524683401408": [
+    1791275855707,
+    "Asya Wu",
+    "(no outreach found)",
+    0
+   ],
+   "524698760382": [
+    1791282026851,
+    "Chey Pienaar",
+    "No answer",
+    0
+   ],
+   "524700769514": [
+    1791275820205,
+    "Asya Wu",
+    "No answer",
+    0
+   ],
+   "524702367934": [
+    1791283467670,
+    "Chey Pienaar",
+    "Connected",
+    0
+   ],
+   "524702951628": [
+    1791283710666,
+    "Chey Pienaar",
+    "Meeting booked — from email",
+    0
+   ],
+   "524702903513": [
+    1791284054942,
+    "Chey Pienaar",
+    "No answer",
+    0
+   ],
+   "525091568861": [
+    1791281249754,
+    "Asya Wu",
+    "No answer",
+    0
+   ],
+   "525089821929": [
+    1791281208420,
+    "Asya Wu",
+    "(no outreach found)",
+    0
+   ],
+   "525071880420": [
+    1791475384871,
+    "Chey Pienaar",
+    "Connected",
+    0
+   ],
+   "525170695358": [
+    1791475395355,
+    "Chey Pienaar",
+    "Connected",
+    0
+   ],
+   "525183530225": [
+    1791286022039,
+    "Asya Wu",
+    "Contacted — note logged",
+    0
+   ],
+   "525293657274": [
+    1791282994250,
+    "Chey Pienaar",
+    "Meeting booked — by rep",
+    0
+   ],
+   "525688452339": [
+    1791475484414,
+    "Chey Pienaar",
+    "No answer",
+    0
+   ],
+   "525280978126": [
+    1793894263596,
+    "Chey Pienaar",
+    "(no outreach found)",
+    0
+   ],
+   "525691455676": [
+    1791475645892,
+    "Chey Pienaar",
+    "No answer",
+    0
+   ],
+   "525207194840": [
+    1791364185890,
+    "Yoana Chung",
+    "Contacted — note logged",
+    0
+   ],
+   "526583165129": [
+    1793894263596,
+    "Billy Hunt",
+    "No answer",
+    0
+   ],
+   "526582683834": [
+    1793894263596,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526590713076": [
+    1791972840535,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "526591779029": [
+    1791994742802,
+    "Yoana Chung",
+    "Contacted — note logged",
+    0
+   ],
+   "526583291068": [
+    1791994426125,
+    "Yoana Chung",
+    "Connected",
+    0
+   ],
+   "526585790654": [
+    1793888296771,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526590504175": [
+    1793894263596,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526599370994": [
+    1794324755881,
+    "Billy Hunt",
+    "Meeting booked — by rep",
+    0
+   ],
+   "526590596341": [
+    1794325360148,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526582013116": [
+    1793888298073,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526586218686": [
+    1793894263596,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526582512879": [
+    1793887161688,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526586218687": [
+    1793893916093,
+    "Ryan Welby",
+    "(no outreach found)",
+    0
+   ],
+   "526582382806": [
+    1793893916093,
+    "Ryan Welby",
+    "(no outreach found)",
+    0
+   ],
+   "526585895138": [
+    1793893916093,
+    "Ryan Welby",
+    "(no outreach found)",
+    0
+   ],
+   "526591062256": [
+    1794325981992,
+    "Billy Hunt",
+    "No answer",
+    0
+   ],
+   "526590713078": [
+    1793098370511,
+    "Yoana Chung",
+    "Meeting booked — from email",
+    0
+   ],
+   "526583291073": [
+    1793888313770,
+    "Billy Hunt",
+    "Busy",
+    0
+   ],
+   "526591317193": [
+    1791908963998,
+    "Yoana Chung",
+    "Not a fit",
+    0
+   ],
+   "526591062257": [
+    1794328171669,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526582512881": [
+    1793894263596,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526586218689": [
+    1793894263596,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526589210855": [
+    1793894263596,
+    "Ryan Welby",
+    "(no outreach found)",
+    0
+   ],
+   "526589119712": [
+    1793894263596,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526579906785": [
+    1793894263596,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526586010837": [
+    1794328472737,
+    "Billy Hunt",
+    "Meeting booked — from email",
+    0
+   ],
+   "526599370996": [
+    1793894263596,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526591317195": [
+    1792505754690,
+    "Ryan Welby",
+    "Contacted — note logged",
+    0
+   ],
+   "526599780583": [
+    1793894263596,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526582304962": [
+    1792148994952,
+    "Chey Pienaar",
+    "Positive",
+    0
+   ],
+   "526582765809": [
+    1793894263596,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526589668576": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526528636117": [
+    1793696816520,
+    "Ryan Welby",
+    "Meeting booked — from email",
+    0
+   ],
+   "526497365230": [
+    1793893916093,
+    "Ryan Welby",
+    "(no outreach found)",
+    0
+   ],
+   "526589548770": [
+    1791994164319,
+    "Yoana Chung",
+    "Uninterested",
+    0
+   ],
+   "526591063228": [
+    1793638080316,
+    "Yoana Chung",
+    "Not a fit",
+    0
+   ],
+   "526591317196": [
+    1793894263596,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526590842063": [
+    1793637414618,
+    "Yoana Chung",
+    "Not a fit",
+    0
+   ],
+   "526583291075": [
+    1794999159520,
+    "Billy Hunt",
+    "No answer",
+    0
+   ],
+   "526582304963": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526586218690": [
+    1793894263596,
+    "Ryan Welby",
+    "(no outreach found)",
+    0
+   ],
+   "526586082517": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526581188843": [
+    1793888314309,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526590938360": [
+    1794327970465,
+    "Billy Hunt",
+    "No answer",
+    0
+   ],
+   "526590011630": [
+    1794326807240,
+    "Billy Hunt",
+    "Uninterested",
+    0
+   ],
+   "526586082518": [
+    1793115894565,
+    "Ryan Welby",
+    "Contacted — note logged",
+    0
+   ],
+   "526582382812": [
+    1793894263596,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "526599636185": [
+    1794326131191,
+    "Billy Hunt",
+    "No answer",
+    0
+   ],
+   "526583291076": [
+    1791993703585,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "526590842067": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526586302680": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526582512885": [
+    1794328245374,
+    "Billy Hunt",
+    "Meeting booked — from email",
+    0
+   ],
+   "526589668578": [
+    1791993565523,
+    "Yoana Chung",
+    "Not a fit",
+    0
+   ],
+   "526589548781": [
+    1791879818817,
+    "Yoana Chung",
+    "Contacted — note logged",
+    0
+   ],
+   "526589928663": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526581535969": [
+    1793894263596,
+    "Ryan Welby",
+    "(no outreach found)",
+    0
+   ],
+   "526590939322": [
+    1793637274168,
+    "Yoana Chung",
+    "Not a fit",
+    0
+   ],
+   "526586302681": [
+    1793893916093,
+    "Ryan Welby",
+    "(no outreach found)",
+    0
+   ],
+   "526442436830": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526579906788": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526599780587": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526599371972": [
+    1793893916093,
+    "Ryan Welby",
+    "(no outreach found)",
+    0
+   ],
+   "526589668581": [
+    1794328254128,
+    "Billy Hunt",
+    "No answer",
+    0
+   ],
+   "526579906790": [
+    1791993134413,
+    "Yoana Chung",
+    "Busy",
+    0
+   ],
+   "526589210860": [
+    1791992998237,
+    "Yoana Chung",
+    "Contacted — note logged",
+    0
+   ],
+   "526589548786": [
+    1793637123690,
+    "Yoana Chung",
+    "Contacted via email",
+    0
+   ],
+   "526582512888": [
+    1793637227716,
+    "Yoana Chung",
+    "Contacted — note logged",
+    0
+   ],
+   "526583291079": [
+    1793114945963,
+    "Ryan Welby",
+    "Contacted — note logged",
+    0
+   ],
+   "526583045364": [
+    1793009574288,
+    "Ryan Welby",
+    "Contacted — note logged",
+    0
+   ],
+   "526591182032": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526591449290": [
+    1791992569150,
+    "Yoana Chung",
+    "Contacted — note logged",
+    0
+   ],
+   "526579906791": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526590011633": [
+    1791993297841,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "526528636118": [
+    1794328160817,
+    "Billy Hunt",
+    "(no outreach found)",
+    0
+   ],
+   "526590504181": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526583291081": [
+    1794417618960,
+    "Billy Hunt",
+    "No answer",
+    0
+   ],
+   "526585790662": [
+    1791992332002,
+    "Yoana Chung",
+    "Not a fit",
+    0
+   ],
+   "526589119718": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526589210862": [
+    1793893916093,
+    "Ryan Welby",
+    "Contacted — note logged",
+    0
+   ],
+   "526582013126": [
+    1791907446274,
+    "Yoana Chung",
+    "Not a fit",
+    0
+   ],
+   "526589038813": [
+    1794327803498,
+    "Billy Hunt",
+    "Not a fit",
+    0
+   ],
+   "526586623169": [
+    1793893550412,
+    "Ryan Welby",
+    "Contacted — note logged",
+    0
+   ],
+   "526591063232": [
+    1793893473527,
+    "Ryan Welby",
+    "No answer",
+    0
+   ],
+   "526591650014": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526469268716": [
+    1793893306455,
+    "Ryan Welby",
+    "Contacted — note logged",
+    0
+   ],
+   "526591063233": [
+    1794325746376,
+    "Billy Hunt",
+    "Follow up",
+    0
+   ],
+   "526581664958": [
+    1791991657277,
+    "Yoana Chung",
+    "Busy",
+    0
+   ],
+   "526590597320": [
+    1791984048841,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "526581761234": [
+    1791907985205,
+    "Yoana Chung",
+    "Not a fit",
+    0
+   ],
+   "526585790665": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526582683848": [
+    1791983545473,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "526582513853": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526582191303": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "526590283973": [
+    1793892371586,
+    "Ryan Welby",
+    "No answer",
+    0
+   ],
+   "526528636123": [
+    1791882323172,
+    "Yoana Chung",
+    "Contacted — note logged",
+    0
+   ],
+   "526586082525": [
+    1791883314212,
+    "Yoana Chung",
+    "Contacted — note logged",
+    0
+   ],
+   "526590714055": [
+    1791881451863,
+    "Yoana Chung",
+    "Meeting booked — by rep",
+    0
+   ],
+   "526671835385": [
+    1791885722939,
+    "Yoana Chung",
+    "Meeting booked — by rep",
+    0
+   ],
+   "526702272734": [
+    1791909111974,
+    "Yoana Chung",
+    "Not a fit",
+    0
+   ],
+   "526702273747": [
+    1791908951363,
+    "Yoana Chung",
+    "Not a fit",
+    0
+   ],
+   "527074902222": [
+    1793894263596,
+    "Chey Pienaar",
+    "No answer",
+    0
+   ],
+   "527451066589": [
+    1793102283862,
+    "Asya Wu",
+    "(no outreach found)",
+    0
+   ],
+   "527425505525": [
+    1792487874660,
+    "Asya Wu",
+    "(no outreach found)",
+    0
+   ],
+   "527388873920": [
+    1792487867618,
+    "Asya Wu",
+    "(no outreach found)",
+    0
+   ],
+   "527381753058": [
+    1792487840907,
+    "Asya Wu",
+    "(no outreach found)",
+    0
+   ],
+   "532488964304": [
+    1793894263596,
+    "Carlos Lam",
+    "(no outreach found)",
+    0
+   ],
+   "537799351513": [
+    1793894263596,
+    "Yoana Chung",
+    "(no outreach found)",
+    0
+   ],
+   "539786294475": [
+    1794327427439,
+    "Billy Hunt",
+    "No answer",
+    0
+   ],
+   "539787810017": [
+    1794235331978,
+    "Chey Pienaar",
+    "Contacted — note logged",
+    0
+   ],
+   "539839020245": [
+    1794327389440,
+    "Billy Hunt",
+    "No answer",
+    0
+   ],
+   "539813028056": [
+    1794325874127,
+    "Billy Hunt",
+    "Contacted — note logged",
+    0
+   ]
+  },
+  "callTasks": [
+   "521798804687",
+   "521799407844",
+   "521804323016",
+   "521798122738",
+   "521804323018",
+   "521805171952",
+   "521798984951",
+   "521804559574",
+   "521753707718",
+   "521798230242",
+   "522541581515",
+   "522473526486",
+   "522489748690",
+   "522482518239",
+   "522527030460",
+   "522494869743",
+   "522426257656",
+   "522541581544",
+   "522541581545",
+   "522469855454",
+   "522489748718",
+   "522527030480",
+   "522475339985",
+   "522507447499",
+   "522456892640",
+   "522487982305",
+   "522471783611",
+   "522539801812",
+   "522534400227",
+   "522455168248",
+   "522477175004",
+   "522456953081",
+   "522550594789",
+   "522558119103",
+   "522498537719",
+   "522539801814",
+   "522539801815",
+   "522505697507",
+   "522482580725",
+   "522527083722",
+   "522541628638",
+   "522494932164",
+   "522424527092",
+   "522420923630",
+   "522420923631",
+   "522558119106",
+   "522505697511",
+   "522466272456",
+   "523962685639",
+   "523955164391",
+   "523943112941",
+   "523964697803",
+   "523975197927",
+   "524687704265",
+   "524698760382",
+   "524700769514",
+   "524702367934",
+   "524702903513",
+   "525071880420",
+   "525170695358",
+   "525688452339",
+   "525691455676",
+   "526583165129",
+   "526590713076",
+   "526583291068",
+   "526591062256",
+   "526583291073",
+   "526591317193",
+   "526582304962",
+   "526589548770",
+   "526591063228",
+   "526590842063",
+   "526583291075",
+   "526590938360",
+   "526590011630",
+   "526582382812",
+   "526599636185",
+   "526583291076",
+   "526589668578",
+   "526590939322",
+   "526589668581",
+   "526579906790",
+   "526590011633",
+   "526583291081",
+   "526585790662",
+   "526582013126",
+   "526589038813",
+   "526591063232",
+   "526591063233",
+   "526581664958",
+   "526590597320",
+   "526581761234",
+   "526582683848",
+   "526590283973",
+   "526702272734",
+   "526702273747",
+   "527074902222",
+   "539786294475",
+   "539839020245"
+  ]
+ }
+}

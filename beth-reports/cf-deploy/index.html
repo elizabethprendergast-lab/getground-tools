@@ -706,7 +706,7 @@ function showContactPopover(anchorEl, contacts, portalId) {
   const unique = [];
   const seen = new Set();
   for (const c of contacts) { if (!seen.has(c.id)) { seen.add(c.id); unique.push(c); } }
-  pop.innerHTML = `<p class="ph-title">${unique.length} contact${unique.length === 1 ? "" : "s"}</p>` +
+  pop.innerHTML = (unique.length ? `<p class="ph-title">${unique.length} contact${unique.length === 1 ? "" : "s"}</p>` : `<p class="ph-title">Names not available for this row</p>`) +
     unique.slice(0, 40).map(c => `<a href="https://app-eu1.hubspot.com/contacts/${portalId}/record/0-1/${c.id}" target="_blank" rel="noopener">${esc(c.name)}${c.note ? `<span class="ph-note"> — ${esc(c.note)}</span>` : ""}</a>`).join("");
   const rect = anchorEl.getBoundingClientRect();
   pop.style.display = "block";
@@ -879,7 +879,7 @@ function dealCardHtml(label, d, portalId, loading) {
   const html = `
     <section class="card">
       <h2>Deal attribution — ${esc(label)}</h2>
-      <p class="sub">Contacts put into this sequence who closed a Plans deal (Core/Complete, new or upsell) — live${rangeIsSet() ? `, deals closed ${esc(rangeLabel())}` : ""}. Hover a row to see who, click a name to open them in HubSpot.</p>
+      <p class="sub">Contacts put into this sequence who closed a Plans deal (Core/Complete, new or upsell) — ${d.snapshotAt ? `snapshot as of ${fmtDate(d.snapshotAt)}` : "live"}${rangeIsSet() ? `, deals closed ${esc(rangeLabel())}` : ""}. Hover a row to see who, click a name to open them in HubSpot.</p>
       ${rows.map((r, i) => `
         <div class="outcome-bar-row" data-deal-index="${i}">
           <span class="name" data-deal-index="${i}">${esc(r.label)}</span>
@@ -1300,7 +1300,12 @@ function initiativePageHtml(stats, ini) {
   for (const m of meetings) { const c = C(m.channel || "Other"); c.meetings++; if (m.tone === "win") c.wins++; }
   for (const pt of parts) for (const d of ((pt.dRaw && pt.dRaw.dealActivity && pt.dRaw.dealActivity.deals) || [])) if (inR(d.createdMs)) C(chOf(pt.key)).deals++;
   for (const m of ((cohort && cohort.meetings) || [])) C(ini.cohortChannel || "Other").deals += (m.deals || []).length;
-  for (const pt of parts) C(chOf(pt.key)).plans += new Set(((pt.d && pt.d.rows) || []).filter((r) => !/^\(no /.test(r.label || "")).flatMap((r) => (r.contacts || []).map((c) => c.id))).size;
+  // Distinct contacts with a closed Plans deal; contactsWithClosedDeal when a row has no contact list.
+  for (const pt of parts) {
+    const wonRows = ((pt.d && pt.d.rows) || []).filter((r) => !/^\(no /.test(r.label || ""));
+    const listed = new Set(wonRows.flatMap((r) => (r.contacts || []).map((c) => c.id))).size;
+    C(chOf(pt.key)).plans += wonRows.some((r) => r.count > (r.contacts || []).length) ? (pt.d.contactsWithClosedDeal || listed) : listed;
+  }
   if (webCheckouts != null) C("Web page").plans += webCheckouts;
   const chOrder = ["Ads", "Email", "Web page", "Webinar", "Other"].filter((k) => ch[k]);
   const channelHtml = chOrder.length ? `<div class="ch-grid">${chOrder.map((k) => { const c = ch[k]; return `<div class="ch-card" style="--c:${CHANNELS[k] || CHANNELS.Other}">
