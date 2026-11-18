@@ -1163,6 +1163,8 @@ const INITIATIVES = [
   { key: "black-friday", label: "Black Friday", parts: ["black-friday", "black-friday-reengage", "reengage-post-webinar-bf"], web: "bf-pages", webLink: "/black-friday-pages/",
     desc: "Everything running for Black Friday: ads leads, the database reengage emails, the post-webinar email, the /black-friday pages and the calls behind them.",
     leadsFrom: "black-friday", since: "2026-10-15",
+    // Paid leads = Meta lead-form submissions (50% v2, 50% v1, Free company setup) since 15 Oct.
+    leadForms: ["1849f51c-141c-44fe-ac8f-d44e99314412", "6dfcc829-72f8-4155-970d-0a3c38588cb5", "5c4b486a-df2a-4338-9ac0-3d7a0a8a37b9"], leadConv: "BlackFriday", leadSrc: "friday",
     // Where people came from (origin), per part. Web-page bookings are split Ads vs Web page by UTM.
     channels: { "black-friday": "Ads", "black-friday-reengage": "Email", "reengage-post-webinar-bf": "Email" } },
   // Meetings booked by anyone on the audience lists since the webinar started count too —
@@ -1228,7 +1230,9 @@ function initiativePageHtml(stats, ini) {
   const web = ini.web ? initWeb[ini.web] : null;
   const webLoading = ini.web && !(ini.web in initWeb);
   const leadsKey = ini.leadsFrom ? `leads:${ini.leadsFrom}` : null;
-  if (leadsKey) initFetch(initWeb, leadsKey, `/api/campaign-leads?campaign=${encodeURIComponent(ini.leadsFrom)}&since=${ini.since}`);
+  if (leadsKey) initFetch(initWeb, leadsKey, ini.leadForms
+    ? `/api/campaign-leads?forms=${ini.leadForms.join(",")}&conv=${encodeURIComponent(ini.leadConv || "")}&src=${encodeURIComponent(ini.leadSrc || "")}&since=${ini.since}`
+    : `/api/campaign-leads?campaign=${encodeURIComponent(ini.leadsFrom)}&since=${ini.since}`);
   const leadsRes = leadsKey ? initWeb[leadsKey] : null;
   const leadsLoading = leadsKey && !(leadsKey in initWeb);
   const cohortKey = ini.cohortLists ? `cohort:${ini.key}` : null;
@@ -1299,7 +1303,7 @@ function initiativePageHtml(stats, ini) {
   // ---- Funnel: full-width rows, log-scaled bars so small numbers still show.
   const L = (v, loading) => loading ? '<span class="ld">…</span>' : v;
   const stages = [];
-  if (leadsKey) stages.push({ k: "Paid leads", n: leads ? leads.length : null, loading: leadsLoading, c: "var(--series-6)", sub: leads ? `${leads.filter((c) => c.isNew).length} new to HubSpot · ${leads.filter((c) => /^Paid/.test(c.source)).length} from paid ads` : "" });
+  if (leadsKey) stages.push({ k: "Paid leads", n: leads ? leads.length : null, loading: leadsLoading, c: "var(--series-6)", sub: leads ? `${leadsRes.mode === "forms" ? `Meta lead-form submissions${Object.keys(leadsRes.byForm || {}).length > 1 ? "" : ` (${esc(Object.keys(leadsRes.byForm || {})[0] || "")})`} · ` : ""}${leads.filter((c) => c.isNew).length} new to HubSpot` : "" });
   if (parts.some((pt) => pt.p.hasEmails)) {
     const kfmt = (n) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n);
     const split = emails.map((e) => ({ n: Number((e.stats || {}).sent || 0), l: e.label || e.name })).filter((x) => x.n).sort((a, b) => b.n - a.n)
