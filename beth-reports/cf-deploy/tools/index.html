@@ -163,8 +163,9 @@ function tool(t) {
     <h2>${esc(t.title)}</h2>
     <p class="meta">Since ${fmt(t.sinceMs)}</p>
     ${(() => { const u = t.usage && !t.usage.error ? t.usage : null; return `<div class="tiles">
-      <div class="tile"><div class="n">${u ? u.users.length : "–"}</div><div class="l">Consultants using it</div></div>
-      <div class="tile"><div class="n">${u ? u.suggestions : "–"}</div><div class="l">Emails run through it</div></div>
+      ${u ? `<div class="tile"><div class="n">${u.users.length}</div><div class="l">Consultants using it</div></div>
+      <div class="tile"><div class="n">${u.suggestions}</div><div class="l">Emails run through it</div></div>`
+      : `<div class="tile"><div class="n">${new Set((t.tickets || []).map((k) => k.who).filter(Boolean)).size}</div><div class="l">Consultants who created tickets</div></div>`}
       <div class="tile"><div class="n">${t.viaTool}</div><div class="l">Tickets created via tool</div></div>
       <div class="tile"><div class="n">${t.adoption}%</div><div class="l">Of all tickets</div></div>
     </div>
