@@ -461,6 +461,16 @@
   .ch-card dt { color: var(--text-secondary); } .ch-card dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
   .ch-card dd small { font-weight: 500; color: var(--text-muted); }
   .ch-tag { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 1px 7px; border-radius: 999px; color: #fff; background: var(--c); margin-right: 4px; }
+
+  .mt-row { grid-template-columns: 1fr 130px 230px; }
+  @media (max-width: 700px) { .mt-row { grid-template-columns: 1fr; } .mt-when, .badge { grid-column: 1; } }
+  .mt-list { max-height: 640px; overflow-y: auto; }
+  .mt-list[data-filter="win"] .mt-row:not([data-tone="win"]), .mt-list[data-filter="fail"] .mt-row:not([data-tone="fail"]),
+  .mt-list[data-filter="pending"] .mt-row:not([data-tone="pending"]), .mt-list[data-filter="unknown"] .mt-row:not([data-tone="unknown"]) { display: none; }
+  .mt-legend button.lg { font: inherit; font-size: 13px; color: var(--text-secondary); background: none; border: 1px solid transparent; border-radius: 999px; padding: 3px 10px 3px 8px; cursor: pointer; }
+  .mt-legend button.lg:hover { border-color: var(--border); }
+  .mt-legend button.lg.sel { border-color: var(--t); background: color-mix(in srgb, var(--t) 10%, transparent); color: var(--text-primary); }
+  .mt-legend { align-items: center; }
 </style>
 </head>
 <body>
@@ -1351,9 +1361,8 @@ function initiativePageHtml(stats, ini) {
   // Meetings: outcome bar + badge rows.
   const seg = (t) => toneCount[t] ? `<i class="t-${t}" style="flex:${toneCount[t]}" title="${TONE_LABEL[t]}: ${toneCount[t]}"></i>` : "";
   const mtgSummary = meetings.length ? `<div class="mt-bar">${["win", "pending", "unknown", "fail"].map(seg).join("")}</div>
-    <div class="mt-legend">${["win", "pending", "unknown", "fail"].map((t) => `<span class="lg t-${t}"><b>${toneCount[t]}</b> ${TONE_LABEL[t]}</span>`).join("")}</div>` : "";
-  const mtgRows = meetings.slice(0, 15).map((m) => `<div class="mt-row">
-      <span class="dot t-${m.tone}"></span>
+    <div class="mt-legend">${["win", "pending", "unknown", "fail"].filter((t) => toneCount[t]).map((t) => `<button type="button" class="lg t-${t}" data-tone="${t}" onclick="const l=this.closest('section').querySelector('.mt-list');const on=l.dataset.filter===this.dataset.tone;l.dataset.filter=on?'':this.dataset.tone;this.parentNode.querySelectorAll('.lg').forEach(b=>b.classList.toggle('sel',!on&&b===this));"><b>${toneCount[t]}</b> ${TONE_LABEL[t]}</button>`).join("")}<span class="muted small">Click to filter</span></div>` : "";
+  const mtgRows = meetings.map((m) => `<div class="mt-row" data-tone="${m.tone}">
       <div class="mt-who"><a href="${hsContact(m.contactId)}" target="_blank" rel="noopener">${esc(m.name || "Contact")}</a><div class="muted"><span class="ch-tag" style="--c:${CHANNELS[m.channel] || CHANNELS.Other}">${esc(m.channel || "Other")}</span> ${esc(m.part)} · ${esc(m.via)}${m.host ? ` · ${esc(m.host)}` : ""}</div></div>
       <div class="mt-when"><div>${m.startTime ? fmtDate(m.startTime) : "–"}</div><div class="muted">booked ${m.bookedAt ? fmtDate(m.bookedAt) : ""}</div></div>
       <span class="badge t-${m.tone}">${esc(meetingOutcomeText(m))}</span>
@@ -1373,7 +1382,7 @@ function initiativePageHtml(stats, ini) {
     </section>
     <div class="ov-grid">
       ${channelHtml ? `<section class="card ov-wide"><h2>By channel</h2><p class="sub">Where people came from, and what that produced. Calls are how we followed up, counted under the channel the person came from.</p>${channelHtml}</section>` : ""}
-      <section class="card ov-wide"><h2>Meetings booked</h2>${meetings.length ? mtgSummary + `<div class="mt-list">${mtgRows}</div>${meetings.length > 15 ? `<p class="muted small">Showing latest 15 of ${meetings.length}.</p>` : ""}` : `<p class="muted">${callsLoading || cohortLoading ? "Loading…" : "No meetings yet."}</p>`}</section>
+      <section class="card ov-wide"><h2>Meetings booked</h2>${meetings.length ? mtgSummary + `<div class="mt-list">${mtgRows}</div>` : `<p class="muted">${callsLoading || cohortLoading ? "Loading…" : "No meetings yet."}</p>`}</section>
       ${leadsKey ? `<section class="card"><h2>Paid leads</h2>${leadsHtml}</section>` : ""}
       ${dealsList.length || won.size ? `<section class="card"><h2>Deals &amp; plans</h2>
         ${won.size ? `<h4 class="ov-h4">Plans won</h4><div class="chips">${[...won.values()].map((c) => `<a class="chip win" href="${hsContact(c.id)}" target="_blank" rel="noopener">${esc(c.name)} <span class="muted">${esc(c.plan || "")}</span></a>`).join("")}</div>` : ""}
