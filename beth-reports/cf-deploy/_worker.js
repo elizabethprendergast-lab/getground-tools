@@ -109,6 +109,8 @@ const REPORTS = {
         breakdownBy: "month",
         // 18 Nov: track the four ICs only (drop Talha / Carlos #2s that landed with them as contact owners).
         taskOwnerIds: ["76256251", "1297173186", "29178925", "78571230"], // Asya, Chey, Yoana, Ryan
+        // 7 open Oct 26 tasks bulk-closed by API on 18 Nov to start Nov fresh, not real calls.
+        excludeTaskIds: ["533761622233", "533797219558", "533518030019", "544266537209", "544259519719", "548348353741", "548296843494"],
         campaignRepsOnly: true,
         campaignRepIds: ["76256251", "1297173186", "29178925", "78571230"],
       },
@@ -953,6 +955,7 @@ async function searchTasksForAttribution(API, H, report, opts = {}) {
   // Projects can limit tracking to tasks owned by named reps (taskOwnerIds), e.g. plan-close
   // counts only the ICs' tasks, not stray #2s that landed with other contact owners.
   results = results.filter((t) => { const pc = (report.projects || []).find((x) => x.key === classifyProject(report, t.properties || {}));
+    if (pc && pc.excludeTaskIds && pc.excludeTaskIds.includes(String(t.id || (t.properties || {}).hs_object_id))) return false;
     return !(pc && pc.taskOwnerIds && !pc.taskOwnerIds.includes(String((t.properties || {}).hubspot_owner_id))); });
   return { total, results, truncated };
 }
