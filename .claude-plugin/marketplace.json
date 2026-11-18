@@ -1,16 +1,19 @@
 {
   "name": "getground-tools",
-  "owner": { "name": "GetGround", "url": "https://github.com/elizabethprendergast-lab" },
+  "owner": {
+    "name": "GetGround",
+    "url": "https://github.com/elizabethprendergast-lab"
+  },
   "plugins": [
     {
       "name": "email-builder",
       "source": "./plugins/email-builder",
-      "description": "Build branded GetGround/BuyAssociation marketing emails via the hosted builder (short link), with Notion voice, UTMs, Supabase drafts + feedback, and Compliance flagging."
+      "description": "Build branded GetGround emails directly in HubSpot as drafts: design-team guidelines, dark mode, native editable text/buttons, automatic UTMs and footer disclaimers, compliance flags. Never publishes or sends."
     },
     {
       "name": "hubspot-email-direct",
       "source": "./plugins/hubspot-email-direct",
-      "description": "Build and edit marketing emails directly inside HubSpot custom-coded templates via the CMS Source Code API, keeping text/buttons native and editable, with unsubscribe + compliance disclaimers always on."
+      "description": "DEPRECATED: merged into email-builder 0.2.0. Only for editing legacy custom-coded HubSpot templates via the CMS Source Code API."
     }
   ]
 }

@@ -1,0 +1,79 @@
+{
+  "_source": "Notion 'Required disclaimers' https://app.notion.com/p/2701ded8cfd2801ca104d4999890931d (synced 18 Nov 2026). Edit there first, then here.",
+  "order": [
+    "general",
+    "mortgages",
+    "financial_account",
+    "open_banking",
+    "investment_pots",
+    "insurance",
+    "ai_analyser",
+    "forms"
+  ],
+  "items": {
+    "general": {
+      "label": "General",
+      "always": true,
+      "paragraphs": [
+        "You are receiving this email because you opted in via our website, are a current customer through the GetGround platform, or are a strategic partner.",
+        "This is for your information only – you shouldn't view this as legal advice, tax advice, investment advice, or any advice at all. While we've tried to make sure this information is accurate and up to date, things can change, so it shouldn't be viewed as totally comprehensive. GetGround always recommends you seek out independent advice before making any investment decisions."
+      ]
+    },
+    "mortgages": {
+      "label": "Mortgages",
+      "detect": "mortgage|re-?mortgag|\\bbrokers?\\b|\\bbrokerage\\b|\\blenders?\\b|refinanc|buy-to-let finance|property finance|commercial finance",
+      "compliance": "Escalate to Compliance UNLESS it is a recurring mortgage-related email (e.g. mortgage webinar). Promotion of brokerage may need Fiducia/Stonebridge approval; pure SaaS (e.g. mortgage calculator) does not.",
+      "paragraphs": [
+        "GetGround Commercial Finance Limited is an Appointed Representative of The Fiducia Network Ltd, which is authorised and regulated by the Financial Conduct Authority under FRN 917537. GetGround Commercial Finance Limited is a credit broker and not a lender.",
+        "GetGround Property Finance Limited is an Appointed Representative of Stonebridge Mortgage Solutions Ltd, which is authorised and regulated by the Financial Conduct Authority (FRN: 454811). Registered Office: GetGround Property Finance Limited, 1 Lyric Square, London, England, W6 0NB. Registered Company Number: 15831013 Registered in England & Wales.",
+        "We source finance from the whole of the lending market, who typically pay us commissions. These commissions may vary depending on the lender, product, or other permissible factors. Your home may be repossessed if you do not keep up repayments on your mortgage.",
+        "IMPORTANT INFORMATION - FRAUD WARNING: We will never send you an email asking you to transfer money or requesting your bank details. We will never ask you to transfer deposit money to your solicitor. If you receive an email claiming to be from us or any professional such as a bank or solicitor, it is not genuine, so please ignore it! However, please let us know immediately if you receive an email like this claiming to be from us."
+      ]
+    },
+    "financial_account": {
+      "label": "Financial Account",
+      "detect": "financial account|business account|getground account|\\bmodulr\\b|e-?money",
+      "paragraphs": [
+        "Terranova.Network Limited (FRN: 902747) is a registered EMD agent of Modulr FS Limited, which is authorised and regulated by the Financial Conduct Authority as an Electronic Money Institution for the issuance of electronic money and payment services (FRN: 900573). Your account and payment services are provided by Modulr FS Limited."
+      ]
+    },
+    "open_banking": {
+      "label": "Open Banking",
+      "detect": "bank feeds?|open banking|connect(ing)? (your |a )?bank|link(ing)? (your |a )?bank|\\byapily\\b",
+      "paragraphs": [
+        "Terranova.Network Limited is a registered Agent of Yapily Connect Ltd for the purpose of providing Account Information Services under the Payment Services Regulations 2017. Yapily Connect Ltd is authorised by the UK Financial Conduct Authority (FRN 827001)."
+      ]
+    },
+    "investment_pots": {
+      "label": "Investment Pots",
+      "detect": "investment pots?|\\brisksave\\b",
+      "compliance": "Must be escalated to Compliance every time AND submitted to RiskSave for approval.",
+      "paragraphs": [
+        "Investment Pots are provided by GetGround Limited, an appointed representative of RiskSave Technologies Ltd, which is authorised and regulated by the FCA (FRN: 775330). GetGround Limited can be found in the FCA's Financial Services Register under FRN 1005044. Your capital is at risk."
+      ]
+    },
+    "insurance": {
+      "label": "Insurance",
+      "detect": "insurance|insurer|\\binsured\\b|superscript|complete plan",
+      "note": "Complete plan includes landlord insurance, so any Complete email needs this.",
+      "paragraphs": [
+        "Should you require an insurance product, GetGround will introduce you to Superscript (trading name of Enro Ltd) who are authorised and regulated by the Financial Conduct Authority (FRN: 656459)."
+      ],
+      "detectCase": "\\bComplete\\b(?! (the|your|this|our|it|a|an|and|all)\\b)"
+    },
+    "ai_analyser": {
+      "label": "AI Property Analyser",
+      "detect": "property analyser|property-analyser|ai analyser|ai-analyser|/analyser",
+      "paragraphs": [
+        "Information from the AI Property Analyser is for informational purposes only and shouldn't be taken as advice. By accessing or using this tool, you agree to these <a href=\"https://help.getground.co.uk/ai-property-analyser-terms-and-conditions\" style=\"color:inherit;text-decoration:underline;\">Terms &amp; Conditions</a>."
+      ]
+    },
+    "forms": {
+      "label": "Forms",
+      "detect": "<form\\b|hs-form|hbspt\\.forms",
+      "paragraphs": [
+        "By providing my email address I confirm that I have read and understood the <a href=\"https://help.getground.co.uk/privacy-policy\" style=\"color:inherit;text-decoration:underline;\">Privacy Policy</a>."
+      ]
+    }
+  }
+}

@@ -1,0 +1,98 @@
+<!--
+GetGround email components. Copy a snippet into a spec "html" block and replace the {{PLACEHOLDERS}}.
+Rules baked in: dark-mode classes (dm-*), Inter/Rethink Sans, single column, 20px side padding
+(matches native text blocks), bulletproof buttons. The script adds the <style> block, UTMs and
+disclaimers — don't add those yourself. Add data-utm="hero_button" etc. to <a> tags to name
+utm_content; otherwise it is auto-named.
+Personalisation: {{ personalization_token('contact.firstname', 'there') }}
+-->
+
+<!-- ===== HERO: MARKETING (dark gradient, headline + one button, optional short subline/eyebrow) ===== -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;"><tr><td class="gg-pxc" style="padding:0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;border-radius:24px;overflow:hidden;background:#06363A;background-color:#06363A;background-image:linear-gradient(160deg,#06363A 0%,#0E666B 100%);"><tr><td class="gg-hero" style="padding:40px 22px 36px 22px;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+<!-- optional eyebrow --><p class="dm-muted" style="margin:0 0 14px 0;font-size:13px;line-height:1.4;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#A3ECEE;">{{EYEBROW}}</p>
+<h1 class="dm-keep-white" style="font-family:'Rethink Sans','Inter',Arial,sans-serif;font-size:30px;line-height:1.2;font-weight:600;letter-spacing:-0.02em;margin:0 0 32px 0;color:#FFFFFF;">{{HEADLINE — keep key phrase together with &nbsp;}}<!-- optional subline ≤6 words: <br><span class="dm-keep-soft" style="font-size:22px;color:#CFE6E6;">{{SUBLINE}}</span> --></h1>
+<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{URL}}" style="height:50px;v-text-anchor:middle;width:260px;" arcsize="20%" stroke="f" fillcolor="#A3ECEE"><center style="color:#06363A;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">{{BUTTON}}</center></v:roundrect><![endif]--><!--[if !mso]><!--><a class="dm-keep-cyanbtn" data-utm="hero_button" href="{{URL}}" style="background:#A3ECEE;background-color:#A3ECEE;color:#06363A;font-size:17px;font-weight:700;padding:15px 28px;border-radius:12px;display:inline-block;text-decoration:none;font-family:'Inter',Arial,sans-serif;">{{BUTTON}}&nbsp;&nbsp;&rarr;</a><!--<![endif]-->
+</td></tr></table></td></tr></table>
+
+<!-- ===== HERO: NOTIFICATION (light panel, headline + optional subline + one button) ===== -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;"><tr><td class="gg-pxc" style="padding:0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;"><tr><td class="dm-panel gg-hero" style="background:#EBFEFE;border-radius:24px;padding:36px 22px;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+<h1 class="dm-head" style="font-family:'Rethink Sans','Inter',Arial,sans-serif;font-size:32px;line-height:1.2;font-weight:600;letter-spacing:-0.02em;margin:0 0 28px 0;color:#1F1F33;">{{HEADLINE}}<br><span class="dm-muted" style="display:inline-block;margin-top:6px;font-size:24px;line-height:1.3;font-weight:600;color:#0E666B;">{{SUBLINE ≤6 words, optional}}</span></h1>
+<a class="dm-keep-cyanbtn" data-utm="hero_button" href="{{URL}}" style="background:#6EDDE1;background-color:#6EDDE1;color:#094C51;font-size:18px;font-weight:700;padding:16px 28px;border-radius:12px;display:inline-block;text-decoration:none;font-family:'Inter',Arial,sans-serif;">{{BUTTON}}&nbsp;&nbsp;&rarr;</a>
+</td></tr></table></td></tr></table>
+
+<!-- ===== EVENT DETAILS (calendar-style; use in webinar hero area and repeat in final CTA) ===== -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;"><tr><td style="padding:0 20px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;"><tr><td class="dm-card" style="border:1px solid #D7EDED;border-radius:20px;background:#F0FAFA;padding:24px;font-family:'Inter',Arial,sans-serif;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td valign="top" style="padding:0 18px 0 0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;"><tr><td class="dm-keep-badge" style="background:#06363A;border-radius:12px 12px 0 0;padding:6px 14px;text-align:center;font-size:12px;font-weight:700;letter-spacing:0.08em;color:#A3ECEE;">{{MON}}</td></tr><tr><td class="dm-card" style="background:#FFFFFF;border:1px solid #D7EDED;border-top:0;border-radius:0 0 12px 12px;padding:6px 14px;text-align:center;font-size:26px;font-weight:700;color:#06363A;">{{DD}}</td></tr></table></td>
+<td valign="middle"><p class="dm-head" style="margin:0 0 4px 0;font-size:18px;font-weight:700;color:#06363A;">{{WEEKDAY}}, {{TIME}}</p><p class="dm-text" style="margin:0;font-size:16px;line-height:1.5;color:#4A5F5E;">{{WHERE e.g. Online · 45 minutes}}</p></td>
+</tr></table></td></tr></table></td></tr></table>
+
+<!-- ===== NUMBERED LIST IN ONE CARD (group related points; numbers stay beside text on mobile) ===== -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;"><tr><td style="padding:0 20px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;"><tr><td class="dm-card gg-in" style="border:1px solid #D7EDED;border-radius:20px;background:#FFFFFF;padding:28px 20px;font-family:'Inter',Arial,sans-serif;">
+<!-- optional pill --><span class="dm-pill" style="display:inline-block;background:#F0FAFA;color:#159FA2;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:6px 12px;border-radius:999px;margin:0 0 18px 0;">{{PILL}}</span>
+<h2 class="dm-head" style="font-family:'Rethink Sans','Inter',Arial,sans-serif;font-size:24px;line-height:1.25;font-weight:600;margin:0 0 20px 0;color:#06363A;">{{CARD TITLE}}</h2>
+<!-- repeat row per point -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px 0;"><tr>
+<td valign="top" width="36" style="padding:0 14px 0 0;"><div class="dm-keep-badge" style="width:36px;height:36px;line-height:36px;border-radius:10px;background:#06363A;color:#FFFFFF;text-align:center;font-weight:700;font-size:16px;">1</div></td>
+<td valign="top"><p class="dm-head" style="margin:4px 0 4px 0;font-size:18px;font-weight:700;line-height:1.4;color:#06363A;">{{POINT TITLE}}</p><p class="dm-text" style="margin:0;font-size:16px;line-height:1.6;color:#4A5F5E;">{{ONE SNAPPY TAKEAWAY}}</p></td>
+</tr></table>
+</td></tr></table></td></tr></table>
+
+<!-- ===== CONTENT CARD (single message, optional link) ===== -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;"><tr><td style="padding:0 20px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;"><tr><td class="dm-panel gg-in" style="background:#F0FAFA;border-radius:20px;padding:28px 22px;font-family:'Inter',Arial,sans-serif;">
+<h3 class="dm-head" style="font-family:'Rethink Sans','Inter',Arial,sans-serif;font-size:22px;line-height:1.3;font-weight:600;margin:0 0 10px 0;color:#06363A;">{{TITLE}}</h3>
+<p class="dm-text" style="margin:0;font-size:17px;line-height:1.6;color:#1A2530;">{{TEXT with <strong>a key phrase</strong>}}</p>
+</td></tr></table></td></tr></table>
+
+<!-- ===== IMAGE / GRAPHIC (full width, below the hero; graphics from hero_image.py are 1120px for a 560px slot) ===== -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:0 20px;text-align:center;">
+<img src="{{UPLOADED_URL}}" width="560" alt="{{SHORT DESCRIPTION}}" style="display:block;width:100%;max-width:560px;height:auto;border:0;">
+</td></tr></table>
+
+<!-- ===== VIDEO (outside the hero, full width, button underneath) ===== -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:0 20px;text-align:center;">
+<a data-utm="video_thumbnail" href="{{VIDEO_URL}}"><img src="{{THUMBNAIL_WITH_PLAY_BUTTON}}" width="600" alt="{{ALT}}" style="display:block;width:100%;max-width:600px;height:auto;border:0;border-radius:16px;"></a>
+</td></tr><tr><td style="height:20px;line-height:20px;font-size:1px;">&nbsp;</td></tr></table>
+<!-- then a native "button" block with the watch CTA -->
+
+<!-- ===== COUPON (offers: never a giant number) ===== -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;"><tr><td style="padding:0 20px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;"><tr><td class="dm-card" style="border:2px dashed #18B8BC;border-radius:20px;padding:24px 22px;background:#FFFFFF;text-align:center;font-family:'Inter',Arial,sans-serif;">
+<p class="dm-muted" style="margin:0 0 6px 0;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#159FA2;">{{OFFER LABEL}}</p>
+<p class="dm-head" style="margin:0 0 10px 0;font-family:'Rethink Sans','Inter',Arial,sans-serif;font-size:26px;font-weight:600;color:#06363A;">{{OFFER e.g. 50% off your first year}}</p>
+<p class="dm-text" style="margin:0;font-size:16px;color:#4A5F5E;">Use code <strong style="letter-spacing:0.06em;">{{CODE}}</strong> · Ends {{DATE}}</p>
+</td></tr></table></td></tr></table>
+
+<!-- ===== DIVIDER (40px either side: set spaceAfter 40 on block before, and on this block) ===== -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:0 20px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="dm-line" style="height:1px;line-height:1px;font-size:1px;background:#D7EDED;">&nbsp;</td></tr></table></td></tr></table>
+
+<!-- ===== DARK CTA PANEL (closing CTA, marketing) ===== -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;"><tr><td class="gg-pxc" style="padding:0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;border-radius:20px;background:#06363A;"><tr><td class="gg-in" style="padding:32px 22px;font-family:'Inter',Arial,sans-serif;">
+<h2 class="dm-keep-white" style="font-family:'Rethink Sans','Inter',Arial,sans-serif;font-size:24px;line-height:1.25;font-weight:600;margin:0 0 12px 0;color:#FFFFFF;">{{QUESTION-STYLE HEADLINE}}</h2>
+<p class="dm-keep-soft" style="margin:0 0 24px 0;font-size:17px;line-height:1.6;color:#CFE6E6;">{{ONE LINE}}</p>
+<a class="dm-keep-cyanbtn" data-utm="bottom_button" href="{{URL}}" style="background:#A3ECEE;color:#06363A;font-size:17px;font-weight:700;padding:15px 28px;border-radius:12px;display:inline-block;text-decoration:none;">{{BUTTON}}&nbsp;&nbsp;&rarr;</a>
+</td></tr></table></td></tr></table>
+
+<!-- ===== GHOST SECONDARY BUTTON (e.g. "Read the full guide") ===== -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:0 20px;">
+<a class="dm-muted" data-utm="guide_button" href="{{URL}}" style="background:transparent;color:#094C51;font-size:16px;font-weight:700;padding:13px 24px;border-radius:12px;border:2px solid #6EDDE1;display:inline-block;text-decoration:none;font-family:'Inter',Arial,sans-serif;">{{LABEL}}</a>
+</td></tr></table>
+
+<!-- ===== PERSONAL SIGN-OFF (name, title, photo; no "GetGround") ===== -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:0 20px;font-family:'Inter',Arial,sans-serif;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td valign="middle" style="padding:0 16px 0 0;"><img src="{{PHOTO_URL from HubSpot Files /email-images}}" width="64" height="64" alt="{{NAME}}" style="display:block;border-radius:50%;border:0;"></td>
+<td valign="middle"><p class="dm-head" style="margin:0;font-size:18px;font-weight:700;color:#06363A;">{{NAME}}</p><p class="dm-text" style="margin:2px 0 0 0;font-size:16px;color:#4A5F5E;">{{TITLE}}</p></td>
+</tr></table></td></tr></table>
+
+<!-- ===== NEED A HAND? (notification only; after sign-off + divider) ===== -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:0 20px;font-family:'Inter',Arial,sans-serif;">
+<p class="dm-head" style="margin:0 0 6px 0;font-size:18px;font-weight:700;color:#1F1F33;">Need a hand?</p>
+<p class="dm-text" style="margin:0;font-size:17px;line-height:1.7;color:#4B4B5C;">Email <a href="mailto:{{TEAM}}@getground.co.uk" style="color:#0E666B;font-weight:600;">{{TEAM}}@getground.co.uk</a> or just reply to this email.</p>
+</td></tr></table>

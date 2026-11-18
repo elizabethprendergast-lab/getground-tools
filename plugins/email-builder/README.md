@@ -1,19 +1,27 @@
-# Email builder (plugin)
+# Email builder (plugin) — v0.2.0
 
-Turns a plain-English brief into a branded GetGround or BuyAssociation marketing email and
-hands back a short link that opens it, pre-filled, in the hosted email builder.
+Ask Claude for an email; it builds a **draft directly in HubSpot** and gives you the editor link.
+Brand design, dark mode, UTMs and the correct footer disclaimers are applied automatically.
+It never publishes or sends.
 
-- Builder (design/UX + output): https://elizabethprendergast-lab.github.io/getground-tools/email-builder.html
-- Drafts + feedback store: Supabase (public publishable key; no secrets in this repo).
-- Brand voice + content: pulled fresh from Notion each run.
+## Install (Claude Code — desktop app Code tab or terminal)
+1. `/plugin marketplace add elizabethprendergast-lab/getground-tools`
+2. `/plugin install email-builder@getground-tools`
+3. Get the "Claude email drafts" HubSpot token from Beth (password manager), copy it, then run
+   `mkdir -p ~/.secrets && pbpaste > ~/.secrets/hubspot_email_token && chmod 600 ~/.secrets/hubspot_email_token`
+4. Ask: "build me an email for …"
 
-## Install (via marketplace)
-1. Add the marketplace: `/plugin marketplace add elizabethprendergast-lab/getground-tools`
-2. Install: `/plugin install email-builder@getground-tools`
+Requires Node 18+.
 
-## Updating
-Commit changes to this repo. Installed users pull the latest, no file passing.
+## Who edits what
+- **Design rules:** `skills/email-builder/GUIDELINES.md` (design team).
+- **Components (HTML snippets):** `skills/email-builder/components.html` (design team).
+- **Disclaimer wording:** Notion "Required disclaimers" first, then `disclaimers.json`.
+- **Skill behaviour:** `skills/email-builder/SKILL.md`. **Builder script:** `scripts/gg_email.mjs`.
+Commit to `main`; installed users get the update on their next plugin update.
 
-## Working split
-- Builder design/UX: edit `email-builder.html` in the repo root (GitHub Pages auto-deploys).
-- Skill behaviour: edit `skills/email-builder/SKILL.md` here.
+## HubSpot token
+Use a dedicated private app ("Claude email drafts") with only the marketing email scopes
+(`content` / marketing-email). No CRM write access. The script has no publish/send command.
+
+BuyAssociation emails still use the hosted builder (`legacy-hosted-builder.md`).
