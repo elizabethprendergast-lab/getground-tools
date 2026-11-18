@@ -1478,7 +1478,7 @@ function renderNav(stats, activeKey) {
   const sec = currentSection(stats);
   document.body.dataset.sec = sec || "home";
   const liveIn = (k) => projects.filter((p) => !isClosed(p) && inSection(p, k));
-  const top = [`<a href="/" class="${!sec ? "on" : ""}">Home</a>`].concat(SECTIONS.map((x) => {
+  const top = [].concat(SECTIONS.map((x) => {
     const n = x.key === "campaigns" ? initiativesList(stats).length : liveIn(x.key).length;
     return `<a href="/?section=${x.key}" class="${sec === x.key ? "on" : ""}">${x.label}<span class="count">${n}</span></a>`;
   })).concat([`<a href="/tools/">Tools<span class="count">${TOOLS.length}</span></a>`]).join("");
