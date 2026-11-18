@@ -1199,6 +1199,7 @@ function meetingTone(m) {
   const t = `${m.status || ""} ${m.result || ""}`;
   if (/cancel|no.?show|not a fit|uninterested|wrong number/i.test(t)) return "fail";
   if (/closed won|deal opened|positive|progress to deal/i.test(m.result || "")) return "win";
+  if (/too generic/i.test(m.result || "")) return "fail";
   if (/upcoming|yet to happen/i.test(t) || (m.startTime && Date.parse(m.startTime) > Date.now())) return "pending";
   return "unknown";
 }
@@ -1206,7 +1207,7 @@ function meetingOutcomeText(m) {
   if (/cancel|no.?show/i.test(m.status || "")) return m.status;
   return String(m.result || m.status || "No outcome logged").replace(/^Yet to happen$/i, "Upcoming");
 }
-const TONE_LABEL = { win: "Deal opened / won", fail: "Cancelled / no-show / not interested", pending: "Upcoming", unknown: "Happened, no outcome logged" };
+const TONE_LABEL = { win: "Positive / deal / won", fail: "Cancelled / no-show / not interested", pending: "Upcoming", unknown: "Happened, no outcome logged" };
 const CHANNELS = { Ads: "#f2a516", Email: "#18b8bc", "Web page": "#5fd4d7", Webinar: "#d55181", Calls: "#7b5cf0", Other: "#8593a0" };
 const isPaidSource = (s) => /paid|meta|facebook|google ads|cpc|ppc|chatgpt/i.test(s || "");
 
@@ -2012,6 +2013,7 @@ async function load({ force = false } = {}) {
       delete campaignEmailsByKey[key];
       delete campaignAssetsByKey[key];
     }
+    if (force) { initEmails = {}; initWeb = {}; }
     if (force || !cache.stats) {
       const btn = document.getElementById("update-btn");
       if (force && btn) btn.textContent = "Updating…";
