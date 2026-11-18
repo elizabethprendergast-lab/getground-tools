@@ -90,3 +90,15 @@ safe to search without an owner filter.
 - Everything except `/api/referrals` is live HubSpot API calls per request;
   `/api/referrals` is live BigQuery
 - Soft password gate (`SITE_PASSWORD` secret) — fails open if unset
+
+## Snapshots (campaigns too big for Cloudflare's 50-subrequest cap)
+
+When a campaign's live `/api/outcomes` or `/api/deals` needs more than 50 HubSpot calls, the live
+site returns nothing for it. Point the project's `outcomesSnapshot` / `dealsSnapshot` at a
+`*.v2.json` file built with:
+
+    node beth-reports/scripts/build-snapshot.mjs <campaign-key>
+
+The script runs the worker locally (no cap), strips contact names/emails/notes (the repo is public)
+and fails if any survive. The live worker looks names back up from HubSpot when serving, so hovers,
+Plans-won counts and the date range keep working. Re-run it to refresh the numbers.

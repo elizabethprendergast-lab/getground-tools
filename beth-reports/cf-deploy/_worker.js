@@ -140,6 +140,8 @@ const REPORTS = {
       },
       {
         key: "active-lead",
+        // 18 Nov: live outcomes need over Cloudflare's 50 subrequests (blank on the live site) — snapshot.
+        outcomesSnapshot: "active-lead/outcomes-snapshot.v2.json",
         // Closed 5 Oct, reopened 18 Nov (back under Call tasks → Active Lead & offers).
         label: "Active Lead — Ltd Company Set-up",
         match: (s) => s.includes("Active Lead") && !s.includes("Plan close - month end"),
@@ -182,6 +184,8 @@ const REPORTS = {
       },
       {
         key: "reengage-unmigrated",
+        // 18 Nov: live outcomes need over Cloudflare's 50 subrequests (blank on the live site) — snapshot.
+        outcomesSnapshot: "reengage-unmigrated/outcomes-snapshot.v2.json",
         closed: true, // Moved under "Closed" on the dashboard (7 Oct) — data still computed/shown.
         label: "Reengage — Unmigrated customers",
         match: (s) => s.includes("unmigrated customers"),
@@ -238,7 +242,10 @@ const REPORTS = {
         // half (540). The outcomes card now reads a fixed snapshot instead (see outcomes()); task
         // counts stay live so the remaining open tasks can still be tracked.
         closed: true,
-        outcomesSnapshot: "reengage-ltd/outcomes-snapshot.json",
+        // 18 Nov: rebuilt as a format-2 snapshot (contact IDs, names looked up on load) so hovers,
+        // Plans-won counts and the date range work; live deals needed 47 of the 50 subrequests.
+        outcomesSnapshot: "reengage-ltd/outcomes-snapshot.v2.json",
+        dealsSnapshot: "reengage-ltd/deals-snapshot.v2.json",
       },
       {
         key: "reengage-ltd-core-plan",
@@ -266,8 +273,8 @@ const REPORTS = {
         // subrequests, over Cloudflare's 50, so both cards came back empty. Served from snapshots
         // until the account moves to Workers Paid; refresh by running /api/outcomes + /api/deals
         // ?campaign=reengage-ltd-core-plan locally and stripping contact names (public repo).
-        outcomesSnapshot: "reengage-ltd-core-plan/outcomes-snapshot.json",
-        dealsSnapshot: "reengage-ltd-core-plan/deals-snapshot.json",
+        outcomesSnapshot: "reengage-ltd-core-plan/outcomes-snapshot.v2.json",
+        dealsSnapshot: "reengage-ltd-core-plan/deals-snapshot.v2.json",
         outcomeMatching: "enrollment",
         campaignRepsOnly: true,
         campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
@@ -315,6 +322,8 @@ const REPORTS = {
       },
       {
         key: "upsell-complete",
+        // 18 Nov: live outcomes need over Cloudflare's 50 subrequests (blank on the live site) — snapshot.
+        outcomesSnapshot: "upsell-complete/outcomes-snapshot.v2.json",
         label: "Upsell — Complete plan upsell",
         // Two naming conventions land here: the original "Complete upsell - <suffix>" batches
         // and, from 2026-09-28, "Complete plan mrr - core users" / "- free users". Matched as
@@ -1326,7 +1335,9 @@ async function fetchEmailEngagement(API, H, cfg, contactMap, contacts) {
   }
 
   try {
-    const words = ce.subject.split(/\s+/).filter((w) => w.length > 3);
+    // HubSpot allows 6 filters per group: the 4 longest subject words + direction + date.
+    const words = ce.subject.split(/\s+/).map((w) => w.replace(/[^\p{L}\p{N}]/gu, "")).filter((w) => w.length > 3)
+      .sort((a, b) => b.length - a.length).slice(0, 4);
     const filters = words.map((w) => ({ propertyName: "hs_email_subject", operator: "CONTAINS_TOKEN", value: w }));
     filters.push({ propertyName: "hs_email_direction", operator: "EQ", value: "INCOMING_EMAIL" });
     filters.push({ propertyName: "hs_timestamp", operator: "GTE", value: String(sinceMs) });
@@ -1715,6 +1726,71 @@ function nearestActivity(contactsForTask, contactToActs, acts, anchorMs, before,
   return best;
 }
 
+// Snapshots (format 2) store contact IDs but no names — the repo is public. Names are looked up
+// live when served: one batch read per 100 contacts (~9 calls for 850), well under the 50 cap.
+// Any "{{name}}" placeholder in an object with a contactId (meeting titles, deal names) is
+// filled with that contact's name. Build/refresh with beth-reports/scripts/build-snapshot.mjs.
+async function hydrateSnapshot(obj, API, H) {
+  const ids = new Set();
+  const walk = (o, fn) => {
+    if (Array.isArray(o)) { o.forEach((x) => walk(x, fn)); return; }
+    if (!o || typeof o !== "object") return;
+    fn(o);
+    for (const v of Object.values(o)) if (v && typeof v === "object") walk(v, fn);
+  };
+  walk(obj, (o) => {
+    if (o.contactId) ids.add(String(o.contactId));
+    if (Array.isArray(o.contacts)) o.contacts.forEach((c) => c && c.id && ids.add(String(c.id)));
+  });
+  const names = {};
+  const list = [...ids];
+  for (let i = 0; i < list.length; i += 100) {
+    try {
+      const r = await fetch(`${API}/crm/v3/objects/contacts/batch/read`, { method: "POST", headers: H,
+        body: JSON.stringify({ properties: ["firstname", "lastname", "email"], inputs: list.slice(i, i + 100).map((id) => ({ id })) }) });
+      const j = await r.json();
+      for (const c of j.results || []) {
+        const p = c.properties || {};
+        names[c.id] = [p.firstname, p.lastname].filter(Boolean).join(" ").trim() || p.email || `Contact ${c.id}`;
+      }
+    } catch (e) { console.log(`snapshot names skipped (${e})`); }
+  }
+  const nm = (id) => names[String(id)] || `Contact ${id}`;
+  walk(obj, (o) => {
+    if (Array.isArray(o.contacts)) for (const c of o.contacts) if (c && c.id && !c.name) c.name = nm(c.id);
+    if (o.contactId) {
+      const n = nm(o.contactId);
+      if (!o.contactName) o.contactName = n;
+      const fill = (x) => {
+        if (Array.isArray(x)) return x.map(fill);
+        if (x && typeof x === "object") { for (const k of Object.keys(x)) x[k] = fill(x[k]); return x; }
+        return typeof x === "string" && x.includes("{{name}}") ? x.split("{{name}}").join(n) : x;
+      };
+      for (const k of Object.keys(o)) if (k !== "contacts") o[k] = fill(o[k]);
+      if (!o.name) o.name = n;
+    }
+  });
+  return obj;
+}
+
+// Serves a format-2 snapshot ({ snapshotAt, source, project }) for /api/outcomes or /api/deals.
+async function serveSnapshot(url, env, API, H, PORTAL_ID, reportKey, reportConfig, proj, file) {
+  try {
+    const r = await env.ASSETS.fetch(new Request(`${url.origin}/${file}`));
+    if (!r.ok) throw new Error(`snapshot ${r.status}`);
+    const snap = await r.json();
+    const p = await hydrateSnapshot(snap.project, API, H);
+    return json({ generatedAt: new Date().toISOString(), report: reportKey, sprintStart: reportConfig.sprintStart, portalId: PORTAL_ID,
+      projects: [{ ...p, key: proj.key, label: proj.label, computed: true, snapshotAt: snap.snapshotAt, snapshotSource: snap.source }] });
+  } catch (err) {
+    return json({ error: String(err) }, 502);
+  }
+}
+
+// Local snapshot builds (scripts/build-snapshot.mjs) set SNAPSHOT_BUILD so ?live=1 bypasses the
+// snapshot and computes the campaign live. Never set on Cloudflare.
+const useSnapshot = (env, url, file) => !!file && !(env.SNAPSHOT_BUILD && url.searchParams.get("live") === "1");
+
 // Outcomes for a closed project whose live computation no longer fits under Cloudflare's 50
 // subrequests (reengage-ltd, 3 Nov): a fixed snapshot computed in BigQuery with the same rules,
 // served from the project's outcomesSnapshot file. Aggregates only — no contacts or note text, as
@@ -1777,7 +1853,9 @@ async function outcomes(url, env) {
   if (campaignKey) {
     const proj = (reportConfig.projects || []).find((p) => p.key === campaignKey);
     if (!proj) return json({ error: `unknown campaign '${campaignKey}'` }, 404);
-    if (proj.outcomesSnapshot) return outcomesFromSnapshot(url, env, API, H, PORTAL_ID, reportKey, reportConfig, proj);
+    if (useSnapshot(env, url, proj.outcomesSnapshot)) return proj.outcomesSnapshot.endsWith(".v2.json")
+      ? serveSnapshot(url, env, API, H, PORTAL_ID, reportKey, reportConfig, proj, proj.outcomesSnapshot)
+      : outcomesFromSnapshot(url, env, API, H, PORTAL_ID, reportKey, reportConfig, proj);
     report = { ...reportConfig, projects: [proj] };
     searchOpts = {};
     computedKeys = new Set([proj.key]);
@@ -2154,18 +2232,7 @@ async function dealAttribution(url, env) {
   if (campaignKey) {
     const proj = (reportConfig.projects || []).find((p) => p.key === campaignKey);
     if (!proj) return json({ error: `unknown campaign '${campaignKey}'` }, 404);
-    if (proj.dealsSnapshot) {
-      // Same reason as outcomesFromSnapshot: too many subrequests to compute live.
-      try {
-        const r = await env.ASSETS.fetch(new Request(`${url.origin}/${proj.dealsSnapshot}`));
-        if (!r.ok) throw new Error(`snapshot ${r.status}`);
-        const snap = await r.json();
-        return json({ generatedAt: new Date().toISOString(), report: reportKey, portalId: PORTAL_ID,
-          projects: [{ ...snap.project, key: proj.key, label: proj.label, computed: true }] });
-      } catch (err) {
-        return json({ error: String(err) }, 502);
-      }
-    }
+    if (useSnapshot(env, url, proj.dealsSnapshot)) return serveSnapshot(url, env, API, H, PORTAL_ID, reportKey, reportConfig, proj, proj.dealsSnapshot);
     report = { ...reportConfig, projects: [proj] };
     searchOpts = {};
     computedKeys = new Set([proj.key]);
