@@ -22,6 +22,10 @@
       ],
       "owners": [
         {
+          "id": "30035011",
+          "name": "Carlos Lam"
+        },
+        {
           "id": "279864776",
           "name": "Florence Chan"
         },
@@ -59,8 +63,7 @@
         }
       ],
       "callTasks": {
-        "subjectContains": null,
-        "note": "Call tasks start 18 Nov"
+        "subjectContains": "RRA Cantonese"
       },
       "tab": "RRA Cantonese webinar"
     }
