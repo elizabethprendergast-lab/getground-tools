@@ -1582,6 +1582,9 @@ const RANGE_PRESETS = [
 ];
 // Always opens on All time (Beth, 9 Nov) unless the link itself carries a range.
 let range = { preset: "all" };
+// Pages that open on This month instead (Beth, 18 Nov: plan-close is a monthly wave).
+const DEFAULT_MONTH_CAMPAIGNS = ["plan-close-month-end"];
+if (DEFAULT_MONTH_CAMPAIGNS.includes(new URLSearchParams(location.search).get("campaign"))) range = { preset: "month" };
 try { localStorage.removeItem(RANGE_KEY); } catch (_) { /* storage blocked */ }
 // Every load/reload starts on All time (Beth, 9 Nov): the range is never kept in the URL or
 // storage. Strip any ?range=/?from=/?to= left over from older links.
