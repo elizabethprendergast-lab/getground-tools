@@ -1263,7 +1263,7 @@ function initiativePageHtml(stats, ini) {
   const C = (k) => (ch[k] ||= { reach: null, reachLabel: "", calls: 0, meetings: 0, wins: 0, deals: 0, plans: 0 });
   if (leadsKey && leads) { C("Ads").reach = leads.length; C("Ads").reachLabel = "leads"; }
   for (const pt of parts) { const c = C(chOf(pt.key)); c.calls += pt.p.tasks.done; }
-  for (const pt of parts) if (pt.p.hasEmails && chOf(pt.key) === "Email") { const c = C("Email"); c.reach = (c.reach || 0) + ((pt.emails && pt.emails.emails) || []).reduce((n, e) => n + Number((e.stats || {}).sent || 0), 0); c.reachLabel = "emails sent"; }
+  for (const pt of parts) if (pt.p.hasEmails && chOf(pt.key) === "Email") { const c = C("Email"); c.reach = (c.reach || 0) + ((pt.emails && pt.emails.emails) || []).reduce((n, e) => n + Number((e.stats || {}).sent || 0), 0); c.reachLabel = "email sends"; }
   if (ini.web) { const c = C("Web page"); c.reach = webVisitors; c.reachLabel = "visitors"; }
   if (ini.cohortChannel) { const c = C(ini.cohortChannel); c.reachLabel = c.reachLabel || "audience"; }
   for (const m of meetings) { const c = C(m.channel || "Other"); c.meetings++; if (m.tone === "win") c.wins++; }
@@ -1282,7 +1282,12 @@ function initiativePageHtml(stats, ini) {
   const L = (v, loading) => loading ? '<span class="ld">…</span>' : v;
   const stages = [];
   if (leadsKey) stages.push({ k: "Paid leads", n: leads ? leads.length : null, loading: leadsLoading, c: "var(--series-6)", sub: leads ? `${leads.filter((c) => c.isNew).length} new to HubSpot · ${leads.filter((c) => /^Paid/.test(c.source)).length} from paid ads` : "" });
-  if (parts.some((pt) => pt.p.hasEmails)) stages.push({ k: "Emails sent", n: es.sent, loading: emailsLoading, c: "var(--teal)", sub: `${pct(es.opened, es.delivered)} opened · ${pct(es.clicked, es.delivered)} clicked · ${pct(es.unsubscribed, es.delivered)} unsubscribed` });
+  if (parts.some((pt) => pt.p.hasEmails)) {
+    const kfmt = (n) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n);
+    const split = emails.map((e) => ({ n: Number((e.stats || {}).sent || 0), l: e.label || e.name })).filter((x) => x.n).sort((a, b) => b.n - a.n)
+      .map((x) => `${kfmt(x.n)} ${String(x.l).replace(/^\(?[AB]\)?\s*/, "").replace(/\s*[—|-]\s*\d{4}$/, "").slice(0, 34)}`).join(" · ");
+    stages.push({ k: "Email sends", n: es.sent, loading: emailsLoading, c: "var(--teal)", sub: `${emails.length} email${emails.length === 1 ? "" : "s"} (sends, not unique people): ${split}<br>${pct(es.opened, es.delivered)} opened · ${pct(es.clicked, es.delivered)} clicked · ${pct(es.unsubscribed, es.delivered)} unsubscribed` });
+  }
   if (ini.web) stages.push({ k: "Web visitors", n: webVisitors, loading: webLoading, c: "var(--series-5)", sub: webCheckouts != null ? `${webCheckouts} checkouts completed` : "visits unavailable right now" });
   stages.push({ k: "Calls made", n: tasks.done, loading: false, c: "var(--purple)", sub: `${tasks.done.toLocaleString()} of ${tasks.total.toLocaleString()} call tasks done · ${callsLoading ? "…" : reached.toLocaleString()} people reached` });
   stages.push({ k: "Meetings booked", n: meetings.length, loading: callsLoading || webLoading || cohortLoading, c: "var(--series-4)", sub: `${toneCount.pending} upcoming · ${toneCount.win} went well · ${toneCount.fail} cancelled / no-show` });
