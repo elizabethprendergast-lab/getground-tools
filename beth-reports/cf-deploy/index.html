@@ -4,45 +4,54 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Beth Reports</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rethink+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
 <style>
+  /* Redesign 18 Nov: white SaaS look, GetGround teal + purple, Rethink Sans headings / Inter body. */
   :root {
     color-scheme: light;
-    --surface-1: #fcfcfb;
-    --page-plane: #f9f9f7;
-    --text-primary: #0b0b0b;
-    --text-secondary: #52514e;
-    --text-muted: #898781;
-    --gridline: #e1e0d9;
-    --baseline: #c3c2b7;
-    --border: rgba(11,11,11,0.10);
-    --good: #0ca30c;
-    --warning: #fab219;
-    --serious: #ec835a;
-    --critical: #d03b3b;
-    --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
-    --series-5: #e87ba4; --series-6: #008300; --series-7: #4a3aa7; --series-8: #e34948;
-    --not-done: #c3c2b7;
-    --accent-soft: rgba(42,120,214,0.10);
+    --surface-1: #ffffff;
+    --page-plane: #f6f8fa;
+    --text-primary: #0d1f24;
+    --text-secondary: #4a5b63;
+    --text-muted: #8593a0;
+    --gridline: #eef1f4;
+    --baseline: #d6dce2;
+    --border: #e6ebef;
+    --good: #13a6aa;
+    --warning: #f2a516;
+    --serious: #ef7a5c;
+    --critical: #e5484d;
+    --series-1: #18b8bc; --series-2: #7b5cf0; --series-3: #094c51; --series-4: #b39dff;
+    --series-5: #5fd4d7; --series-6: #f2a516; --series-7: #4c3fb3; --series-8: #ef7a5c;
+    --not-done: #e3e8ed;
+    --accent-soft: rgba(24,184,188,0.10);
+    --teal: #18b8bc; --teal-ink: #094c51; --purple: #7b5cf0; --purple-soft: rgba(123,92,240,0.10);
+    --shadow: 0 1px 2px rgba(16,24,40,0.04), 0 6px 20px rgba(16,24,40,0.05);
+    --head-font: "Rethink Sans", "Inter", system-ui, sans-serif;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       color-scheme: dark;
-      --surface-1: #1a1a19;
-      --page-plane: #0d0d0d;
-      --text-primary: #ffffff;
-      --text-secondary: #c3c2b7;
-      --text-muted: #898781;
-      --gridline: #2c2c2a;
-      --baseline: #383835;
-      --border: rgba(255,255,255,0.10);
-      --good: #0ca30c;
-      --warning: #fab219;
-      --serious: #ec835a;
-      --critical: #e66767;
-      --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
-      --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
-      --not-done: #383835;
-      --accent-soft: rgba(57,135,229,0.14);
+      --surface-1: #131b1f;
+      --page-plane: #0a1013;
+      --text-primary: #eef4f5;
+      --text-secondary: #a9b7bd;
+      --text-muted: #74848c;
+      --gridline: #1e292e;
+      --baseline: #2d3a40;
+      --border: #22303a;
+      --good: #35c9cc;
+      --warning: #f2b33d;
+      --serious: #f08f74;
+      --critical: #ef6a6e;
+      --series-1: #35c9cc; --series-2: #9a82ff; --series-3: #7fe3e5; --series-4: #c5b5ff;
+      --series-5: #1f8d91; --series-6: #f2b33d; --series-7: #6d5ce0; --series-8: #f08f74;
+      --not-done: #24323a;
+      --accent-soft: rgba(53,201,204,0.14);
+      --teal: #35c9cc; --teal-ink: #7fe3e5; --purple: #9a82ff; --purple-soft: rgba(154,130,255,0.16);
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.25);
     }
   }
   * { box-sizing: border-box; }
@@ -66,22 +75,36 @@
   .tabs a:hover { color: var(--text-primary); }
   .tabs a.on { color: var(--text-primary); border-bottom-color: var(--series-1); }
   .tabs a .count { font-size: 11px; font-weight: 600; color: var(--text-muted); background: var(--accent-soft); border-radius: 999px; padding: 1px 7px; }
-  .subtabs-row { border-top: 1px solid var(--border); }
-  .subtabs a { font-size: 13px; font-weight: 500; padding: 9px 12px; }
-  .subtabs a.on { font-weight: 600; }
-  .subtabs .grp { flex: none; align-self: center; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-    color: var(--text-muted); padding: 0 4px 0 14px; border-left: 1px solid var(--border); margin-left: 6px; white-space: nowrap; }
-  .subtabs .grp:first-child { border-left: 0; margin-left: 0; padding-left: 4px; }
-  .group-heading { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin: 22px 0 10px; }
-  .tabs-row details.nav-closed { position: relative; flex: none; padding-bottom: 6px; }
-  .tabs-row details.nav-closed summary { list-style: none; cursor: pointer; font-size: 13px; padding: 5px 10px; border-radius: 999px;
+  /* Sub-nav (18 Nov): one line per group, chips wrap — nothing hidden behind a sideways scroll. */
+  .subnav { border-top: 1px solid var(--border); padding: 10px 0 12px; display: flex; flex-direction: column; gap: 8px; }
+  .sub-group { display: grid; grid-template-columns: 170px 1fr; gap: 10px; align-items: center; }
+  @media (max-width: 700px) { .sub-group { grid-template-columns: 1fr; gap: 4px; } }
+  .sub-group .grp { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+  .sub-items { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .sub-items a { font-size: 13px; padding: 5px 11px; border-radius: 999px; text-decoration: none; color: var(--text-secondary);
+    border: 1px solid var(--border); display: inline-flex; align-items: center; gap: 6px; }
+  .sub-items a:hover { border-color: var(--series-1); color: var(--text-primary); }
+  .sub-items a.on { color: var(--text-primary); background: var(--accent-soft); border-color: var(--series-1); font-weight: 600; }
+  .subnav details.nav-closed { position: relative; }
+  .subnav details.nav-closed summary { list-style: none; cursor: pointer; font-size: 13px; padding: 5px 11px; border-radius: 999px;
     color: var(--text-muted); border: 1px dashed var(--baseline); white-space: nowrap; user-select: none; }
-  .tabs-row details.nav-closed summary::-webkit-details-marker { display: none; }
-  .tabs-row details.nav-closed summary::after { content: " ▾"; font-size: 10px; }
-  .tabs-row details.nav-closed summary.active { color: var(--text-primary); border-style: solid; border-color: var(--series-1); background: var(--accent-soft); font-weight: 600; }
-  .tabs-row .nav-closed-menu { right: 0; left: auto; }
-  .tabs-row .nav-closed-menu a { font-size: 13px; padding: 7px 10px; border-radius: 6px; text-decoration: none; color: var(--text-secondary); }
-  .tabs-row .nav-closed-menu a:hover, .tabs-row .nav-closed-menu a.on { background: var(--accent-soft); color: var(--text-primary); }
+  .subnav details.nav-closed summary::-webkit-details-marker { display: none; }
+  .subnav details.nav-closed summary::after { content: " ▾"; font-size: 10px; }
+  .subnav details.nav-closed summary.active { color: var(--text-primary); border-style: solid; border-color: var(--series-1); background: var(--accent-soft); font-weight: 600; }
+  .subnav .nav-closed-menu a { display: block; font-size: 13px; padding: 7px 10px; border-radius: 6px; text-decoration: none; color: var(--text-secondary); border: 0; }
+  .subnav .nav-closed-menu a:hover, .subnav .nav-closed-menu a.on { background: var(--accent-soft); color: var(--text-primary); }
+  .home-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
+  .home-panel { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px 10px; }
+  a.home-panel-head { display: block; font-size: 16px; font-weight: 700; color: var(--text-primary); text-decoration: none; margin-bottom: 6px; }
+  a.home-panel-head:hover { color: var(--series-1); }
+  .home-grp { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin: 12px 0 2px; }
+  a.home-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid var(--border); text-decoration: none; color: var(--text-primary); font-size: 14px; }
+  .home-grp + a.home-row { border-top: 0; }
+  a.home-row:hover .nm { color: var(--series-1); }
+  a.home-row .nm { flex: 1; min-width: 0; }
+  a.home-row .left { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+  .group-heading { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin: 22px 0 10px; }
+    color: var(--text-muted); border: 1px dashed var(--baseline); white-space: nowrap; user-select: none; }
   .overview-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 8px; }
   a.overview-tile { display: block; background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; text-decoration: none; color: inherit; }
   a.overview-tile:hover, a.landing-card:hover { border-color: var(--series-1); }
@@ -278,10 +301,76 @@
   #contact-popover a:hover { text-decoration: underline; }
   #contact-popover .ph-note { color: var(--text-muted); font-style: italic; }
   footer { text-align: center; font-size: 12px; color: var(--text-muted); padding: 20px 0 40px; }
+
+  /* ---- Redesign layer (18 Nov) ---- */
+  body { font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+  h1, h2, h3, .stat-tile .value, a.home-panel-head, .email-subject { font-family: var(--head-font); letter-spacing: -0.01em; }
+  header { background: var(--surface-1); padding-top: 14px; }
+  .brandbar { max-width: calc(1000px - 2 * clamp(16px, 4vw, 40px)); width: 100%; margin: 0 auto 6px; display: flex; align-items: center; gap: 10px; }
+  .brandbar .mark { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg, var(--teal), var(--purple)); box-shadow: 0 4px 12px rgba(123,92,240,0.25); }
+  .brandbar a { font-family: var(--head-font); font-weight: 800; font-size: 17px; color: var(--text-primary); text-decoration: none; letter-spacing: -0.02em; }
+  .tabs a { font-family: var(--head-font); color: var(--text-secondary); }
+  .tabs a.on { color: var(--teal-ink); border-bottom-color: var(--teal); }
+  .tabs a .count { background: var(--purple-soft); color: var(--purple); }
+  .subnav { border-top-color: var(--border); }
+  .sub-items a { background: var(--surface-1); }
+  .sub-items a.on { background: var(--accent-soft); border-color: var(--teal); color: var(--teal-ink); }
+  main { padding-top: 28px; }
+  section.card, a.landing-card, .home-panel, .stat-tile, a.overview-tile {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow);
+  }
+  section.card { padding: 24px 26px; }
+  section.card h2 { font-size: 18px; font-weight: 700; }
+  .stat-tile { box-shadow: none; background: linear-gradient(180deg, var(--surface-1), var(--page-plane)); }
+  .stat-tile .label { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; font-weight: 600; }
+  .stat-tile .value { font-size: 30px; font-weight: 700; }
+  .stat-tile.done .value { color: var(--teal); }
+  .rep-bar { border-radius: 999px; background: var(--not-done); }
+  .rep-bar .done-seg { background: linear-gradient(90deg, var(--teal), var(--purple)); border-radius: 999px; }
+  .outcome-bar-row .track { height: 8px; }
+  .range-pills { border-radius: 12px; background: var(--surface-1); box-shadow: var(--shadow); border-color: var(--border); }
+  .range-pill { border-radius: 9px; }
+  .range-pill.active { background: var(--teal-ink); color: #fff; }
+  @media (prefers-color-scheme: dark) { .range-pill.active { background: var(--teal); color: #062a2d; } }
+  button#update-btn { background: var(--purple); color: #fff; border-color: transparent; font-weight: 600; border-radius: 10px; box-shadow: 0 4px 12px rgba(123,92,240,0.25); }
+  button#update-btn:hover { filter: brightness(1.06); }
+  .priority-pill { font-family: "Inter", sans-serif; letter-spacing: 0.02em; text-transform: none; font-weight: 600; font-size: 11px; padding: 2px 8px; }
+  .priority-pill.high { color: #c2272d; background: #fdecec; }
+  .priority-pill.medium { color: #9a5b00; background: #fff3dc; }
+  .priority-pill.low { color: var(--text-secondary); background: var(--gridline); }
+  @media (prefers-color-scheme: dark) {
+    .priority-pill.high { color: #ff9b9e; background: rgba(229,72,77,0.18); }
+    .priority-pill.medium { color: #f7c66a; background: rgba(242,165,22,0.16); }
+  }
+  a.landing-card:hover, .home-panel:hover { border-color: color-mix(in srgb, var(--teal) 45%, var(--border)); }
+  #contact-popover { border-radius: 12px; box-shadow: 0 12px 32px rgba(16,24,40,0.14); }
+  #contact-popover a { color: var(--teal-ink); }
+  /* Home */
+  .home-hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  a.hero-tile { display: block; text-decoration: none; color: inherit; border-radius: 16px; padding: 18px 20px; border: 1px solid var(--border); background: var(--surface-1); box-shadow: var(--shadow); position: relative; overflow: hidden; }
+  a.hero-tile::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--c); }
+  a.hero-tile .k { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+  a.hero-tile .v { font-family: var(--head-font); font-size: 34px; font-weight: 800; letter-spacing: -0.02em; margin: 6px 0 2px; color: var(--text-primary); }
+  a.hero-tile .s { font-size: 13px; color: var(--text-secondary); }
+  .home-panel { padding: 18px 20px 12px; }
+  a.home-panel-head { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  a.home-panel-head .dot { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+  a.home-panel-head .go { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--teal-ink); font-family: "Inter", sans-serif; }
+  .home-grp { color: var(--purple); }
+  a.home-row { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "nm pill" "bar left"; gap: 6px 12px; padding: 10px 0; }
+  a.home-row .nm { grid-area: nm; font-weight: 500; }
+  a.home-row .priority-pill { grid-area: pill; justify-self: end; }
+  a.home-row .left { grid-area: left; }
+  a.home-row:not(:has(.mini)) { grid-template-areas: "nm left"; }
+  a.home-row .mini { grid-area: bar; align-self: center; height: 6px; border-radius: 999px; background: var(--not-done); overflow: hidden; }
+  a.home-row .mini i { display: block; height: 100%; background: linear-gradient(90deg, var(--teal), var(--purple)); border-radius: 999px; }
+  a.home-row .left { min-width: 56px; text-align: right; font-variant-numeric: tabular-nums; }
+  details.closed-list summary { color: var(--text-secondary); }
 </style>
 </head>
 <body>
 <header>
+  <div class="brandbar"><span class="mark"></span><a href="/">Beth Reports</a></div>
   <nav id="campaign-nav"></nav>
 </header>
 <main id="main">Loading…</main>
@@ -917,37 +1006,40 @@ function reportCardHtml(r) {
       </a>`;
 }
 
-// Home: one tile per section (click = that section), then each section's live items, closed ones folded away.
+// Home (18 Nov, v2): one simple list per section — name, tasks left, priority. No descriptions.
+function homeRowHtml(p) {
+  const pct = p.tasks.total ? Math.round(100 * p.tasks.done / p.tasks.total) : 0;
+  return `<a class="home-row" href="/?campaign=${p.key}" title="${pct}% done"><span class="nm">${esc(NAV_SHORT[p.key] || p.label)}</span><span class="mini"><i style="width:${pct}%"></i></span><span class="left">${p.tasks.notDone.toLocaleString()} left</span>${priorityPillHtml(dominantPriority(p))}</a>`;
+}
 function landingHtml(stats) {
   const projects = sortedByPriority(stats.projects || []);
-  const tile = (sec) => {
-    if (sec.key === "reports") return `<a class="overview-tile" href="/?section=reports"><div class="label">${sec.label}</div><div class="value">${WEB_REPORTS.length}</div><div class="sub">web funnels &amp; programme reports</div></a>`;
+  const panel = (sec) => {
+    let rows;
+    if (sec.key === "reports") {
+      rows = WEB_REPORTS.map((r) => `<a class="home-row" href="${r.href}"><span class="nm">${esc(r.label)}</span><span class="left">open →</span></a>`).join("");
+    } else {
+      const groups = groupsFor(projects.filter((p) => !isClosed(p) && sectionOf(p) === sec.key));
+      rows = groups.map((g) => `<div class="home-grp">${esc(g.title)}</div>${g.items.map(homeRowHtml).join("")}`).join("");
+    }
+    return `<section class="home-panel" style="--c:${SECTION_COLOR[sec.key]}"><a class="home-panel-head" href="/?section=${sec.key}"><span class="dot"></span>${sec.label}<span class="go">Open →</span></a>${rows || '<p class="sub">Nothing live.</p>'}</section>`;
+  };
+  const hero = (sec) => {
+    if (sec.key === "reports") return `<a class="hero-tile" style="--c:${SECTION_COLOR.reports}" href="/?section=reports"><div class="k">${sec.label}</div><div class="v">${WEB_REPORTS.length}</div><div class="s">funnels &amp; programme reports</div></a>`;
     const live = projects.filter((p) => !isClosed(p) && sectionOf(p) === sec.key);
     const left = live.reduce((n, p) => n + (p.tasks.notDone || 0), 0);
-    return `<a class="overview-tile" href="/?section=${sec.key}"><div class="label">${sec.label}</div><div class="value">${live.length}</div><div class="sub">live · ${left.toLocaleString()} tasks left to do</div></a>`;
-  };
-  const block = (sec) => {
-    const live = projects.filter((p) => !isClosed(p) && sectionOf(p) === sec.key);
-    const groups = groupsFor(live);
-    const body = sec.key === "reports" ? `<div class="landing-grid">${WEB_REPORTS.map(reportCardHtml).join("")}</div>`
-      : groups.map((g) => `${groups.length > 1 ? `<h3 class="group-heading">${esc(g.title)}</h3>` : ""}<div class="landing-grid">${g.items.map(landingCardHtml).join("")}</div>`).join("");
-    if (sec.key !== "reports" && !live.length) return "";
-    return `
-    <div class="section-head"><h2 class="section-heading">${sec.label}</h2><a href="/?section=${sec.key}">Open ${sec.label.toLowerCase()} →</a></div>
-    <p class="sub" style="margin:0 0 12px">${esc(sec.desc)}</p>
-    ${body}`;
+    return `<a class="hero-tile" style="--c:${SECTION_COLOR[sec.key]}" href="/?section=${sec.key}"><div class="k">${sec.label}</div><div class="v">${left.toLocaleString()}</div><div class="s">tasks left · ${live.length} live</div></a>`;
   };
   const closed = projects.filter(isClosed);
   return `
     <div class="meta-row">
       <p id="meta-line">Loading…</p>
-      <div class="meta-actions">${rangeControlHtml()}<button id="update-btn">Update</button></div>
+      <div class="meta-actions"><button id="update-btn">Update</button></div>
     </div>
-    <div class="overview-strip">${SECTIONS.map(tile).join("")}</div>
-    ${SECTIONS.map(block).join("")}
+    <div class="home-hero">${SECTIONS.map(hero).join("")}</div>
+    <div class="home-panels">${SECTIONS.map(panel).join("")}</div>
     ${closed.length ? `
     <details class="closed-list"><summary>Closed (${closed.length})</summary>
-      <div class="landing-grid">${closed.map(landingCardHtml).join("")}</div>
+      <section class="home-panel">${closed.map((p) => `<a class="home-row" href="/?campaign=${p.key}"><span class="nm">${esc(p.label)}</span></a>`).join("")}</section>
     </details>` : ""}
     <footer id="footer-line"></footer>`;
 }
@@ -992,6 +1084,7 @@ const SECTIONS = [
   { key: "calls", label: "Call tasks", desc: "Calling queues — tasks done vs left, call outcomes, meetings and deals." },
   { key: "reports", label: "Web reports", desc: "Landing pages, funnels and programme reports." },
 ];
+const SECTION_COLOR = { campaigns: "var(--teal)", calls: "var(--purple)", reports: "var(--teal-ink)" };
 const SECTION_OF = { "black-friday": "calls", "black-friday-reengage": "calls" };
 // Groups inside a section: sub-tabs and section-page cards are laid out in this order, under
 // these labels. Keys not listed land in "Other".
@@ -1053,12 +1146,12 @@ function renderNav(stats, activeKey) {
   })).join("");
   let sub = "";
   if (sec === "reports") {
-    sub = WEB_REPORTS.map((r) => `<a href="${r.href}" class="${r.href === `/?campaign=${activeKey}` ? "on" : ""}">${esc(r.label)}</a>`).join("");
+    sub = `<div class="sub-group"><span class="grp">Reports</span><div class="sub-items">` + WEB_REPORTS.map((r) => `<a href="${r.href}" class="${r.href === `/?campaign=${activeKey}` ? "on" : ""}">${esc(r.label)}</a>`).join("") + `</div></div>`;
   } else if (sec) {
     const groups = groupsFor(liveIn(sec));
-    sub = groups.map((g) => (groups.length > 1 ? `<span class="grp">${esc(g.title)}</span>` : "")
+    sub = groups.map((g) => `<div class="sub-group"><span class="grp">${esc(g.title)}</span><div class="sub-items">`
       + g.items.map((p) => `<a href="/?campaign=${p.key}" class="${p.key === activeKey ? "on" : ""}">${esc(NAV_SHORT[p.key] || p.label)}${priorityPillHtml(dominantPriority(p))}</a>`).join("")
-      + (g.links || []).map((l) => `<a href="${l.href}">${esc(l.label)} ↗</a>`).join("")).join("");
+      + (g.links || []).map((l) => `<a href="${l.href}">${esc(l.label)} ↗</a>`).join("") + `</div></div>`).join("");
   }
   const closed = sec && sec !== "reports" ? projects.filter((p) => isClosed(p) && sectionOf(p) === sec) : [];
   const closedActive = closed.some((p) => p.key === activeKey);
@@ -1068,9 +1161,7 @@ function renderNav(stats, activeKey) {
       <div class="nav-closed-menu">${closed.map((p) => `<a href="/?campaign=${p.key}" class="${p.key === activeKey ? "on" : ""}">${esc(p.label)}</a>`).join("")}</div>
     </details>` : "";
   nav.innerHTML = `<div class="tabs-row"><div class="tabs">${top}</div></div>`
-    + (sub || closedMenu ? `<div class="tabs-row subtabs-row"><div class="tabs subtabs">${sub}</div>${closedMenu}</div>` : "");
-  const on = nav.querySelector(".subtabs a.on");
-  if (on) on.scrollIntoView({ block: "nearest", inline: "nearest" });
+    + (sub || closedMenu ? `<div class="subnav">${sub}${closedMenu ? `<div class="sub-group"><span class="grp"></span><div class="sub-items">${closedMenu}</div></div>` : ""}</div>` : "");
 }
 
 // The Closed dropdown is a <details>, which doesn't close itself on an outside click.
