@@ -762,7 +762,7 @@ function outcomeCardHtml(label, o, portalId, loading, bench) {
     <section class="card">
       <h2>Outcomes — ${esc(label)}</h2>
       ${o.snapshotAt
-        ? `<p class="sub">Call outcomes — snapshot as of ${fmtDate(o.snapshotAt)}, not live (campaign closed). All completed tasks, whatever the date range.</p>`
+        ? `<p class="sub">Call outcomes — snapshot as of ${fmtDate(o.snapshotAt)}, not live. All completed tasks, whatever the date range.</p>`
         : `<p class="sub">Call outcomes — live${rangeIsSet() ? `, tasks completed ${esc(rangeLabel())}` : ""}. Hover an outcome to see who's behind it, click a name to open them in HubSpot.</p>`}
       ${rows.map((r, i) => `
         <div class="outcome-bar-row" data-outcome-index="${i}">
