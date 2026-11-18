@@ -2526,6 +2526,43 @@ const SOURCE_LABELS = { PAID_SOCIAL: "Paid social", PAID_SEARCH: "Paid search", 
 async function campaignLeads(url, env) {
   const API = "https://api.hubapi.com";
   const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
+  // Form mode (?forms=<guid,…>&conv=<token>&src=<token>): paid leads = everyone who submitted one
+  // of those (Meta lead-ad) forms since `since`, read from hs_calculated_form_submissions. Candidates
+  // come from conversion-name / source-campaign searches, then are filtered on the form GUIDs.
+  if (url.searchParams.get("forms")) {
+    const forms = url.searchParams.get("forms").split(",").filter(Boolean);
+    const since = url.searchParams.get("since") || "2026-01-01";
+    const sinceMs = Date.parse(`${since}T00:00:00Z`);
+    const conv = url.searchParams.get("conv"), src = url.searchParams.get("src");
+    const groups = [];
+    if (conv) for (const prop of ["recent_conversion_event_name", "first_conversion_event_name"]) groups.push([{ propertyName: prop, operator: "CONTAINS_TOKEN", value: `*${conv}*` }]);
+    if (src) for (const prop of ["hs_latest_source_data_2", "hs_analytics_source_data_2"]) groups.push([{ propertyName: prop, operator: "CONTAINS_TOKEN", value: `*${src}*` }]);
+    const props = ["firstname", "lastname", "email", "createdate", "hs_analytics_source", "hs_calculated_form_submissions", "hs_latest_source_data_2"];
+    const found = {};
+    for (const filters of groups) {
+      let after;
+      do {
+        const j = await hsFetch(`${API}/crm/v3/objects/contacts/search`, { method: "POST", headers: H, body: JSON.stringify({ filterGroups: [{ filters }], properties: props, limit: 200, ...(after ? { after } : {}) }) });
+        for (const r of j.results || []) found[r.id] = r.properties;
+        after = j.paging && j.paging.next && j.paging.next.after;
+      } while (after);
+    }
+    const formNames = {};
+    try { for (const f of await hsFetch(`${API}/forms/v2/forms?formTypes=FACEBOOK_LEAD_AD`, { headers: H })) formNames[f.guid] = f.name; } catch (_) {}
+    const contacts = []; const byForm = {};
+    for (const [id, p] of Object.entries(found)) {
+      const subs = String(p.hs_calculated_form_submissions || "").split(";").map((e) => e.split("::")).filter(([f, ts]) => forms.includes(f) && Number(ts) >= sinceMs);
+      if (!subs.length) continue;
+      for (const [f] of subs) byForm[formNames[f] || f] = (byForm[formNames[f] || f] || 0) + 1;
+      const firstTs = Math.min(...subs.map(([, ts]) => Number(ts)));
+      contacts.push({ id, name: [p.firstname, p.lastname].filter(Boolean).join(" ") || p.email || id, createdMs: Date.parse(p.createdate) || 0,
+        isNew: (Date.parse(p.createdate) || 0) >= sinceMs, source: SOURCE_LABELS[p.hs_analytics_source] || p.hs_analytics_source || "Unknown",
+        conversion: `Meta lead form: ${formNames[subs[0][0]] || subs[0][0]}`, convertedMs: firstTs, submissions: subs.length });
+    }
+    contacts.sort((a, b) => b.convertedMs - a.convertedMs);
+    return json({ generatedAt: new Date().toISOString(), mode: "forms", since, total: contacts.length, submissions: Object.values(byForm).reduce((a, b) => a + b, 0),
+      byForm, isNew: contacts.filter((c) => c.isNew).length, paid: contacts.filter((c) => /^Paid/.test(c.source)).length, contacts });
+  }
   const report = REPORTS["mrr-nov-sprint"];
   const cfg = (report.projects || []).find((p) => p.key === url.searchParams.get("campaign"));
   if (!cfg || !cfg.attributionSearch) return json({ error: "unknown campaign" }, 400);
