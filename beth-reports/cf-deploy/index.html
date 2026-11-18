@@ -417,6 +417,50 @@
   .sub-items { gap: 6px; }
   .sub-items a.on { background: var(--sec-soft); border-color: var(--sec); color: var(--sec-ink); }
   @media (max-width: 700px) { .sub-group { grid-template-columns: none; } }
+
+  /* Overview funnel + meetings (18 Nov v2) */
+  .funnel { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+  .fn-row { display: grid; grid-template-columns: 150px 110px 1fr; grid-template-areas: "k v bar" "k v s"; column-gap: 18px; row-gap: 2px; align-items: center; padding: 12px 14px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border); }
+  .fn-k { grid-area: k; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; }
+  .fn-k::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex: none; }
+  .fn-v { grid-area: v; font-family: var(--head-font); font-size: 28px; font-weight: 800; letter-spacing: -0.02em; text-align: right; }
+  .fn-bar { grid-area: bar; height: 10px; border-radius: 999px; background: var(--gridline); overflow: hidden; }
+  .fn-bar i { display: block; height: 100%; border-radius: 999px; background: var(--c); transition: width .4s; }
+  .fn-s { grid-area: s; font-size: 12px; color: var(--text-secondary); }
+  @media (max-width: 700px) { .fn-row { grid-template-columns: 1fr auto; grid-template-areas: "k v" "bar bar" "s s"; } }
+  .ov-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+  .ov-grid > section.card { margin: 0; }
+  .ov-wide { grid-column: 1 / -1; }
+  @media (max-width: 800px) { .ov-grid { grid-template-columns: 1fr; } }
+  .mt-bar { display: flex; height: 14px; border-radius: 999px; overflow: hidden; gap: 2px; margin: 8px 0 10px; }
+  .mt-bar i { display: block; }
+  .t-win { --t: #13a6aa; } .t-fail { --t: #e5484d; } .t-pending { --t: #7b5cf0; } .t-unknown { --t: #c4ccd4; }
+  .mt-bar i { background: var(--t); }
+  .mt-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--text-secondary); margin-bottom: 14px; }
+  .mt-legend .lg::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--t); margin-right: 6px; vertical-align: -1px; }
+  .mt-legend b { color: var(--text-primary); font-family: var(--head-font); }
+  .mt-list { display: flex; flex-direction: column; }
+  .mt-row { display: grid; grid-template-columns: 12px 1fr 130px 210px; gap: 14px; align-items: center; padding: 10px 4px; border-top: 1px solid var(--gridline); }
+  .mt-row .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--t); }
+  .mt-who a { color: var(--text-primary); font-weight: 600; text-decoration: none; } .mt-who a:hover { color: var(--teal-ink); }
+  .mt-when { font-size: 13px; font-variant-numeric: tabular-nums; }
+  .badge { justify-self: end; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; color: var(--t); background: color-mix(in srgb, var(--t) 13%, transparent); max-width: 210px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .badge.t-unknown { color: var(--text-secondary); background: var(--gridline); }
+  @media (max-width: 700px) { .mt-row { grid-template-columns: 12px 1fr; } .mt-when, .badge { grid-column: 2; justify-self: start; } }
+  .lead-stats { display: flex; gap: 22px; margin: 4px 0 6px; }
+  .lead-stats div { display: flex; flex-direction: column; } .lead-stats b { font-family: var(--head-font); font-size: 24px; } .lead-stats span { font-size: 12px; color: var(--text-muted); }
+  a.chip.win { border-color: #13a6aa; background: color-mix(in srgb, #13a6aa 10%, transparent); }
+
+  .ch-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+  .ch-card { border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; border-top: 4px solid var(--c); background: linear-gradient(180deg, color-mix(in srgb, var(--c) 7%, var(--surface-1)), var(--surface-1) 60%); }
+  .ch-name { font-family: var(--head-font); font-weight: 800; font-size: 16px; }
+  .ch-reach { font-family: var(--head-font); font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin: 6px 0 10px; }
+  .ch-reach span { font-family: "Inter", sans-serif; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-left: 6px; letter-spacing: 0; }
+  .ch-card dl { margin: 0; display: grid; gap: 6px; }
+  .ch-card dl div { display: flex; justify-content: space-between; font-size: 13px; border-top: 1px dashed var(--border); padding-top: 6px; }
+  .ch-card dt { color: var(--text-secondary); } .ch-card dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ch-card dd small { font-weight: 500; color: var(--text-muted); }
+  .ch-tag { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 1px 7px; border-radius: 999px; color: #fff; background: var(--c); margin-right: 4px; }
 </style>
 </head>
 <body>
@@ -1107,7 +1151,15 @@ function sectionPageHtml(stats, secKey) {
 // Live campaign-type projects not listed here get a one-part page of their own automatically.
 const INITIATIVES = [
   { key: "black-friday", label: "Black Friday", parts: ["black-friday", "black-friday-reengage", "reengage-post-webinar-bf"], web: "bf-pages", webLink: "/black-friday-pages/",
-    desc: "Everything running for Black Friday: ads leads, the database reengage emails, the post-webinar email, the /black-friday pages and the calls behind them." },
+    desc: "Everything running for Black Friday: ads leads, the database reengage emails, the post-webinar email, the /black-friday pages and the calls behind them.",
+    leadsFrom: "black-friday", since: "2026-10-15",
+    // Where people came from (origin), per part. Web-page bookings are split Ads vs Web page by UTM.
+    channels: { "black-friday": "Ads", "black-friday-reengage": "Email", "reengage-post-webinar-bf": "Email" } },
+  // Meetings booked by anyone on the audience lists since the webinar started count too —
+  // two people booked with Yoana straight after it, before any call task existed.
+  { key: "rra-cantonese-webinar", label: "RRA Cantonese webinar", parts: ["rra-cantonese-webinar"], cohortLists: ["24980", "24979"], meetingsSince: "2026-11-17T12:00:00Z",
+    channels: { "rra-cantonese-webinar": "Webinar" }, cohortChannel: "Webinar",
+    desc: "Cantonese Renters' Rights webinar (17 Nov) for influencer leads: invites, reminder, recording follow-up and Carlos's calls, pitching Complete." },
 ];
 function initiativesList(stats) {
   const projects = stats.projects || [];
@@ -1131,72 +1183,136 @@ function initFetch(store, key, url) {
 const pct = (n, d) => d ? `${(100 * n / d).toFixed(n / d < 0.1 ? 1 : 0)}%` : "–";
 const hsContact = (id) => `https://app-eu1.hubspot.com/contacts/25516403/record/0-1/${id}`;
 
+// Meeting result → success / fail / pending / unknown, for the badges and the outcome bar.
+function meetingTone(m) {
+  const t = `${m.status || ""} ${m.result || ""}`;
+  if (/cancel|no.?show|not a fit|uninterested|wrong number/i.test(t)) return "fail";
+  if (/closed won|deal opened|positive|progress to deal/i.test(m.result || "")) return "win";
+  if (/upcoming|yet to happen/i.test(t) || (m.startTime && Date.parse(m.startTime) > Date.now())) return "pending";
+  return "unknown";
+}
+function meetingOutcomeText(m) {
+  if (/cancel|no.?show/i.test(m.status || "")) return m.status;
+  return m.result || m.status || "No outcome logged";
+}
+const TONE_LABEL = { win: "Deal opened / won", fail: "Cancelled / no-show / not interested", pending: "Upcoming", unknown: "Happened, no outcome logged" };
+const CHANNELS = { Ads: "#f2a516", Email: "#18b8bc", "Web page": "#5fd4d7", Webinar: "#d55181", Calls: "#7b5cf0", Other: "#8593a0" };
+const isPaidSource = (s) => /paid|meta|facebook|google ads|cpc|ppc|chatgpt/i.test(s || "");
+
 function initiativePageHtml(stats, ini) {
   const projects = Object.fromEntries((stats.projects || []).map((p) => [p.key, p]));
   const outcomesByKey = Object.fromEntries(((cache.outcomes && cache.outcomes.projects) || []).map((p) => [p.key, p]));
   const dealsByKey = Object.fromEntries(((cache.deals && cache.deals.projects) || []).map((p) => [p.key, p]));
   const has = rangeTest();
+  const inR = (ms) => !has || has(ms);
   const parts = ini.parts.filter((k) => projects[k]).map((k) => {
     const p = projects[k];
     const o = resolveScoped("outcomes", k, outcomesByKey);
     const d = resolveScoped("deals", k, dealsByKey);
     if (p.hasEmails) initFetch(initEmails, k, `/api/emails?report=${REPORT_KEY}&campaign=${encodeURIComponent(k)}`);
-    return { key: k, p, o: sliceOutcomes(o.data), d: sliceDeals(d.data), loading: o.loading || d.loading, emails: initEmails[k] };
+    return { key: k, p, o: sliceOutcomes(o.data), d: sliceDeals(d.data), dRaw: d.data, loading: o.loading || d.loading, emails: initEmails[k] };
   });
   if (ini.web) initFetch(initWeb, ini.web, `/api/${ini.web}`);
   const web = ini.web ? initWeb[ini.web] : null;
   const webLoading = ini.web && !(ini.web in initWeb);
+  const leadsKey = ini.leadsFrom ? `leads:${ini.leadsFrom}` : null;
+  if (leadsKey) initFetch(initWeb, leadsKey, `/api/campaign-leads?campaign=${encodeURIComponent(ini.leadsFrom)}&since=${ini.since}`);
+  const leadsRes = leadsKey ? initWeb[leadsKey] : null;
+  const leadsLoading = leadsKey && !(leadsKey in initWeb);
+  const cohortKey = ini.cohortLists ? `cohort:${ini.key}` : null;
+  if (cohortKey) initFetch(initWeb, cohortKey, `/api/campaign-meetings?lists=${ini.cohortLists.join(",")}&since=${encodeURIComponent(ini.meetingsSince)}`);
+  const cohort = cohortKey ? initWeb[cohortKey] : null;
+  const cohortLoading = cohortKey && !(cohortKey in initWeb);
 
-  // Emails (all time — HubSpot only gives totals), de-duplicated across parts.
+  // Emails (all time), de-duplicated across parts.
   const emailMap = new Map();
   for (const pt of parts) for (const e of ((pt.emails && pt.emails.emails) || [])) if (!emailMap.has(String(e.id))) emailMap.set(String(e.id), { ...e, part: pt.key });
   const emails = [...emailMap.values()];
   const emailsLoading = parts.some((pt) => pt.p.hasEmails && pt.emails === undefined);
   const es = emails.reduce((a, e) => { const t = e.stats || {}; for (const k of ["sent", "delivered", "opened", "clicked", "unsubscribed"]) a[k] += Number(t[k] || 0); return a; }, { sent: 0, delivered: 0, opened: 0, clicked: 0, unsubscribed: 0 });
 
-  // Calls
   const tasks = parts.reduce((a, pt) => ({ total: a.total + pt.p.tasks.total, done: a.done + pt.p.tasks.done }), { total: 0, done: 0 });
   const reached = parts.reduce((n, pt) => n + ((pt.o && pt.o.totalReached) || 0), 0);
   const callsLoading = parts.some((pt) => pt.loading);
 
-  // Meetings: call/email-credited (outcomes) + bookings from the web pages, de-duplicated.
+  // Meetings: call/email-credited + audience bookings + web-page bookings, one row each.
   const mtg = new Map();
-  for (const pt of parts) for (const m of ((pt.o && pt.o.meetings) || [])) mtg.set(String(m.meetingId), { id: m.meetingId, contactId: m.contactId, name: m.name, bookedAt: m.bookedAt, startTime: m.startTime, status: m.status, result: m.result, via: m.fromEmail ? "Email" : "Call", part: NAV_SHORT[pt.key] || pt.p.label });
-  if (web) for (const m of [...(web.meetings || []), ...(web.emailMeetings || [])]) {
-    if (has && !has(Date.parse(m.bookedAt))) continue;
-    if (!mtg.has(String(m.id))) mtg.set(String(m.id), { id: m.id, contactId: m.contactId, name: m.name, bookedAt: m.bookedAt, startTime: m.startsAt, status: Date.parse(m.startsAt) > Date.now() ? "Upcoming" : "", result: "", via: m.source || "Web", part: "Web page" });
+  const add = (id, m) => { if (!mtg.has(String(id))) mtg.set(String(id), m); };
+  const chOf = (k) => (ini.channels && ini.channels[k]) || "Other";
+  for (const pt of parts) for (const m of ((pt.o && pt.o.meetings) || [])) add(m.meetingId, { contactId: m.contactId, name: m.name, bookedAt: m.bookedAt, startTime: m.startTime, status: m.status, result: m.result, via: m.fromEmail ? "booked from email link" : "booked on a call", part: NAV_SHORT[pt.key] || pt.p.label, host: m.host, channel: chOf(pt.key) });
+  for (const m of ((cohort && cohort.meetings) || [])) if (inR(Date.parse(m.bookedAt))) add(m.meetingId, { contactId: m.contactId, name: m.name, bookedAt: m.bookedAt, startTime: m.startTime, status: m.status, result: m.result, via: m.fromLink ? "booked from link" : "booked by rep", part: ini.label, host: m.host, channel: ini.cohortChannel || "Other" });
+  if (web) {
+    for (const m of (web.meetings || [])) if (inR(Date.parse(m.bookedAt))) add(m.id, { contactId: m.contactId, name: m.name, bookedAt: m.bookedAt, startTime: m.startsAt, status: Date.parse(m.startsAt) > Date.now() ? "Upcoming" : "", result: m.plan ? "Closed won" : "", via: `booked on the page · ${m.source || "web"}`, part: "Web page", channel: isPaidSource(m.source) ? "Ads" : "Web page" });
+    for (const m of (web.emailMeetings || [])) if (inR(Date.parse(m.bookedAt))) add(m.id, { contactId: m.contactId, name: m.name, bookedAt: m.bookedAt, startTime: m.startsAt, status: Date.parse(m.startsAt) > Date.now() ? "Upcoming" : "", result: m.plan ? "Closed won" : "", via: `booked via page · ${m.utmCampaign || "email"}`, part: "Web page", channel: "Email" });
   }
-  const meetings = [...mtg.values()].sort((a, b) => String(b.bookedAt).localeCompare(String(a.bookedAt)));
+  const meetings = [...mtg.values()].map((m) => ({ ...m, tone: meetingTone(m) })).sort((a, b) => String(b.bookedAt).localeCompare(String(a.bookedAt)));
+  const toneCount = meetings.reduce((a, m) => (a[m.tone]++, a), { win: 0, fail: 0, pending: 0, unknown: 0 });
 
-  // Plans won (contacts with a closed Plans deal since enrolling), de-duplicated across parts.
+  // Deals opened (any pipeline) by people in the campaign since they were enrolled / booked.
+  const dealMap = new Map();
+  for (const pt of parts) for (const d of ((pt.dRaw && pt.dRaw.dealActivity && pt.dRaw.dealActivity.deals) || [])) if (inR(d.createdMs)) dealMap.set(String(d.id), d);
+  for (const m of ((cohort && cohort.meetings) || [])) for (const d of m.deals || []) if (inR(Date.parse(d.createdate))) dealMap.set(`c:${m.contactId}:${d.name}`, { name: d.name, contactName: m.name, contactId: m.contactId, status: "open" });
   const won = new Map();
   for (const pt of parts) for (const r of ((pt.d && pt.d.rows) || [])) if (!/^\(no /.test(r.label || "")) for (const c of r.contacts || []) won.set(String(c.id), { ...c, plan: r.label });
   const webVisitors = web && web.pages && web.pages.some((pg) => pg.visitors != null) ? web.pages.reduce((n, pg) => n + (pg.visitors || 0), 0) : null;
   const webCheckouts = web && web.checkout ? web.checkout.complete : null;
+  const leads = leadsRes && leadsRes.contacts ? leadsRes.contacts.filter((c) => inR(c.createdMs) || inR(c.convertedMs)) : null;
 
+  // ---- By channel: where people came from → what it produced.
+  const ch = {};
+  const C = (k) => (ch[k] ||= { reach: null, reachLabel: "", calls: 0, meetings: 0, wins: 0, deals: 0, plans: 0 });
+  if (leadsKey && leads) { C("Ads").reach = leads.length; C("Ads").reachLabel = "leads"; }
+  for (const pt of parts) { const c = C(chOf(pt.key)); c.calls += pt.p.tasks.done; }
+  for (const pt of parts) if (pt.p.hasEmails && chOf(pt.key) === "Email") { const c = C("Email"); c.reach = (c.reach || 0) + ((pt.emails && pt.emails.emails) || []).reduce((n, e) => n + Number((e.stats || {}).sent || 0), 0); c.reachLabel = "emails sent"; }
+  if (ini.web) { const c = C("Web page"); c.reach = webVisitors; c.reachLabel = "visitors"; }
+  if (ini.cohortChannel) { const c = C(ini.cohortChannel); c.reachLabel = c.reachLabel || "audience"; }
+  for (const m of meetings) { const c = C(m.channel || "Other"); c.meetings++; if (m.tone === "win") c.wins++; }
+  for (const pt of parts) for (const d of ((pt.dRaw && pt.dRaw.dealActivity && pt.dRaw.dealActivity.deals) || [])) if (inR(d.createdMs)) C(chOf(pt.key)).deals++;
+  for (const m of ((cohort && cohort.meetings) || [])) C(ini.cohortChannel || "Other").deals += (m.deals || []).length;
+  for (const pt of parts) C(chOf(pt.key)).plans += new Set(((pt.d && pt.d.rows) || []).filter((r) => !/^\(no /.test(r.label || "")).flatMap((r) => (r.contacts || []).map((c) => c.id))).size;
+  if (webCheckouts != null) C("Web page").plans += webCheckouts;
+  const chOrder = ["Ads", "Email", "Web page", "Webinar", "Other"].filter((k) => ch[k]);
+  const channelHtml = chOrder.length ? `<div class="ch-grid">${chOrder.map((k) => { const c = ch[k]; return `<div class="ch-card" style="--c:${CHANNELS[k] || CHANNELS.Other}">
+      <div class="ch-name">${esc(k)}</div>
+      <div class="ch-reach">${c.reach == null ? "–" : c.reach.toLocaleString()}<span>${esc(c.reachLabel || "")}</span></div>
+      <dl><div><dt>Calls made</dt><dd>${c.calls.toLocaleString()}</dd></div><div><dt>Meetings</dt><dd>${c.meetings}${c.wins ? ` <small>(${c.wins} → deal)</small>` : ""}</dd></div><div><dt>Deals opened</dt><dd>${c.deals}</dd></div><div><dt>Plans won</dt><dd>${c.plans}</dd></div></dl>
+    </div>`; }).join("")}</div>` : "";
+
+  // ---- Funnel: full-width rows, log-scaled bars so small numbers still show.
   const L = (v, loading) => loading ? '<span class="ld">…</span>' : v;
-  const step = (label, value, sub, color) => `<div class="flow-step" style="--c:${color}"><div class="k">${label}</div><div class="v">${value}</div><div class="s">${sub}</div></div>`;
-  const steps = [];
-  if (parts.some((pt) => pt.p.hasEmails)) steps.push(step("Emails", L(es.sent.toLocaleString(), emailsLoading), `${L(pct(es.opened, es.delivered), emailsLoading)} opened · ${L(pct(es.clicked, es.delivered), emailsLoading)} clicked`, "var(--teal)"));
-  if (ini.web) steps.push(step("Web visitors", L(webVisitors == null ? "–" : webVisitors.toLocaleString(), webLoading), webCheckouts != null ? `${webCheckouts} checkouts completed` : (web && web.errors && web.errors.mixpanel ? "visits unavailable" : "&nbsp;"), "var(--series-5)"));
-  steps.push(step("Calls", `${tasks.done.toLocaleString()}<small> / ${tasks.total.toLocaleString()}</small>`, `${L(reached.toLocaleString(), callsLoading)} reached`, "var(--purple)"));
-  steps.push(step("Meetings", L(meetings.length, callsLoading || webLoading), `${meetings.filter((m) => m.status === "Upcoming").length} upcoming`, "var(--series-4)"));
-  steps.push(step("Plans won", L(won.size, callsLoading), "contacts with a closed Plans deal", "var(--teal-ink)"));
+  const stages = [];
+  if (leadsKey) stages.push({ k: "Paid leads", n: leads ? leads.length : null, loading: leadsLoading, c: "var(--series-6)", sub: leads ? `${leads.filter((c) => c.isNew).length} new to HubSpot · ${leads.filter((c) => /^Paid/.test(c.source)).length} from paid ads` : "" });
+  if (parts.some((pt) => pt.p.hasEmails)) stages.push({ k: "Emails sent", n: es.sent, loading: emailsLoading, c: "var(--teal)", sub: `${pct(es.opened, es.delivered)} opened · ${pct(es.clicked, es.delivered)} clicked · ${pct(es.unsubscribed, es.delivered)} unsubscribed` });
+  if (ini.web) stages.push({ k: "Web visitors", n: webVisitors, loading: webLoading, c: "var(--series-5)", sub: webCheckouts != null ? `${webCheckouts} checkouts completed` : "visits unavailable right now" });
+  stages.push({ k: "Calls made", n: tasks.done, loading: false, c: "var(--purple)", sub: `${tasks.done.toLocaleString()} of ${tasks.total.toLocaleString()} call tasks done · ${callsLoading ? "…" : reached.toLocaleString()} people reached` });
+  stages.push({ k: "Meetings booked", n: meetings.length, loading: callsLoading || webLoading || cohortLoading, c: "var(--series-4)", sub: `${toneCount.pending} upcoming · ${toneCount.win} went well · ${toneCount.fail} cancelled / no-show` });
+  stages.push({ k: "Deals opened", n: dealMap.size, loading: callsLoading || cohortLoading, c: "var(--series-7)", sub: "any pipeline, opened after they entered the campaign" });
+  stages.push({ k: "Plans won", n: won.size, loading: callsLoading, c: "var(--teal-ink)", sub: "closed Plans deals" });
+  const maxN = Math.max(1, ...stages.map((x) => x.n || 0));
+  const w = (n) => n ? Math.max(3, Math.round(100 * Math.log10(n + 1) / Math.log10(maxN + 1))) : 0;
+  const funnel = stages.map((x) => `
+      <div class="fn-row" style="--c:${x.c}">
+        <div class="fn-k">${x.k}</div>
+        <div class="fn-v">${L(x.n == null ? "–" : x.n.toLocaleString(), x.loading)}</div>
+        <div class="fn-bar"><i style="width:${x.loading ? 0 : w(x.n)}%"></i></div>
+        <div class="fn-s">${x.sub}</div>
+      </div>`).join("");
 
   const partRows = parts.map((pt) => {
     const mt = ((pt.o && pt.o.meetings) || []).length;
-    const w = new Set(((pt.d && pt.d.rows) || []).filter((r) => !/^\(no /.test(r.label || "")).flatMap((r) => (r.contacts || []).map((c) => c.id))).size;
+    const wn = new Set(((pt.d && pt.d.rows) || []).filter((r) => !/^\(no /.test(r.label || "")).flatMap((r) => (r.contacts || []).map((c) => c.id))).size;
     const sent = ((pt.emails && pt.emails.emails) || []).reduce((n, e) => n + Number((e.stats || {}).sent || 0), 0);
     const pc = pt.p.tasks.total ? Math.round(100 * pt.p.tasks.done / pt.p.tasks.total) : 0;
     return `<tr><td><b>${esc(NAV_SHORT[pt.key] || pt.p.label)}</b></td>
       <td class="num">${pt.p.hasEmails ? L(sent.toLocaleString(), pt.emails === undefined) : "–"}</td>
       <td><div class="cellbar"><span class="mini"><i style="width:${pc}%"></i></span>${pt.p.tasks.done}/${pt.p.tasks.total}</div></td>
-      <td class="num">${L((pt.o && pt.o.totalReached) || 0, pt.loading)}</td><td class="num">${L(mt, pt.loading)}</td><td class="num">${L(w, pt.loading)}</td>
+      <td class="num">${L((pt.o && pt.o.totalReached) || 0, pt.loading)}</td><td class="num">${L(mt, pt.loading)}</td><td class="num">${L(wn, pt.loading)}</td>
       <td class="num"><a href="/?campaign=${pt.key}&view=calls">Calls →</a></td></tr>`;
   }).join("");
 
-  const emailRows = emails.map((e) => { const t = e.stats || {}; return `<tr><td><a href="${e.link}" target="_blank" rel="noopener">${esc(e.label || e.name)}</a><div class="muted">${esc(prettyTokensClient(e.subject || ""))}</div></td>
-    <td class="num">${Number(t.sent || 0).toLocaleString()}</td><td class="num">${pct(t.opened, t.delivered)}</td><td class="num">${pct(t.clicked, t.delivered)}</td><td class="num">${pct(t.unsubscribed, t.delivered)}</td></tr>`; }).join("");
+  const emailRows = emails.map((e) => { const t = e.stats || {}; const op = t.delivered ? t.opened / t.delivered : 0; const cl = t.delivered ? t.clicked / t.delivered : 0;
+    return `<tr><td><a href="${e.link}" target="_blank" rel="noopener">${esc(e.label || e.name)}</a><div class="muted">${esc(prettyTokensClient(e.subject || ""))}</div></td>
+    <td class="num">${Number(t.sent || 0).toLocaleString()}</td><td><div class="cellbar"><span class="mini"><i style="width:${Math.round(100 * op)}%"></i></span>${pct(t.opened, t.delivered)}</div></td><td class="num">${pct(t.clicked, t.delivered)}</td><td class="num">${pct(t.unsubscribed, t.delivered)}</td></tr>`; }).join("");
 
   let webHtml = "";
   if (ini.web) {
@@ -1213,9 +1329,32 @@ function initiativePageHtml(stats, ini) {
     }
   }
 
-  const mtgRows = meetings.slice(0, 12).map((m) => `<tr><td><a href="${hsContact(m.contactId)}" target="_blank" rel="noopener">${esc(m.name || "Contact")}</a></td><td>${esc(m.part)}</td><td class="muted">${esc(m.via)}</td>
-    <td class="nowrap">${m.bookedAt ? fmtDate(m.bookedAt) : ""}</td><td class="nowrap">${m.startTime ? fmtDate(m.startTime) : ""}</td><td>${esc(m.result || m.status || "")}</td></tr>`).join("");
+  // Paid leads: by source + latest few.
+  let leadsHtml = "";
+  if (leadsKey) {
+    if (leadsLoading) leadsHtml = `<p class="muted">Loading…</p>`;
+    else if (!leads) leadsHtml = `<p class="muted">Leads unavailable.</p>`;
+    else {
+      const by = {}; for (const c of leads) { const k = c.conversion || c.source; by[k] = (by[k] || 0) + 1; }
+      const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 6); const mx = Math.max(1, ...top.map((t) => t[1]));
+      leadsHtml = `<div class="lead-stats"><div><b>${leads.length}</b><span>leads</span></div><div><b>${leads.filter((c) => c.isNew).length}</b><span>new to HubSpot</span></div><div><b>${leads.filter((c) => /^Paid/.test(c.source)).length}</b><span>original source paid</span></div></div>
+        <h4 class="ov-h4">Where they came from</h4>${top.map(([k, n], i) => `<div class="outcome-bar-row"><span class="name" title="${esc(k)}">${esc(k)}</span><div class="track"><div class="fill" style="width:${Math.max(2, Math.round(100 * n / mx))}%; background:${SERIES[i % SERIES.length]}"></div></div><span class="count">${n}</span></div>`).join("")}
+        <h4 class="ov-h4">Latest</h4><div class="chips">${leads.slice(0, 12).map((c) => `<a class="chip" href="${hsContact(c.id)}" target="_blank" rel="noopener">${esc(c.name)} <span class="muted">${fmtDate(new Date(c.createdMs).toISOString())}${c.isNew ? " · new" : ""}</span></a>`).join("")}</div>`;
+    }
+  }
 
+  // Meetings: outcome bar + badge rows.
+  const seg = (t) => toneCount[t] ? `<i class="t-${t}" style="flex:${toneCount[t]}" title="${TONE_LABEL[t]}: ${toneCount[t]}"></i>` : "";
+  const mtgSummary = meetings.length ? `<div class="mt-bar">${["win", "pending", "unknown", "fail"].map(seg).join("")}</div>
+    <div class="mt-legend">${["win", "pending", "unknown", "fail"].map((t) => `<span class="lg t-${t}"><b>${toneCount[t]}</b> ${TONE_LABEL[t]}</span>`).join("")}</div>` : "";
+  const mtgRows = meetings.slice(0, 15).map((m) => `<div class="mt-row">
+      <span class="dot t-${m.tone}"></span>
+      <div class="mt-who"><a href="${hsContact(m.contactId)}" target="_blank" rel="noopener">${esc(m.name || "Contact")}</a><div class="muted"><span class="ch-tag" style="--c:${CHANNELS[m.channel] || CHANNELS.Other}">${esc(m.channel || "Other")}</span> ${esc(m.part)} · ${esc(m.via)}${m.host ? ` · ${esc(m.host)}` : ""}</div></div>
+      <div class="mt-when"><div>${m.startTime ? fmtDate(m.startTime) : "–"}</div><div class="muted">booked ${m.bookedAt ? fmtDate(m.bookedAt) : ""}</div></div>
+      <span class="badge t-${m.tone}">${esc(meetingOutcomeText(m))}</span>
+    </div>`).join("");
+
+  const dealsList = [...dealMap.values()];
   return `
     <div class="meta-row">
       <p id="meta-line">Loading…</p>
@@ -1224,15 +1363,22 @@ function initiativePageHtml(stats, ini) {
     <section class="ov-hero">
       <h1>${esc(ini.label)}</h1>
       ${ini.desc ? `<p>${esc(ini.desc)}</p>` : ""}
-      <div class="flow">${steps.join('<span class="flow-arrow">→</span>')}</div>
-      ${rangeIsSet() ? `<p class="muted small">Calls, meetings and plans: ${esc(rangeLabel())}. Emails and web visits: all time.</p>` : ""}
+      <div class="funnel">${funnel}</div>
+      ${rangeIsSet() ? `<p class="muted small">${esc(rangeLabel())}: leads, calls, meetings, deals and plans. Emails and web visits are all time.</p>` : ""}
     </section>
-    ${parts.length > 1 || parts.length === 1 ? `<section class="card"><h2>What's running</h2>
-      <div class="overflow-x"><table class="ov-table"><thead><tr><th>Part</th><th class="num">Emails sent</th><th>Calls done</th><th class="num">Reached</th><th class="num">Meetings</th><th class="num">Plans won</th><th></th></tr></thead><tbody>${partRows}</tbody></table></div></section>` : ""}
-    ${emails.length || emailsLoading ? `<section class="card"><h2>Emails</h2>${emailsLoading && !emails.length ? '<p class="muted">Loading…</p>' : `<div class="overflow-x"><table class="ov-table"><thead><tr><th>Email</th><th class="num">Sent</th><th class="num">Opened</th><th class="num">Clicked</th><th class="num">Unsubs</th></tr></thead><tbody>${emailRows}</tbody></table></div>`}</section>` : ""}
-    ${ini.web ? `<section class="card"><div class="card-head"><h2>Web pages</h2><a href="${ini.webLink}">Full web report →</a></div>${webHtml}</section>` : ""}
-    <section class="card"><h2>Meetings booked</h2>${meetings.length ? `<div class="overflow-x"><table class="ov-table"><thead><tr><th>Contact</th><th>From</th><th>Via</th><th>Booked</th><th>Meeting</th><th>Status</th></tr></thead><tbody>${mtgRows}</tbody></table></div>${meetings.length > 12 ? `<p class="muted small">Showing latest 12 of ${meetings.length}.</p>` : ""}` : `<p class="muted">${callsLoading ? "Loading…" : "No meetings yet."}</p>`}</section>
-    ${won.size ? `<section class="card"><h2>Plans won</h2><div class="chips">${[...won.values()].map((c) => `<a class="chip" href="${hsContact(c.id)}" target="_blank" rel="noopener">${esc(c.name)} <span class="muted">${esc(c.plan || "")}</span></a>`).join("")}</div></section>` : ""}
+    <div class="ov-grid">
+      ${channelHtml ? `<section class="card ov-wide"><h2>By channel</h2><p class="sub">Where people came from, and what that produced. Calls are how we followed up, counted under the channel the person came from.</p>${channelHtml}</section>` : ""}
+      <section class="card ov-wide"><h2>Meetings booked</h2>${meetings.length ? mtgSummary + `<div class="mt-list">${mtgRows}</div>${meetings.length > 15 ? `<p class="muted small">Showing latest 15 of ${meetings.length}.</p>` : ""}` : `<p class="muted">${callsLoading || cohortLoading ? "Loading…" : "No meetings yet."}</p>`}</section>
+      ${leadsKey ? `<section class="card"><h2>Paid leads</h2>${leadsHtml}</section>` : ""}
+      ${dealsList.length || won.size ? `<section class="card"><h2>Deals &amp; plans</h2>
+        ${won.size ? `<h4 class="ov-h4">Plans won</h4><div class="chips">${[...won.values()].map((c) => `<a class="chip win" href="${hsContact(c.id)}" target="_blank" rel="noopener">${esc(c.name)} <span class="muted">${esc(c.plan || "")}</span></a>`).join("")}</div>` : ""}
+        ${dealsList.length ? `<h4 class="ov-h4">Deals opened</h4><div class="chips">${dealsList.slice(0, 20).map((d) => `<a class="chip" href="${d.contactId ? hsContact(d.contactId) : "#"}" target="_blank" rel="noopener">${esc(d.contactName || d.name)} <span class="muted">${esc(d.pipeline || "")}${d.stage ? ` · ${esc(d.stage)}` : ""}</span></a>`).join("")}</div>` : ""}
+      </section>` : ""}
+      <section class="card ov-wide"><h2>What's running</h2>
+        <div class="overflow-x"><table class="ov-table"><thead><tr><th>Part</th><th class="num">Emails sent</th><th>Calls done</th><th class="num">Reached</th><th class="num">Meetings</th><th class="num">Plans won</th><th></th></tr></thead><tbody>${partRows}</tbody></table></div></section>
+      ${emails.length || emailsLoading ? `<section class="card ov-wide"><h2>Emails</h2>${emailsLoading && !emails.length ? '<p class="muted">Loading…</p>' : `<div class="overflow-x"><table class="ov-table"><thead><tr><th>Email</th><th class="num">Sent</th><th>Opened</th><th class="num">Clicked</th><th class="num">Unsubs</th></tr></thead><tbody>${emailRows}</tbody></table></div>`}</section>` : ""}
+      ${ini.web ? `<section class="card ov-wide"><div class="card-head"><h2>Web pages</h2><a href="${ini.webLink}">Full web report →</a></div>${webHtml}</section>` : ""}
+    </div>
     <footer id="footer-line"></footer>`;
 }
 function prettyTokensClient(s) {
