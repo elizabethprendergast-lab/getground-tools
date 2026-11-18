@@ -797,7 +797,7 @@ function meetingsCardHtml(label, o, portalId, loading) {
     ...(viaEmail
       ? [["Booked", rows.length, ""], ["From email", n(r => r.fromEmail), ""], ["By rep", n(r => !r.fromEmail), ""]]
       : [["Booked (call tasks)", rows.length, ""]]),
-    ["Yet to happen", n(r => r.status === "Upcoming"), ""],
+    ["Upcoming", n(r => r.status === "Upcoming"), ""],
     ["Happened", n(r => r.status === "Happened"), ""],
     ["Positive", n(r => r.tone === "positive"), "done"],
     ["Negative / no-show", n(r => r.tone === "negative"), "neg"],
@@ -820,7 +820,7 @@ function meetingsCardHtml(label, o, portalId, loading) {
             <td class="muted">${esc(r.title)}</td>
             <td>${esc(r.host || "—")}</td>
             <td class="nowrap">${r.startTime ? fmtDateTime(r.startTime) : "—"}</td>
-            <td><span class="mtg-status s-${esc(r.status.toLowerCase().replace(/[^a-z]/g, ""))}">${esc(r.status === "Upcoming" ? "Yet to happen" : r.status)}</span></td>
+            <td><span class="mtg-status s-${esc(r.status.toLowerCase().replace(/[^a-z]/g, ""))}">${esc(r.status)}</span></td>
             <td class="mtg-result t-${esc(r.tone)}">${esc(r.status === "Upcoming" ? "—" : r.result)}</td>
           </tr>`).join("")}
         </tbody>
@@ -1193,7 +1193,7 @@ function meetingTone(m) {
 }
 function meetingOutcomeText(m) {
   if (/cancel|no.?show/i.test(m.status || "")) return m.status;
-  return m.result || m.status || "No outcome logged";
+  return String(m.result || m.status || "No outcome logged").replace(/^Yet to happen$/i, "Upcoming");
 }
 const TONE_LABEL = { win: "Deal opened / won", fail: "Cancelled / no-show / not interested", pending: "Upcoming", unknown: "Happened, no outcome logged" };
 const CHANNELS = { Ads: "#f2a516", Email: "#18b8bc", "Web page": "#5fd4d7", Webinar: "#d55181", Calls: "#7b5cf0", Other: "#8593a0" };
