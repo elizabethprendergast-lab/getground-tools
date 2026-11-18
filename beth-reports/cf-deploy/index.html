@@ -1169,6 +1169,7 @@ const INITIATIVES = [
   // two people booked with Yoana straight after it, before any call task existed.
   { key: "rra-cantonese-webinar", label: "RRA Cantonese webinar", parts: ["rra-cantonese-webinar"], cohortLists: ["24980", "24979"], meetingsSince: "2026-11-17T12:00:00Z",
     channels: { "rra-cantonese-webinar": "Webinar" }, cohortChannel: "Webinar",
+    webinar: { registered: "24980", attended: "24972", date: "17 Nov" },
     desc: "Cantonese Renters' Rights webinar (17 Nov) for influencer leads: invites, reminder, recording follow-up and Carlos's calls, pitching Complete." },
 ];
 function initiativesList(stats) {
@@ -1232,6 +1233,12 @@ function initiativePageHtml(stats, ini) {
   const cohortKey = ini.cohortLists ? `cohort:${ini.key}` : null;
   if (cohortKey) initFetch(initWeb, cohortKey, `/api/campaign-meetings?lists=${ini.cohortLists.join(",")}&since=${encodeURIComponent(ini.meetingsSince)}`);
   const cohort = cohortKey ? initWeb[cohortKey] : null;
+  const wbKey = ini.webinar ? `webinar:${ini.key}` : null;
+  if (wbKey) initFetch(initWeb, wbKey, `/api/list-sizes?ids=${ini.webinar.registered},${ini.webinar.attended}`);
+  const wbSizes = wbKey && initWeb[wbKey] && initWeb[wbKey].sizes;
+  const registered = wbSizes ? wbSizes[ini.webinar.registered] : null;
+  const attended = wbSizes ? wbSizes[ini.webinar.attended] : null;
+  const wbLoading = wbKey && !(wbKey in initWeb);
   const cohortLoading = cohortKey && !(cohortKey in initWeb);
 
   // Emails (all time), de-duplicated across parts.
@@ -1275,7 +1282,7 @@ function initiativePageHtml(stats, ini) {
   for (const pt of parts) { const c = C(chOf(pt.key)); c.calls += pt.p.tasks.done; }
   for (const pt of parts) if (pt.p.hasEmails && chOf(pt.key) === "Email") { const c = C("Email"); c.reach = (c.reach || 0) + ((pt.emails && pt.emails.emails) || []).reduce((n, e) => n + Number((e.stats || {}).sent || 0), 0); c.reachLabel = "email sends"; }
   if (ini.web) { const c = C("Web page"); c.reach = webVisitors; c.reachLabel = "visitors"; }
-  if (ini.cohortChannel) { const c = C(ini.cohortChannel); c.reachLabel = c.reachLabel || "audience"; }
+  if (ini.cohortChannel) { const c = C(ini.cohortChannel); if (ini.webinar && registered != null) { c.reach = registered; c.reachLabel = `registered · ${attended ?? "–"} attended`; } else c.reachLabel = c.reachLabel || "audience"; }
   for (const m of meetings) { const c = C(m.channel || "Other"); c.meetings++; if (m.tone === "win") c.wins++; }
   for (const pt of parts) for (const d of ((pt.dRaw && pt.dRaw.dealActivity && pt.dRaw.dealActivity.deals) || [])) if (inR(d.createdMs)) C(chOf(pt.key)).deals++;
   for (const m of ((cohort && cohort.meetings) || [])) C(ini.cohortChannel || "Other").deals += (m.deals || []).length;
@@ -1297,6 +1304,10 @@ function initiativePageHtml(stats, ini) {
     const split = emails.map((e) => ({ n: Number((e.stats || {}).sent || 0), l: e.label || e.name })).filter((x) => x.n).sort((a, b) => b.n - a.n)
       .map((x) => `${kfmt(x.n)} ${String(x.l).replace(/^\(?[AB]\)?\s*/, "").replace(/\s*[—|-]\s*\d{4}$/, "").slice(0, 34)}`).join(" · ");
     stages.push({ k: "Email sends", n: es.sent, loading: emailsLoading, c: "var(--teal)", sub: `${emails.length} email${emails.length === 1 ? "" : "s"} (sends, not unique people): ${split}<br>${pct(es.opened, es.delivered)} opened · ${pct(es.clicked, es.delivered)} clicked · ${pct(es.unsubscribed, es.delivered)} unsubscribed` });
+  }
+  if (ini.webinar) {
+    stages.push({ k: "Registered", n: registered, loading: wbLoading, c: "var(--series-8)", sub: `signed up for the ${esc(ini.webinar.date)} webinar` });
+    stages.push({ k: "Attended", n: attended, loading: wbLoading, c: "#d55181", sub: `${registered && attended != null ? pct(attended, registered) : "–"} show-up rate · matched from Zoom names, so approximate` });
   }
   if (ini.web) stages.push({ k: "Web visitors", n: webVisitors, loading: webLoading, c: "var(--series-5)", sub: webCheckouts != null ? `${webCheckouts} checkouts completed` : "visits unavailable right now" });
   stages.push({ k: "Calls made", n: tasks.done, loading: false, c: "var(--purple)", sub: `${tasks.done.toLocaleString()} of ${tasks.total.toLocaleString()} call tasks done · ${callsLoading ? "…" : reached.toLocaleString()} people reached` });
@@ -1500,7 +1511,7 @@ function renderNav(stats, activeKey) {
     const iniKey = currentInitiativeKey();
     const webLinks = NAV_GROUPS.filter((g) => g.section === "campaigns" && !g.keys.length).flatMap((g) => g.links || []);
     sub = `<div class="sub-group"><span class="grp">Campaigns</span><div class="sub-items">${initiativesList(stats).map((i) => `<a href="/?initiative=${i.key}" class="${i.key === iniKey || (!iniKey && i.parts.includes(activeKey)) ? "on" : ""}">${esc(i.label)}</a>`).join("")}</div></div>`
-      + (webLinks.length ? `<div class="sub-group"><span class="grp">Web &amp; funnels</span><div class="sub-items">${webLinks.map((l) => `<a href="${l.href}" class="${isLinkOn(l.href) ? "on" : ""}">${esc(l.label)}${l.href.startsWith("/?") ? "" : " ↗"}</a>`).join("")}</div></div>` : "");
+;
   } else if (sec) {
     const groups = groupsFor(liveIn(sec), sec);
     sub = groups.map((g) => `<div class="sub-group"><span class="grp">${esc(g.title)}</span><div class="sub-items">`
