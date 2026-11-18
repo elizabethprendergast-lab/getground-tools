@@ -1067,7 +1067,7 @@ function landingHtml(stats) {
     if (sec.key === "campaigns") {
       const webLinks = NAV_GROUPS.filter((g) => g.section === "campaigns" && !g.keys.length).flatMap((g) => g.links || []);
       const rowsC = `<div class="home-grp">Campaigns</div>` + initiativesList(stats).map((i) => `<a class="home-row" href="/?initiative=${i.key}"><span class="nm">${esc(i.label)}</span><span class="left">${i.parts.length > 1 ? `${i.parts.length} parts · ` : ""}overview →</span></a>`).join("")
-        + `<div class="home-grp">Web &amp; funnels</div>` + webLinks.map((l) => `<a class="home-row" href="${l.href}"><span class="nm">${esc(l.label)}</span><span class="left">web report →</span></a>`).join("");
+;
       return `<section class="home-panel" style="--c:${SECTION_COLOR[sec.key]}"><a class="home-panel-head" href="/?section=${sec.key}"><span class="dot"></span>${sec.label}<span class="go">Open →</span></a>${rowsC}</section>`;
     }
     const groups = groupsFor(projects.filter((p) => !isClosed(p) && inSection(p, sec.key)), sec.key);
@@ -1076,7 +1076,7 @@ function landingHtml(stats) {
     return `<section class="home-panel" style="--c:${SECTION_COLOR[sec.key]}"><a class="home-panel-head" href="/?section=${sec.key}"><span class="dot"></span>${sec.label}<span class="go">Open →</span></a>${rows || '<p class="sub">Nothing live.</p>'}</section>`;
   };
   const hero = (sec) => {
-    if (sec.key === "campaigns") return `<a class="hero-tile" style="--c:${SECTION_COLOR[sec.key]}" href="/?section=campaigns"><div class="k">${sec.label}</div><div class="v">${initiativesList(stats).length}</div><div class="s">live campaigns · ${WEB_REPORTS.length} web reports</div></a>`;
+    if (sec.key === "campaigns") return `<a class="hero-tile" style="--c:${SECTION_COLOR[sec.key]}" href="/?section=campaigns"><div class="k">${sec.label}</div><div class="v">${initiativesList(stats).length}</div><div class="s">live campaigns</div></a>`;
     const live = projects.filter((p) => !isClosed(p) && inSection(p, sec.key));
     const left = live.reduce((n, p) => n + (p.tasks.notDone || 0), 0);
     return `<a class="hero-tile" style="--c:${SECTION_COLOR[sec.key]}" href="/?section=${sec.key}"><div class="k">${sec.label}</div><div class="v">${left.toLocaleString()}</div><div class="s">tasks left · ${live.length} live queues</div></a>`;
