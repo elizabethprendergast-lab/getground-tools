@@ -809,6 +809,8 @@ export default {
     if (url.pathname === "/api/btl-calc") return btlCalcReport(url, env, ctx);
     if (url.pathname === "/api/chatgpt-ltd") return chatgptLtdReport(url, env, ctx);
     if (url.pathname === "/api/bf-pages") return bfPagesReport(url, env, ctx);
+    if (url.pathname === "/api/campaign-leads") return campaignLeads(url, env);
+    if (url.pathname === "/api/campaign-meetings") return campaignMeetings(url, env);
     // Per-campaign pages are query-string routed (/?campaign=key) rather than path-routed
     // (/campaign/key) — tried path-routing first, but it needs a server-side rewrite to the
     // SPA shell for a path with no matching static file, and that rewrite hit an asset-server
@@ -2442,6 +2444,98 @@ async function referrals(url, env) {
   } catch (e) {
     return json({ error: String(e) }, 502);
   }
+}
+
+
+// /api/campaign-meetings?lists=24980,24979&since=<ISO> — every meeting booked (created) since
+// `since` by contacts on the campaign's audience lists, with HubSpot outcome and what happened
+// next (closed-won Plans deal / any deal opened after booking). Catches bookings made before
+// any call task existed (e.g. straight after a webinar), which /api/outcomes can't credit.
+const MEETING_OUTCOMES = { SCHEDULED: "Scheduled", COMPLETED: "Completed", NO_SHOW: "No show", CANCELED: "Cancelled", RESCHEDULED: "Rescheduled" };
+async function campaignMeetings(url, env) {
+  const API = "https://api.hubapi.com";
+  const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
+  const lists = (url.searchParams.get("lists") || "").split(",").filter((x) => /^\d+$/.test(x)).slice(0, 5);
+  const sinceMs = Date.parse(url.searchParams.get("since") || "") || 0;
+  if (!lists.length || !sinceMs) return json({ error: "lists and since required" }, 400);
+  const ids = new Set();
+  for (const L of lists) {
+    let after;
+    do {
+      const j = await hsFetch(`${API}/crm/v3/lists/${L}/memberships?limit=250${after ? `&after=${after}` : ""}`, { headers: H });
+      for (const r of j.results || []) ids.add(String(r.recordId));
+      after = j.paging && j.paging.next && j.paging.next.after;
+    } while (after && ids.size < 3000);
+  }
+  const meetingContacts = {};
+  for (const c of chunk([...ids], 100)) {
+    const j = await hsFetch(`${API}/crm/v4/associations/contacts/meetings/batch/read`, { method: "POST", headers: H, body: JSON.stringify({ inputs: c.map((id) => ({ id })) }) });
+    for (const r of j.results || []) for (const t of r.to || []) (meetingContacts[String(t.toObjectId)] ||= []).push(String(r.from.id));
+  }
+  const mp = await batchRead(API, H, "meetings", Object.keys(meetingContacts), ["hs_meeting_title", "hs_createdate", "hs_meeting_start_time", "hubspot_owner_id", "hs_meeting_outcome", "hs_meeting_source"]);
+  const recent = Object.entries(mp).filter(([, m]) => (Date.parse(m.hs_createdate) || 0) >= sinceMs);
+  const contactIds = [...new Set(recent.flatMap(([id]) => meetingContacts[id]))];
+  const cp = await batchRead(API, H, "contacts", contactIds, ["firstname", "lastname", "email"]);
+  const dealsOf = {};
+  for (const c of chunk(contactIds, 100)) {
+    const j = await hsFetch(`${API}/crm/v4/associations/contacts/deals/batch/read`, { method: "POST", headers: H, body: JSON.stringify({ inputs: c.map((id) => ({ id })) }) });
+    for (const r of j.results || []) dealsOf[String(r.from.id)] = (r.to || []).map((t) => String(t.toObjectId));
+  }
+  const dp = await batchRead(API, H, "deals", [...new Set(Object.values(dealsOf).flat())], ["dealname", "dealstage", "pipeline", "createdate", "closedate"]);
+  const owners = {};
+  try { for (const o of (await hsFetch(`${API}/crm/v3/owners?limit=500`, { headers: H })).results || []) owners[o.id] = [o.firstName, o.lastName].filter(Boolean).join(" ") || o.email; } catch (_) {}
+  const meetings = recent.map(([id, m]) => {
+    const cid = meetingContacts[id][0];
+    const c = cp[cid] || {};
+    const booked = Date.parse(m.hs_createdate);
+    const after = (dealsOf[cid] || []).map((d) => dp[d]).filter((d) => d && Date.parse(d.createdate) >= booked);
+    const won = after.find((d) => isClosedPlansDeal(d));
+    const result = won ? "Closed won" : after.length ? "Deal opened" : (Date.parse(m.hs_meeting_start_time) > Date.now() ? "Yet to happen" : "No outcome logged");
+    return { meetingId: id, contactId: cid, name: [c.firstname, c.lastname].filter(Boolean).join(" ") || c.email || cid, title: m.hs_meeting_title,
+      host: owners[m.hubspot_owner_id] || "", bookedAt: m.hs_createdate, startTime: m.hs_meeting_start_time,
+      status: MEETING_OUTCOMES[m.hs_meeting_outcome] || (Date.parse(m.hs_meeting_start_time) > Date.now() ? "Upcoming" : ""),
+      result, deals: after.map((d) => ({ name: d.dealname, createdate: d.createdate })), fromLink: m.hs_meeting_source === "MEETINGS_PUBLIC" };
+  }).sort((a, b) => b.bookedAt.localeCompare(a.bookedAt));
+  return json({ generatedAt: new Date().toISOString(), meetings });
+}
+
+// /api/campaign-leads?campaign=<project key>&since=YYYY-MM-DD — the paid leads behind a
+// campaign's call queue (e.g. Black Friday — Ads: everyone the post-ad flow gave a call task).
+// Returns each contact once, whether they're new to HubSpot since `since`, and where they
+// came from (original source + latest conversion, e.g. the Meta lead form). Campaign overview.
+const SOURCE_LABELS = { PAID_SOCIAL: "Paid social", PAID_SEARCH: "Paid search", ORGANIC_SEARCH: "Organic search", DIRECT_TRAFFIC: "Direct", EMAIL_MARKETING: "Email", REFERRALS: "Referral", SOCIAL_MEDIA: "Organic social", OFFLINE: "Offline / import", OTHER_CAMPAIGNS: "Other campaigns", AI_REFERRALS: "AI referrals" };
+async function campaignLeads(url, env) {
+  const API = "https://api.hubapi.com";
+  const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
+  const report = REPORTS["mrr-nov-sprint"];
+  const cfg = (report.projects || []).find((p) => p.key === url.searchParams.get("campaign"));
+  if (!cfg || !cfg.attributionSearch) return json({ error: "unknown campaign" }, 400);
+  const since = url.searchParams.get("since") || "2026-01-01";
+  const tasks = []; let after;
+  do {
+    const j = await hsFetch(`${API}/crm/v3/objects/tasks/search`, { method: "POST", headers: H, body: JSON.stringify({
+      filterGroups: [{ filters: cfg.attributionSearch.tokens.map((t) => ({ propertyName: "hs_task_subject", operator: "CONTAINS_TOKEN", value: t }))
+        .concat([{ propertyName: "hs_createdate", operator: "GTE", value: `${since}T00:00:00Z` }]) }],
+      properties: ["hs_task_subject", "hs_createdate"], limit: 200, ...(after ? { after } : {}) }) });
+    tasks.push(...(j.results || []).filter((t) => cfg.match(t.properties.hs_task_subject || "")));
+    after = j.paging && j.paging.next && j.paging.next.after;
+  } while (after && tasks.length < 2000);
+  const contactIds = new Set();
+  for (const c of chunk(tasks.map((t) => t.id), 100)) {
+    const j = await hsFetch(`${API}/crm/v4/associations/tasks/contacts/batch/read`, { method: "POST", headers: H, body: JSON.stringify({ inputs: c.map((id) => ({ id })) }) });
+    for (const r of j.results || []) for (const t of r.to || []) contactIds.add(String(t.toObjectId));
+  }
+  const props = await batchRead(API, H, "contacts", [...contactIds], ["firstname", "lastname", "email", "createdate", "hs_analytics_source", "recent_conversion_event_name", "recent_conversion_date"]);
+  const sinceMs = Date.parse(`${since}T00:00:00Z`);
+  const contacts = Object.entries(props).map(([id, p]) => ({
+    id, name: [p.firstname, p.lastname].filter(Boolean).join(" ") || p.email || id,
+    createdMs: Date.parse(p.createdate) || 0, isNew: (Date.parse(p.createdate) || 0) >= sinceMs,
+    source: SOURCE_LABELS[p.hs_analytics_source] || p.hs_analytics_source || "Unknown",
+    conversion: (p.recent_conversion_event_name || "").replace(/^Facebook Lead Ads:\s*/, "Meta lead form: "),
+    convertedMs: Date.parse(p.recent_conversion_date) || 0,
+  })).sort((a, b) => b.createdMs - a.createdMs);
+  return json({ generatedAt: new Date().toISOString(), campaign: cfg.key, since, total: contacts.length,
+    isNew: contacts.filter((c) => c.isNew).length, paid: contacts.filter((c) => /^Paid/.test(c.source)).length, contacts });
 }
 
 function json(o, s) {
