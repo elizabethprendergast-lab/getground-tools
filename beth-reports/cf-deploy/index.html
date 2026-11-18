@@ -1132,7 +1132,7 @@ function landingHtml(stats) {
       <div class="meta-actions"><button id="update-btn">Update</button></div>
     </div>
     <div class="home-hero">${SECTIONS.map(hero).join("")}</div>
-    <div class="home-panels">${SECTIONS.map(panel).join("")}</div>
+    <div class="home-panels">${SECTIONS.map(panel).join("")}<section class="home-panel" style="--c:#f2a516"><a class="home-panel-head" href="/tools/"><span class="dot"></span>Tools<span class="go">Open →</span></a><div class="home-grp">Always on</div>${TOOLS.map((t) => `<a class="home-row" href="/tools/#${t.key}"><span class="nm">${esc(t.label)}</span><span class="left">open →</span></a>`).join("")}</section></div>
     ${closed.length ? `
     <details class="closed-list"><summary>Closed (${closed.length})</summary>
       <section class="home-panel">${closed.map((p) => `<a class="home-row" href="/?campaign=${p.key}"><span class="nm">${esc(p.label)}</span></a>`).join("")}</section>
@@ -1401,6 +1401,11 @@ const SECTIONS = [
   { key: "campaigns", label: "Campaigns", desc: "Email campaigns, their call follow-up and web pages — sends, outcomes, meetings, deals and visitors." },
   { key: "calls", label: "Call tasks", desc: "Calling queues — tasks done vs left, call outcomes, meetings and deals." },
 ];
+// Always-on tools (Tools tab = /tools/, data proxied from Beth Watchlist).
+const TOOLS = [
+  { key: "consultant-ticket-tool", label: "Consultant ticket tool" },
+  { key: "complete-post-purchase", label: "Complete post-purchase" },
+];
 const SECTION_COLOR = { campaigns: "var(--teal)", calls: "var(--purple)", reports: "var(--teal-ink)" };
 const SECTION_OF = {};
 // Groups inside a section: sub-tabs and section-page cards are laid out in this order, under
@@ -1476,7 +1481,7 @@ function renderNav(stats, activeKey) {
   const top = [`<a href="/" class="${!sec ? "on" : ""}">Home</a>`].concat(SECTIONS.map((x) => {
     const n = x.key === "campaigns" ? initiativesList(stats).length : liveIn(x.key).length;
     return `<a href="/?section=${x.key}" class="${sec === x.key ? "on" : ""}">${x.label}<span class="count">${n}</span></a>`;
-  })).join("");
+  })).concat([`<a href="/tools/">Tools<span class="count">${TOOLS.length}</span></a>`]).join("");
   let sub = "";
   if (sec === "campaigns") {
     const iniKey = currentInitiativeKey();

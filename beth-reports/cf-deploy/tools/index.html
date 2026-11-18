@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tools · Beth Reports</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Rethink+Sans:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f8f7; --card: #ffffff; --ink: #0d1b1d; --muted: #5d6b6c; --line: #e2e8e7;
+    --teal: #094C51; --soft: #e8f7f7; --hl: #fff7e0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0c1213; --card: #141c1d; --ink: #eef3f3; --muted: #9aabab; --line: #243032;
+      --teal: #7fd9db; --soft: #16292b; --hl: #2a2412; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  header { padding: 28px 16px 0; max-width: 960px; margin: 0 auto; }
+  h1 { font-family: "Rethink Sans", Inter, sans-serif; font-size: 28px; margin: 0; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); margin: 4px 0 16px; font-size: 14px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); }
+  .tabs { display: flex; gap: 4px; overflow-x: auto; max-width: 100%; }
+  .tabs button { white-space: nowrap; }
+  .tabs button { font: inherit; font-weight: 600; font-size: 14px; padding: 10px 14px; border: 0; background: none; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tabs button.on { color: var(--ink); border-bottom-color: var(--teal); }
+  .range { display: flex; gap: 6px; padding-bottom: 8px; }
+  .range button { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+  .range button.on { background: var(--teal); color: var(--bg); border-color: var(--teal); }
+  main { max-width: 960px; margin: 0 auto; padding: 20px 16px 64px; display: grid; gap: 16px; }
+  .item { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 22px; }
+  .item h2 { font-family: "Rethink Sans", Inter, sans-serif; font-size: 20px; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .meta { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 0 0 14px; }
+  .tile { background: var(--soft); border-radius: 12px; padding: 14px; }
+  .tile .n { font-family: "Rethink Sans", Inter, sans-serif; font-size: 28px; font-weight: 700; line-height: 1.1; }
+  .tile .l { font-size: 12.5px; color: var(--muted); }
+  .line { font-size: 13.5px; color: var(--muted); margin: 0 0 12px; }
+  .feed { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .feed td { padding: 8px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+  .feed tr.hl td { background: var(--hl); }
+  .feed .when { white-space: nowrap; color: var(--muted); width: 64px; }
+  .feed a, .links a { color: var(--teal); font-weight: 600; text-decoration: none; }
+  .links { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; margin-top: 14px; }
+  .empty { color: var(--muted); font-size: 14px; margin: 0; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; margin: 6px 0; }
+  .scroll { overflow-x: auto; }
+  h3.sec { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 22px 0 10px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .meta + h3.sec { border-top: 0; padding-top: 0; margin-top: 4px; }
+  .feed.stats td { white-space: nowrap; }
+  .feed tr.th td { color: var(--muted); font-size: 12px; border-top: 0; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12.5px; }
+  .tile .was { font-size: 12px; color: var(--muted); margin-top: 6px; border-top: 1px solid var(--line); padding-top: 6px; }
+  .tiles.mini .tile { background: none; border: 1px solid var(--line); padding: 10px 12px; }
+  .tiles.mini .n { font-size: 20px; }
+  /* Beth Reports chrome */
+  body { background: #f6f8fa; }
+  @media (prefers-color-scheme: dark) { body { background: #0a1013; } }
+  header { max-width: 1000px; padding: 14px clamp(16px, 4vw, 40px) 0; }
+  .brandbar { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .brandbar .mark { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg, #18b8bc, #7b5cf0); box-shadow: 0 4px 12px rgba(123,92,240,0.25); }
+  .brandbar a { font-family: "Rethink Sans", Inter, sans-serif; font-weight: 800; font-size: 17px; color: var(--ink); text-decoration: none; }
+  .toptabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+  .toptabs a { font-family: "Rethink Sans", Inter, sans-serif; font-weight: 600; font-size: 14px; padding: 10px 14px; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .toptabs a:first-child { padding-left: 0; }
+  .toptabs a.on { color: #c98500; border-bottom-color: #f2a516; }
+  .tabs button.on { border-bottom-color: #f2a516; }
+  .item { box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 6px 20px rgba(16,24,40,0.05); }
+  main { max-width: 1000px; padding: 20px clamp(16px, 4vw, 40px) 64px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brandbar"><span class="mark"></span><a href="/">Beth Reports</a></div>
+  <nav class="toptabs"><a href="/">Home</a><a href="/?section=campaigns">Campaigns</a><a href="/?section=calls">Call tasks</a><a href="/tools/" class="on">Tools</a></nav>
+  <p class="sub">Always-on tools and processes, live from HubSpot.</p>
+  <div class="bar">
+    <div class="tabs" id="tabs"></div>
+    <div class="range" id="range"><button data-days="0" class="on">Since start</button><button data-days="7">Last 7 days</button></div>
+  </div>
+</header>
+<main id="main"><p class="empty">Loading…</p></main>
+<script>
+const fmt = (ms) => new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const LABEL = { meeting: "Meeting", deal: "Deal", won: "Won", call: "Call", reply: "Reply" };
+// Every tracked thing is its own tab. Order: tools first (ticket tool, Complete post-purchase), then campaigns.
+let tabs = [], cur = null, days = 0;
+const cache = {};
+
+async function init() {
+  const idx = await (await fetch("/api/watchlist?index=1")).json();
+  if (idx.error) { document.getElementById("main").innerHTML = `<p class="empty">Error: ${esc(idx.error)}</p>`; return; }
+  tabs = idx.tools.map((t) => ({ ...t, kind: "tools" }));
+  const want = decodeURIComponent(location.hash.slice(1));
+  cur = (tabs.find((t) => t.key === want) || tabs[0] || {}).key;
+  drawTabs(); show();
+}
+function drawTabs() {
+  document.getElementById("tabs").innerHTML = tabs.map((t) => `<button data-key="${esc(t.key)}" class="${t.key === cur ? "on" : ""}">${esc(t.tab)}</button>`).join("");
+}
+async function show() {
+  const t = tabs.find((x) => x.key === cur); if (!t) return;
+  const main = document.getElementById("main");
+  const ck = `${t.key}|${days}`;
+  if (!cache[ck]) {
+    main.innerHTML = `<section class="item"><h2>${esc(t.title)}</h2><p class="empty">Loading…</p></section>`;
+    try {
+      const r = await (await fetch(`/api/watchlist?item=${encodeURIComponent(t.key)}${days ? `&days=${days}` : ""}`)).json();
+      cache[ck] = (r[t.kind] || [])[0] || { ...t, error: r.error || "No data" };
+    } catch (e) { cache[ck] = { ...t, error: String(e) }; }
+  }
+  if (t.key !== cur) return; // user switched tab while loading
+  main.innerHTML = t.kind === "tools" ? tool(cache[ck]) : campaign(cache[ck]);
+}
+const links = (it) => `<div class="links">${(it.links || []).map((l) => `<a href="${l.url}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join("")}${(it.cohorts || []).map((c) => `<a href="https://app-eu1.hubspot.com/contacts/25516403/objectLists/${c.listId}/filters" target="_blank" rel="noopener">${esc(c.label)} list ↗</a>`).join("")}</div>`;
+
+function campaign(it) {
+  if (it.error) return `<section class="item"><h2>${esc(it.title)}</h2><p class="empty">Error: ${esc(it.error)}</p></section>`;
+  const s = it.summary, owners = (it.owners || []).map((o) => o.name.split(" ")[0]).join(" + ");
+  const key = it.events.filter((e) => LABEL[e.type]);
+  const row = (e) => `<tr class="${["meeting", "deal", "won"].includes(e.type) ? "hl" : ""}"><td class="when">${fmt(e.at)}</td>
+    <td><strong>${LABEL[e.type]}</strong></td><td><a href="${e.contactUrl}" target="_blank" rel="noopener">${esc(e.contact)}</a><div class="muted small">${esc(e.text.replace(/^(Meeting booked|Deal opened|Closed won|Call logged by|Replied to a sales email)[: ]*/, ""))}</div></td></tr>`;
+  const cs = it.cohortSizes, reg = cs["Registered"], att = cs["Attended (name-matched)"];
+  const pct = (a, b) => (b ? Math.round((100 * a) / b) + "%" : "–");
+  const tile = (n, l) => `<div class="tile"><div class="n">${n}</div><div class="l">${l}</div></div>`;
+  const emails = (it.emailStats || []).filter((e) => !e.error);
+  const ct = it.callTasks;
+  return `<section class="item">
+    <h2>${esc(it.title)}</h2>
+    <p class="meta">Since ${fmt(it.sinceMs)} · ${it.totalContacts} people</p>
+
+    <h3 class="sec">Meetings &amp; deals</h3>
+    <div class="tiles">${tile(s.meetingsWithOwners, `Meetings with ${esc(owners)}`)}${tile(s.deals, "Deals opened")}${tile(s.won, "Closed won")}${tile(pct(s.replies, it.totalContacts), "Replied")}</div>
+    ${key.length ? `<details ${key.length <= 6 ? "open" : ""}><summary>Who (${key.length})</summary><div class="scroll"><table class="feed">${key.map(row).join("")}</table></div></details>` : '<p class="empty">Nothing yet.</p>'}
+
+    ${reg != null ? `<h3 class="sec">Webinar</h3>
+    <div class="tiles">${tile(reg, "Signed up")}${att != null ? tile(att, "Attended") + tile(pct(att, reg), "Show-up rate") : ""}</div>
+    ${att != null ? `<p class="line">Attended is matched from Zoom names, so it's approximate.</p>` : ""}` : ""}
+
+    ${emails.length ? `<h3 class="sec">Emails</h3>
+    <div class="scroll"><table class="feed stats"><tr class="th"><td>Email</td><td>Sent</td><td>Opened</td><td>Clicked</td><td>Unsubs</td></tr>
+    ${emails.map((e) => `<tr><td><a href="${e.url}" target="_blank" rel="noopener">${esc(e.label)}</a></td>${e.sent ? `<td>${e.sent.toLocaleString()}</td><td>${pct(e.opens, e.delivered)}</td><td>${pct(e.clicks, e.delivered)}</td><td>${pct(e.unsubscribed, e.delivered)}</td>` : '<td colspan="4" class="muted">No stats yet</td>'}</tr>`).join("")}
+    </table></div>` : ""}
+
+    ${it.callTasks !== undefined ? `<h3 class="sec">Call tasks</h3>
+    ${ct ? `<div class="tiles">${tile(ct.total, "Tasks")}${tile(ct.done, "Done")}${tile(pct(ct.done, ct.total), "Completed")}</div>
+      <table class="feed">${ct.byOwner.map((o) => `<tr><td>${esc(o.name)}</td><td>${o.done} done · ${o.open} open</td></tr>`).join("")}</table>`
+      : `<p class="empty">${esc(it.callTasksNote || (it.callTasksConfig && it.callTasksConfig.note) || "Not started yet.")}</p>`}` : ""}
+
+    <h3 class="sec">Other activity</h3>
+    <div class="tiles mini">${tile(s.calls, `Calls by ${esc(owners)}`)}${tile(s.formFills, "Form fills")}${tile(s.visitors, "Site visitors")}${tile(pct(it.unsubscribed, it.totalContacts), "Unsubscribed")}</div>
+    ${links(it)}
+  </section>`;
+}
+
+function tool(t) {
+  if (t.type === "complete-post-purchase") return completePP(t);
+  if (t.error) return `<section class="item"><h2>${esc(t.title)}</h2><p class="empty">Error: ${esc(t.error)}</p></section>`;
+  return `<section class="item">
+    <h2>${esc(t.title)}</h2>
+    <p class="meta">Since ${fmt(t.sinceMs)}</p>
+    ${(() => { const u = t.usage && !t.usage.error ? t.usage : null; return `<div class="tiles">
+      <div class="tile"><div class="n">${u ? u.users.length : "–"}</div><div class="l">Consultants using it</div></div>
+      <div class="tile"><div class="n">${u ? u.suggestions : "–"}</div><div class="l">Emails run through it</div></div>
+      <div class="tile"><div class="n">${t.viaTool}</div><div class="l">Tickets created via tool</div></div>
+      <div class="tile"><div class="n">${t.adoption}%</div><div class="l">Of all tickets</div></div>
+    </div>
+    ${u && u.users.length ? `<h3 class="sec">Who's using it</h3><table class="feed">${u.users.map((p) => `<tr><td>${esc(p.name)}</td><td>${p.suggestions} email${p.suggestions === 1 ? "" : "s"} run · ${p.created} ticket${p.created === 1 ? "" : "s"} created${p.rejected ? ` · ${p.rejected} rejected` : ""}</td><td class="muted small" style="white-space:nowrap">last ${fmt(p.last)}</td></tr>`).join("")}</table>` : ""}`; })()}
+    ${(t.tickets || []).length ? `<h3 class="sec">Tickets created with the tool</h3><div class="scroll"><table class="feed">${t.tickets.map((k) => `<tr><td class="when">${fmt(k.at)}</td><td>${k.ticketUrl ? `<a href="${k.ticketUrl}" target="_blank" rel="noopener">${esc(k.subject)}</a>` : esc(k.subject)}<div class="muted small">${esc(k.customer)}${k.type ? ` · ${esc(k.type)}` : ""}${k.urgency ? ` · ${esc(k.urgency)}` : ""}</div></td><td class="muted small" style="white-space:nowrap">${esc(k.who)}</td></tr>`).join("")}</table></div>` : ""}
+    ${links(t)}
+  </section>`;
+}
+
+function completePP(t) {
+  if (t.error) return `<section class="item"><h2>${esc(t.title)}</h2><p class="empty">Error: ${esc(t.error)}</p></section>`;
+  const c = t.current, b = t.baseline, v = (x, suf = "%") => (x == null ? "–" : x + suf);
+  const cmp = (now, was, label, suf = "%") => `<div class="tile"><div class="n">${v(now, suf)}</div><div class="l">${label}</div><div class="was">Before: ${v(was, suf)}</div></div>`;
+  const pct = (a, d) => (d ? Math.round((100 * a) / d) + "%" : "–");
+  return `<section class="item">
+    <h2>${esc(t.title)}</h2>
+    <p class="meta">Live since ${fmt(t.sinceMs)} · ${c.buyers} buyers since (${b.buyers} in the baseline, Aug to launch) · first ${t.windowDays} days after purchase</p>
+    <h3 class="sec">Getting set up</h3>
+    <div class="tiles">${cmp(c.formPct, b.formPct, "Lettings form received")}${cmp(c.medianDaysToForm, b.medianDaysToForm, "Days to form (median)", "")}</div>
+    <h3 class="sec">Who helped them</h3>
+    <div class="tiles">${cmp(c.icTouchPct, b.icTouchPct, "Needed their IC")}${cmp(c.lettingsTouchPct, b.lettingsTouchPct, "Handled by Lettings")}${cmp(c.supportTouchPct, b.supportTouchPct, "Support / ticket")}${cmp(c.emailedInPct, b.emailedInPct, "Emailed us")}</div>
+    <p class="line">Goal: IC % down, Lettings and form % up.${c.stillInWindow ? ` ${c.stillInWindow} of the ${c.buyers} new buyers are still inside their ${t.windowDays} days, so these will move.` : ""}</p>
+    ${(t.emailStats || []).filter((e) => !e.error).length ? `<h3 class="sec">Emails</h3><table class="feed stats"><tr class="th"><td>Email</td><td>Sent</td><td>Opened</td><td>Clicked</td></tr>
+      ${t.emailStats.filter((e) => !e.error).map((e) => `<tr><td>${esc(e.label)}</td>${e.sent ? `<td>${e.sent}</td><td>${pct(e.opens, e.delivered)}</td><td>${pct(e.clicks, e.delivered)}</td>` : '<td colspan="3" class="muted">No stats yet</td>'}</tr>`).join("")}</table>` : ""}
+    ${links(t)}
+  </section>`;
+}
+
+document.getElementById("range").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  document.querySelectorAll("#range button").forEach((x) => x.classList.toggle("on", x === b));
+  days = Number(b.dataset.days); show();
+});
+document.getElementById("tabs").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  cur = b.dataset.key; history.replaceState(null, "", "#" + encodeURIComponent(cur));
+  drawTabs(); show();
+});
+init();
+</script>
+</body>
+</html>
