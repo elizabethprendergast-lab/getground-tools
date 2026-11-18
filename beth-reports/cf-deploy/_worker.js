@@ -811,6 +811,7 @@ export default {
     if (url.pathname === "/api/bf-pages") return bfPagesReport(url, env, ctx);
     if (url.pathname === "/api/campaign-leads") return campaignLeads(url, env);
     if (url.pathname === "/api/campaign-meetings") return campaignMeetings(url, env);
+    if (url.pathname === "/api/watchlist") return watchlistProxy(url, env);
     // Per-campaign pages are query-string routed (/?campaign=key) rather than path-routed
     // (/campaign/key) — tried path-routing first, but it needs a server-side rewrite to the
     // SPA shell for a path with no matching static file, and that rewrite hit an asset-server
@@ -2446,6 +2447,17 @@ async function referrals(url, env) {
   }
 }
 
+
+// /api/watchlist — Tools tab. Proxies Beth Watchlist's own API (tools only) with its read-only
+// digest key, so the always-on tools (ticket tool, Complete post-purchase) live in Reports too
+// without a second login. Secret: WATCHLIST_DIGEST_KEY (same value as Watchlist's DIGEST_KEY).
+async function watchlistProxy(url, env) {
+  if (!env.WATCHLIST_DIGEST_KEY) return json({ error: "WATCHLIST_DIGEST_KEY not set on this Pages project" }, 500);
+  const r = await fetch(`https://beth-watchlist.pages.dev/api/watchlist${url.search}`, { headers: { "x-digest-key": env.WATCHLIST_DIGEST_KEY } });
+  const j = await r.json().catch(() => ({ error: `Watchlist returned ${r.status}` }));
+  if (url.searchParams.get("index")) j.items = [];
+  return json(j, r.ok ? 200 : r.status);
+}
 
 // /api/campaign-meetings?lists=24980,24979&since=<ISO> — every meeting booked (created) since
 // `since` by contacts on the campaign's audience lists, with HubSpot outcome and what happened
