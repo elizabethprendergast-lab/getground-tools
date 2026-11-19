@@ -1,11 +1,26 @@
 {
- "snapshotAt": "2026-11-18T14:34:00Z",
- "source": "Live /api/outcomes computed locally 2026-11-18 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
+ "snapshotAt": "2026-11-19T09:30:00Z",
+ "source": "Live /api/outcomes computed locally 2026-11-19 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
  "project": {
   "key": "upsell-complete",
   "label": "Upsell — Complete plan upsell",
   "computed": true,
   "meetings": [
+   {
+    "meetingId": "548999339199",
+    "contactId": "5221851",
+    "title": "Chee Hui & Yoana | GetGround Complete ",
+    "host": "Tristan Webel",
+    "bookedAt": "2026-11-18T18:16:22Z",
+    "startTime": "2026-11-19T14:30:00Z",
+    "status": "Upcoming",
+    "result": "Upcoming",
+    "tone": "neutral",
+    "taskIds": [
+     "526582062274"
+    ],
+    "callNo": "1"
+   },
    {
     "meetingId": "537077906668",
     "contactId": "103959",
@@ -74,8 +89,8 @@
     "bookedAt": "2026-10-26T12:48:18.559Z",
     "startTime": "2026-10-30T12:15:00Z",
     "status": "Happened",
-    "result": "No outcome logged",
-    "tone": "neutral",
+    "result": "Deal opened — {{name}} - Company Stock - In-app",
+    "tone": "positive",
     "taskIds": [
      "521803999457"
     ],
@@ -322,9 +337,9 @@
     "callNo": "1"
    }
   ],
-  "totalCompleted": 206,
-  "totalMatchedToCall": 99,
-  "totalReached": 152,
+  "totalCompleted": 213,
+  "totalMatchedToCall": 103,
+  "totalReached": 158,
   "dispositions": [
    {
     "outcome": "No answer",
@@ -567,7 +582,7 @@
    },
    {
     "outcome": "(no outreach found)",
-    "tasks": 54,
+    "tasks": 55,
     "category": "unmatched",
     "contacts": [
      {
@@ -621,6 +636,10 @@
      {
       "id": "141789",
       "taskId": "526582382806"
+     },
+     {
+      "id": "780258917599",
+      "taskId": "526589668574"
      },
      {
       "id": "904905",
@@ -790,7 +809,7 @@
    },
    {
     "outcome": "Contacted — note logged",
-    "tasks": 25,
+    "tasks": 26,
     "category": "reached_other",
     "contacts": [
      {
@@ -840,6 +859,10 @@
      {
       "id": "8291651",
       "taskId": "526586082518"
+     },
+     {
+      "id": "543985330377",
+      "taskId": "526589803769"
      },
      {
       "id": "30030651",
@@ -1019,7 +1042,7 @@
    },
    {
     "outcome": "Follow up",
-    "tasks": 10,
+    "tasks": 11,
     "category": "unclassified_connected",
     "contacts": [
      {
@@ -1059,6 +1082,10 @@
       "taskId": "523964697803"
      },
      {
+      "id": "6335588071",
+      "taskId": "526591317202"
+     },
+     {
       "id": "4765501",
       "taskId": "526591063233"
      }
@@ -1066,7 +1093,7 @@
    },
    {
     "outcome": "Meeting booked — by rep",
-    "tasks": 9,
+    "tasks": 10,
     "category": "meeting",
     "contacts": [
      {
@@ -1098,6 +1125,10 @@
       "taskId": "526599370994"
      },
      {
+      "id": "5221851",
+      "taskId": "526582062274"
+     },
+     {
       "id": "16978991048",
       "taskId": "526590714055"
      },
@@ -1109,7 +1140,7 @@
    },
    {
     "outcome": "Connected",
-    "tasks": 8,
+    "tasks": 10,
     "category": "unclassified_connected",
     "contacts": [
      {
@@ -1143,6 +1174,14 @@
      {
       "id": "42771937723",
       "taskId": "526583291068"
+     },
+     {
+      "id": "37560751",
+      "taskId": "526591563984"
+     },
+     {
+      "id": "796270465251",
+      "taskId": "526442436827"
      }
     ]
    },
@@ -1171,7 +1210,7 @@
    },
    {
     "outcome": "Positive",
-    "tasks": 3,
+    "tasks": 4,
     "category": "answered",
     "contacts": [
      {
@@ -1185,6 +1224,10 @@
      {
       "id": "27808787919",
       "taskId": "526582304962"
+     },
+     {
+      "id": "5639103",
+      "taskId": "526582683842"
      }
     ]
    },
@@ -1320,12 +1363,16 @@
     }
    },
    "Ryan Welby": {
-    "total": 19,
+    "total": 26,
     "outcomes": {
-     "(no outreach found)": 9,
-     "Contacted — note logged": 7,
+     "(no outreach found)": 10,
+     "Connected": 2,
+     "Contacted — note logged": 8,
      "Meeting booked — from email": 1,
-     "No answer": 2
+     "Meeting booked — by rep": 1,
+     "Positive": 1,
+     "No answer": 2,
+     "Follow up": 1
     }
    },
    "Carlos Lam": {
@@ -1990,6 +2037,12 @@
     "(no outreach found)",
     0
    ],
+   "526589668574": [
+    1795026364746,
+    "Ryan Welby",
+    "(no outreach found)",
+    0
+   ],
    "526585895138": [
     1793893916093,
     "Ryan Welby",
@@ -2048,6 +2101,12 @@
     1793894263596,
     "Billy Hunt",
     "(no outreach found)",
+    0
+   ],
+   "526591563984": [
+    1795026326088,
+    "Ryan Welby",
+    "Connected",
     0
    ],
    "526579906785": [
@@ -2188,6 +2247,12 @@
     "No answer",
     0
    ],
+   "526589803769": [
+    1795026188603,
+    "Ryan Welby",
+    "Contacted — note logged",
+    0
+   ],
    "526599636185": [
     1794326131191,
     "Billy Hunt",
@@ -2222,6 +2287,12 @@
     1791993565523,
     "Yoana Chung",
     "Not a fit",
+    0
+   ],
+   "526442436827": [
+    1795025707840,
+    "Ryan Welby",
+    "Connected",
     0
    ],
    "526589548781": [
@@ -2260,6 +2331,12 @@
     "(no outreach found)",
     0
    ],
+   "526582062274": [
+    1795025832515,
+    "Ryan Welby",
+    "Meeting booked — by rep",
+    0
+   ],
    "526579906788": [
     1793894263596,
     "Yoana Chung",
@@ -2270,6 +2347,12 @@
     1793894263596,
     "Yoana Chung",
     "(no outreach found)",
+    0
+   ],
+   "526582683842": [
+    1795025246181,
+    "Ryan Welby",
+    "Positive",
     0
    ],
    "526599371972": [
@@ -2414,6 +2497,12 @@
     1793893306455,
     "Ryan Welby",
     "Contacted — note logged",
+    0
+   ],
+   "526591317202": [
+    1795023949562,
+    "Ryan Welby",
+    "Follow up",
     0
    ],
    "526591063233": [
@@ -2642,6 +2731,7 @@
    "526591062256",
    "526583291073",
    "526591317193",
+   "526591563984",
    "526582304962",
    "526589548770",
    "526591063228",
@@ -2653,7 +2743,9 @@
    "526599636185",
    "526583291076",
    "526589668578",
+   "526442436827",
    "526590939322",
+   "526582683842",
    "526589668581",
    "526579906790",
    "526590011633",
@@ -2662,6 +2754,7 @@
    "526582013126",
    "526589038813",
    "526591063232",
+   "526591317202",
    "526591063233",
    "526581664958",
    "526590597320",

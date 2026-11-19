@@ -324,6 +324,7 @@ const REPORTS = {
         key: "upsell-complete",
         // 18 Nov: live outcomes need over Cloudflare's 50 subrequests (blank on the live site) — snapshot.
         outcomesSnapshot: "upsell-complete/outcomes-snapshot.v2.json",
+        dealsSnapshot: "upsell-complete/deals-snapshot.v2.json",
         label: "Upsell — Complete plan upsell",
         // Two naming conventions land here: the original "Complete upsell - <suffix>" batches
         // and, from 2026-09-28, "Complete plan mrr - core users" / "- free users". Matched as
