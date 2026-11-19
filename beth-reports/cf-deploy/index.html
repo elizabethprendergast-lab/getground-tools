@@ -988,7 +988,7 @@ function segmentEmailTableHtml(seg, values, dRows) {
         Replied = an email back from the contact with this subject, logged in HubSpot.</p>
       <div class="overflow-x">
         <table class="outcomes-table">
-          <thead><tr><th>${esc(seg.label)}</th>${exact ? "<th>Delivered</th>" : ""}<th>Opened</th><th>Clicked</th><th>Replied</th></tr></thead>
+          <thead><tr><th>${esc(seg.label)}</th>${exact ? "<th>Delivered</th>" : ""}<th>Opened</th><th>CTR</th><th>Replied</th></tr></thead>
           <tbody>
             ${values.map(v => {
               const r = dRows[v] || {};
@@ -1026,7 +1026,7 @@ function emailsCardHtml(res, loading) {
           <div class="email-stats">
             <span><b>${st.delivered || 0}</b> delivered</span>
             <span><b>${st.opened || 0}</b> opened${pct(st.opened || 0, st.delivered)}</span>
-            <span><b>${st.clicked || 0}</b> clicked${pct(st.clicked || 0, st.delivered)}</span>
+            <span><b>${st.delivered ? (100 * (st.clicked || 0) / st.delivered).toFixed(1) + "%" : "–"}</b> CTR <span class="share">${st.clicked || 0} clicks</span></span>
             ${st.replied ? `<span><b>${st.replied}</b> replied${pct(st.replied, st.delivered)}</span>` : ""}
             ${st.unsubscribed ? `<span><b>${st.unsubscribed}</b> unsubscribed${pct(st.unsubscribed, st.delivered)}</span>` : ""}
           </div>
@@ -1270,7 +1270,7 @@ function initiativePageHtml(stats, ini) {
   const mtg = new Map();
   const add = (id, m) => { if (!mtg.has(String(id))) mtg.set(String(id), m); };
   const chOf = (k) => (ini.channels && ini.channels[k]) || "Other";
-  for (const pt of parts) for (const m of ((pt.o && pt.o.meetings) || [])) add(m.meetingId, { contactId: m.contactId, name: m.name, bookedAt: m.bookedAt, startTime: m.startTime, status: m.status, result: m.result, via: m.fromEmail ? "booked from email link" : "booked on a call", part: NAV_SHORT[pt.key] || pt.p.label, host: m.host, channel: chOf(pt.key) });
+  for (const pt of parts) for (const m of ((pt.o && pt.o.meetings) || [])) add(m.meetingId, { contactId: m.contactId, name: m.name, bookedAt: m.bookedAt, startTime: m.startTime, status: m.status, result: m.result, via: m.fromEmail ? "booked from email link" : "booked on a call", partKey: pt.key, part: NAV_SHORT[pt.key] || pt.p.label, host: m.host, channel: chOf(pt.key) });
   for (const m of ((cohort && cohort.meetings) || [])) if (inR(Date.parse(m.bookedAt))) add(m.meetingId, { contactId: m.contactId, name: m.name, bookedAt: m.bookedAt, startTime: m.startTime, status: m.status, result: m.result, via: m.fromLink ? "booked from link" : "booked by rep", part: ini.label, host: m.host, channel: ini.cohortChannel || "Other" });
   if (web) {
     for (const m of (web.meetings || [])) if (inR(Date.parse(m.bookedAt))) add(m.id, { contactId: m.contactId, name: m.name, bookedAt: m.bookedAt, startTime: m.startsAt, status: Date.parse(m.startsAt) > Date.now() ? "Upcoming" : "", result: m.plan ? "Closed won" : "", via: `booked on the page · ${m.source || "web"}`, part: "Web page", channel: isPaidSource(m.source) ? "Ads" : "Web page" });
@@ -1281,8 +1281,8 @@ function initiativePageHtml(stats, ini) {
 
   // Deals opened (any pipeline) by people in the campaign since they were enrolled / booked.
   const dealMap = new Map();
-  for (const pt of parts) for (const d of ((pt.dRaw && pt.dRaw.dealActivity && pt.dRaw.dealActivity.deals) || [])) if (inR(d.createdMs)) dealMap.set(String(d.id), d);
-  for (const m of ((cohort && cohort.meetings) || [])) for (const d of m.deals || []) if (inR(Date.parse(d.createdate))) dealMap.set(d.id ? String(d.id) : `c:${m.contactId}:${d.name}`, { ...(dealMap.get(String(d.id)) || {}), id: d.id, name: d.name, pipeline: d.pipeline, stage: d.stage, status: d.status || "open", createdMs: Date.parse(d.createdate), contactName: m.name, contactId: m.contactId });
+  for (const pt of parts) for (const d of ((pt.dRaw && pt.dRaw.dealActivity && pt.dRaw.dealActivity.deals) || [])) if (inR(d.createdMs)) dealMap.set(String(d.id), { ...d, channel: chOf(pt.key), partKey: pt.key });
+  for (const m of ((cohort && cohort.meetings) || [])) for (const d of m.deals || []) if (inR(Date.parse(d.createdate))) dealMap.set(d.id ? String(d.id) : `c:${m.contactId}:${d.name}`, { channel: ini.cohortChannel || "Other", ...(dealMap.get(String(d.id)) || {}), id: d.id, name: d.name, pipeline: d.pipeline, stage: d.stage, status: d.status || "open", createdMs: Date.parse(d.createdate), contactName: m.name, contactId: m.contactId });
   const won = new Map();
   for (const pt of parts) for (const r of ((pt.d && pt.d.rows) || [])) if (!/^\(no /.test(r.label || "")) for (const c of r.contacts || []) won.set(String(c.id), { ...c, plan: r.label });
   const webVisitors = web && web.pages && web.pages.some((pg) => pg.visitors != null) ? web.pages.reduce((n, pg) => n + (pg.visitors || 0), 0) : null;
@@ -1298,8 +1298,7 @@ function initiativePageHtml(stats, ini) {
   if (ini.web) { const c = C("Web page"); c.reach = webVisitors; c.reachLabel = "visitors"; }
   if (ini.cohortChannel) { const c = C(ini.cohortChannel); if (ini.webinar && registered != null) { c.reach = registered; c.reachLabel = `registered · ${attended ?? "–"} attended`; } else c.reachLabel = c.reachLabel || "audience"; }
   for (const m of meetings) { const c = C(m.channel || "Other"); c.meetings++; if (m.tone === "win") c.wins++; }
-  for (const pt of parts) for (const d of ((pt.dRaw && pt.dRaw.dealActivity && pt.dRaw.dealActivity.deals) || [])) if (inR(d.createdMs)) C(chOf(pt.key)).deals++;
-  for (const m of ((cohort && cohort.meetings) || [])) C(ini.cohortChannel || "Other").deals += (m.deals || []).length;
+  for (const d of dealMap.values()) C(d.channel || "Other").deals++;
   // Distinct contacts with a closed Plans deal; contactsWithClosedDeal when a row has no contact list.
   for (const pt of parts) {
     const wonRows = ((pt.d && pt.d.rows) || []).filter((r) => !/^\(no /.test(r.label || ""));
@@ -1322,7 +1321,7 @@ function initiativePageHtml(stats, ini) {
     const kfmt = (n) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n);
     const split = emails.map((e) => ({ n: Number((e.stats || {}).sent || 0), l: e.label || e.name })).filter((x) => x.n).sort((a, b) => b.n - a.n)
       .map((x) => `${kfmt(x.n)} ${String(x.l).replace(/^\(?[AB]\)?\s*/, "").replace(/\s*[—|-]\s*\d{4}$/, "").slice(0, 34)}`).join(" · ");
-    stages.push({ k: "Email sends", n: es.sent, loading: emailsLoading, c: "var(--teal)", sub: `${emails.length} email${emails.length === 1 ? "" : "s"} (sends, not unique people): ${split}<br>${pct(es.opened, es.delivered)} opened · ${pct(es.clicked, es.delivered)} clicked · ${pct(es.unsubscribed, es.delivered)} unsubscribed` });
+    stages.push({ k: "Email sends", n: es.sent, loading: emailsLoading, c: "var(--teal)", sub: `${emails.length} email${emails.length === 1 ? "" : "s"} (sends, not unique people): ${split}<br>${pct(es.opened, es.delivered)} opened · ${pct(es.clicked, es.delivered)} CTR · ${pct(es.unsubscribed, es.delivered)} unsubscribed` });
   }
   if (ini.webinar) {
     stages.push({ k: "Registered", n: registered, loading: wbLoading, c: "var(--series-8)", sub: `signed up for the ${esc(ini.webinar.date)} webinar` });
@@ -1330,7 +1329,7 @@ function initiativePageHtml(stats, ini) {
   }
   if (ini.web) stages.push({ k: "Web visitors", n: webVisitors, loading: webLoading, c: "var(--series-5)", sub: webCheckouts != null ? `${webCheckouts} checkouts completed` : "visits unavailable right now" });
   stages.push({ k: "Calls made", n: tasks.done, loading: false, c: "var(--purple)", sub: `${tasks.done.toLocaleString()} of ${tasks.total.toLocaleString()} call tasks done · ${callsLoading ? "…" : reached.toLocaleString()} people reached` });
-  stages.push({ k: "Meetings booked", n: meetings.length, loading: callsLoading || webLoading || cohortLoading, c: "var(--series-4)", sub: `${toneCount.pending} upcoming · ${toneCount.win} went well · ${toneCount.fail} cancelled / no-show` });
+  stages.push({ k: "Meetings booked", n: meetings.length, loading: callsLoading || webLoading || cohortLoading, c: "var(--series-4)", sub: [[toneCount.win, "went well"], [toneCount.pending, "upcoming"], [toneCount.unknown, "no outcome logged yet"], [toneCount.fail, "cancelled / no-show"]].filter(([n]) => n).map(([n, l]) => `${n} ${l}`).join(" · ") || "none yet" });
   stages.push({ k: "Deals opened", n: dealMap.size, loading: callsLoading || cohortLoading, c: "var(--series-7)", sub: "any pipeline, opened after they entered the campaign" });
   stages.push({ k: "Plans won", n: won.size, loading: callsLoading, c: "var(--teal-ink)", sub: "closed Plans deals" });
   const maxN = Math.max(1, ...stages.map((x) => x.n || 0));
@@ -1344,7 +1343,8 @@ function initiativePageHtml(stats, ini) {
       </div>`).join("");
 
   const partRows = parts.map((pt) => {
-    const mt = ((pt.o && pt.o.meetings) || []).length;
+    // Same meetings as the funnel: a one-part campaign also owns the audience/web-page bookings.
+    const mt = meetings.filter((m) => m.partKey === pt.key || (parts.length === 1 && !m.partKey)).length;
     const wn = new Set(((pt.d && pt.d.rows) || []).filter((r) => !/^\(no /.test(r.label || "")).flatMap((r) => (r.contacts || []).map((c) => c.id))).size;
     const sent = ((pt.emails && pt.emails.emails) || []).reduce((n, e) => n + Number((e.stats || {}).sent || 0), 0);
     const pc = pt.p.tasks.total ? Math.round(100 * pt.p.tasks.done / pt.p.tasks.total) : 0;
@@ -1451,7 +1451,7 @@ function initiativePageHtml(stats, ini) {
       ${leadsKey ? `<section class="card"><h2>Paid leads</h2>${leadsHtml}</section>` : ""}
       <section class="card ov-wide"><h2>What's running</h2>
         <div class="overflow-x"><table class="ov-table"><thead><tr><th>Part</th><th class="num">Emails sent</th><th>Calls done</th><th class="num">Reached</th><th class="num">Meetings</th><th class="num">Plans won</th><th></th></tr></thead><tbody>${partRows}</tbody></table></div></section>
-      ${emails.length || emailsLoading ? `<section class="card ov-wide"><h2>Emails</h2>${emailsLoading && !emails.length ? '<p class="muted">Loading…</p>' : `<div class="overflow-x"><table class="ov-table"><thead><tr><th>Email</th><th class="num">Sent</th><th>Opened</th><th class="num">Clicked</th><th class="num">Unsubs</th></tr></thead><tbody>${emailRows}</tbody></table></div>`}</section>` : ""}
+      ${emails.length || emailsLoading ? `<section class="card ov-wide"><h2>Emails</h2>${emailsLoading && !emails.length ? '<p class="muted">Loading…</p>' : `<div class="overflow-x"><table class="ov-table"><thead><tr><th>Email</th><th class="num">Sent</th><th>Opened</th><th class="num">CTR</th><th class="num">Unsubs</th></tr></thead><tbody>${emailRows}</tbody></table></div>`}</section>` : ""}
       ${ini.web ? `<section class="card ov-wide"><div class="card-head"><h2>Web pages</h2><a href="${ini.webLink}">Full web report →</a></div>${webHtml}</section>` : ""}
     </div>
     <footer id="footer-line"></footer>`;
