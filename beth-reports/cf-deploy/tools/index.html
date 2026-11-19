@@ -142,7 +142,7 @@ function campaign(it) {
 
     ${emails.length ? `<h3 class="sec">Emails</h3>
     <div class="scroll"><table class="feed stats"><tr class="th"><td>Email</td><td>Sent</td><td>Opened</td><td>CTR</td><td>Unsubs</td></tr>
-    ${emails.map((e) => `<tr><td><a href="${e.url}" target="_blank" rel="noopener">${esc(e.label)}</a></td>${e.sent ? `<td>${e.sent.toLocaleString()}</td><td>${pct(e.opens, e.delivered)}</td><td>${pct(e.clicks, e.delivered)}</td><td>${pct(e.unsubscribed, e.delivered)}</td>` : '<td colspan="4" class="muted">No stats yet</td>'}</tr>`).join("")}
+    ${emails.map((e) => `<tr><td><a href="${e.url}" target="_blank" rel="noopener">${esc(e.label)}</a></td>${e.sent ? `<td>${e.sent.toLocaleString()}</td><td>${pct(e.opens, e.delivered)}</td><td>${pct(e.clicks, e.opens)}</td><td>${pct(e.unsubscribed, e.delivered)}</td>` : '<td colspan="4" class="muted">No stats yet</td>'}</tr>`).join("")}
     </table></div>` : ""}
 
     ${it.callTasks !== undefined ? `<h3 class="sec">Call tasks</h3>
@@ -189,7 +189,7 @@ function completePP(t) {
     <div class="tiles">${cmp(c.icTouchPct, b.icTouchPct, "Needed their IC")}${cmp(c.lettingsTouchPct, b.lettingsTouchPct, "Handled by Lettings")}${cmp(c.supportTouchPct, b.supportTouchPct, "Support / ticket")}${cmp(c.emailedInPct, b.emailedInPct, "Emailed us")}</div>
     <p class="line">Goal: IC % down, Lettings and form % up.${c.stillInWindow ? ` ${c.stillInWindow} of the ${c.buyers} new buyers are still inside their ${t.windowDays} days, so these will move.` : ""}</p>
     ${(t.emailStats || []).filter((e) => !e.error).length ? `<h3 class="sec">Emails</h3><table class="feed stats"><tr class="th"><td>Email</td><td>Sent</td><td>Opened</td><td>CTR</td></tr>
-      ${t.emailStats.filter((e) => !e.error).map((e) => `<tr><td>${esc(e.label)}</td>${e.sent ? `<td>${e.sent}</td><td>${pct(e.opens, e.delivered)}</td><td>${pct(e.clicks, e.delivered)}</td>` : '<td colspan="3" class="muted">No stats yet</td>'}</tr>`).join("")}</table>` : ""}
+      ${t.emailStats.filter((e) => !e.error).map((e) => `<tr><td>${esc(e.label)}</td>${e.sent ? `<td>${e.sent}</td><td>${pct(e.opens, e.delivered)}</td><td>${pct(e.clicks, e.opens)}</td>` : '<td colspan="3" class="muted">No stats yet</td>'}</tr>`).join("")}</table>` : ""}
     ${links(t)}
   </section>`;
 }
