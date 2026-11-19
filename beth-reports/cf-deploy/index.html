@@ -983,7 +983,7 @@ function segmentEmailTableHtml(seg, values, dRows) {
   return `
       <h3 style="margin:18px 0 4px; font-size:14px">Campaign email</h3>
       <p class="sub">${exact
-        ? "From HubSpot's email events for this email — % of delivered."
+        ? "From HubSpot's email events for this email — opened = % of delivered, CTR = clicks ÷ opens."
         : "HubSpot's email events couldn't be read, so opens and clicks use each contact's last marketing email open/click date since enrolling — this can include a different marketing email. % of contacts."}
         Replied = an email back from the contact with this subject, logged in HubSpot.</p>
       <div class="overflow-x">
@@ -993,7 +993,7 @@ function segmentEmailTableHtml(seg, values, dRows) {
             ${values.map(v => {
               const r = dRows[v] || {};
               const base = exact ? n(r.delivered) : n(r.contacts);
-              return `<tr><td>${esc(v)}</td>${exact ? `<td>${n(r.delivered)}</td>` : ""}<td>${cell(n(r.opened), base)}</td><td>${cell(n(r.clicked), base)}</td><td>${cell(n(r.replied), base)}</td></tr>`;
+              return `<tr><td>${esc(v)}</td>${exact ? `<td>${n(r.delivered)}</td>` : ""}<td>${cell(n(r.opened), base)}</td><td>${cell(n(r.clicked), n(r.opened))}</td><td>${cell(n(r.replied), base)}</td></tr>`;
             }).join("")}
           </tbody>
         </table>
@@ -1026,7 +1026,7 @@ function emailsCardHtml(res, loading) {
           <div class="email-stats">
             <span><b>${st.delivered || 0}</b> delivered</span>
             <span><b>${st.opened || 0}</b> opened${pct(st.opened || 0, st.delivered)}</span>
-            <span><b>${st.delivered ? (100 * (st.clicked || 0) / st.delivered).toFixed(1) + "%" : "–"}</b> CTR <span class="share">${st.clicked || 0} clicks</span></span>
+            <span><b>${st.opened ? Math.round(100 * (st.clicked || 0) / st.opened) + "%" : "–"}</b> CTR <span class="share">${st.clicked || 0} clicks</span></span>
             ${st.replied ? `<span><b>${st.replied}</b> replied${pct(st.replied, st.delivered)}</span>` : ""}
             ${st.unsubscribed ? `<span><b>${st.unsubscribed}</b> unsubscribed${pct(st.unsubscribed, st.delivered)}</span>` : ""}
           </div>
@@ -1321,7 +1321,7 @@ function initiativePageHtml(stats, ini) {
     const kfmt = (n) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n);
     const split = emails.map((e) => ({ n: Number((e.stats || {}).sent || 0), l: e.label || e.name })).filter((x) => x.n).sort((a, b) => b.n - a.n)
       .map((x) => `${kfmt(x.n)} ${String(x.l).replace(/^\(?[AB]\)?\s*/, "").replace(/\s*[—|-]\s*\d{4}$/, "").slice(0, 34)}`).join(" · ");
-    stages.push({ k: "Email sends", n: es.sent, loading: emailsLoading, c: "var(--teal)", sub: `${emails.length} email${emails.length === 1 ? "" : "s"} (sends, not unique people): ${split}<br>${pct(es.opened, es.delivered)} opened · ${pct(es.clicked, es.delivered)} CTR · ${pct(es.unsubscribed, es.delivered)} unsubscribed` });
+    stages.push({ k: "Email sends", n: es.sent, loading: emailsLoading, c: "var(--teal)", sub: `${emails.length} email${emails.length === 1 ? "" : "s"} (sends, not unique people): ${split}<br>${pct(es.opened, es.delivered)} opened · ${pct(es.clicked, es.opened)} CTR · ${pct(es.unsubscribed, es.delivered)} unsubscribed` });
   }
   if (ini.webinar) {
     stages.push({ k: "Registered", n: registered, loading: wbLoading, c: "var(--series-8)", sub: `signed up for the ${esc(ini.webinar.date)} webinar` });
@@ -1357,7 +1357,7 @@ function initiativePageHtml(stats, ini) {
 
   const emailRows = emails.map((e) => { const t = e.stats || {}; const op = t.delivered ? t.opened / t.delivered : 0; const cl = t.delivered ? t.clicked / t.delivered : 0;
     return `<tr><td><a href="${e.link}" target="_blank" rel="noopener">${esc(e.label || e.name)}</a><div class="muted">${esc(prettyTokensClient(e.subject || ""))}</div></td>
-    <td class="num">${Number(t.sent || 0).toLocaleString()}</td><td><div class="cellbar"><span class="mini"><i style="width:${Math.round(100 * op)}%"></i></span>${pct(t.opened, t.delivered)}</div></td><td class="num">${pct(t.clicked, t.delivered)}</td><td class="num">${pct(t.unsubscribed, t.delivered)}</td></tr>`; }).join("");
+    <td class="num">${Number(t.sent || 0).toLocaleString()}</td><td><div class="cellbar"><span class="mini"><i style="width:${Math.round(100 * op)}%"></i></span>${pct(t.opened, t.delivered)}</div></td><td class="num">${pct(t.clicked, t.opened)}</td><td class="num">${pct(t.unsubscribed, t.delivered)}</td></tr>`; }).join("");
 
   let webHtml = "";
   if (ini.web) {
