@@ -1695,9 +1695,25 @@ function sliceOutcomes(o) {
     totalMatchedToCall: (o.callTasks || []).filter((id) => keep.has(String(id))).length, totalReached: reached };
 }
 // Deals: closed (or migrated) in the range; everyone else moves to the "no closed deal" row.
+// "All deals opened" table: re-slice by deal open date so it follows the same range as the
+// closed-Plans bars above it (it used to stay all-time while its label said "opened yesterday").
+function sliceDealActivity(a, has) {
+  if (!a || !Array.isArray(a.deals)) return a;
+  const deals = a.deals.filter((x) => has(x.createdMs));
+  const byPipeline = new Map();
+  for (const x of deals) {
+    const row = byPipeline.get(x.pipeline) || { pipeline: x.pipeline, opened: 0, open: 0, won: 0, lost: 0 };
+    row.opened++; row[x.status] = (row[x.status] || 0) + 1;
+    byPipeline.set(x.pipeline, row);
+  }
+  const rows = [...byPipeline.values()].sort((p, q) => q.opened - p.opened);
+  const total = rows.reduce((t, r) => ({ opened: t.opened + r.opened, open: t.open + r.open, won: t.won + r.won, lost: t.lost + r.lost }), { opened: 0, open: 0, won: 0, lost: 0 });
+  return { ...a, rows, total, deals };
+}
 function sliceDeals(d) {
   const has = rangeTest();
   if (!has || !d || !d.rows) return d;
+  d = { ...d, dealActivity: sliceDealActivity(d.dealActivity, has) };
   const isWon = (r) => (r.contacts || []).some((c) => "at" in c);
   if (!d.rows.some(isWon)) return d; // no close dates (e.g. a closed campaign's snapshot) — leave as is
   const all = new Map();

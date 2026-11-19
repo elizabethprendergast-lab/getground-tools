@@ -28,7 +28,15 @@ const swap = (x, n) => {
   if (!n) return x;
   if (Array.isArray(x)) return x.map((v) => swap(v, n));
   if (x && typeof x === "object") { for (const k of Object.keys(x)) x[k] = swap(x[k], n); return x; }
-  return typeof x === "string" ? x.split(n).join(PH) : x;
+  // Whitespace/case-insensitive: hand-typed deal names like "Advice | Clement  Che" (double space)
+  // slipped past an exact match and leaked a name into the public repo (19 Nov).
+  const re = new RegExp(n.trim().split(/\s+/).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+"), "gi");
+  if (typeof x !== "string") return x;
+  // Then each name part on its own (whole words, 3+ letters): HubSpot "Wai Ngai Clement" + "Che"
+  // was typed into a deal name as "Clement Che".
+  let y = x.replace(re, PH);
+  for (const w of n.trim().split(/\s+/)) if (w.length >= 3) y = y.replace(new RegExp(`(?<![\\p{L}])${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "giu"), PH);
+  return y.replace(/\{\{name\}\}(?:\s+\{\{name\}\})+/g, PH);
 };
 function strip(o) {
   if (Array.isArray(o)) { o.forEach(strip); return o; }
@@ -60,7 +68,8 @@ for (const kind of ["outcomes", "deals"]) {
   delete project.snapshotAt; delete project.snapshotSource;
   const out = JSON.stringify({ snapshotAt, source: `Live /api/${kind} computed locally ${snapshotAt.slice(0, 10)} (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.`, project }, null, 1);
   // Leak check: no contact name (4+ chars) or email address may survive.
-  const leaks = [...names].filter((n) => n.length >= 4 && out.includes(n));
+  const flat = out.replace(/\s+/g, " ").toLowerCase();
+  const leaks = [...names].filter((n) => n.length >= 4 && flat.includes(n.replace(/\s+/g, " ").toLowerCase()));
   if (leaks.length || /[\w.+-]+@[\w-]+\.[\w.]+/.test(out)) throw new Error(`${kind}: personal data left in snapshot (${leaks.slice(0, 3).join(", ")}…)`);
   fs.writeFileSync(path.join(root, key, `${kind}-snapshot.v2.json`), out + "\n");
   console.log(`${kind}: written (${(out.length / 1024).toFixed(0)} KB)`);

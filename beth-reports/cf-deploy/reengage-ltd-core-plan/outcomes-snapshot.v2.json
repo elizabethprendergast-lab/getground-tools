@@ -1,6 +1,6 @@
 {
- "snapshotAt": "2026-11-18T14:27:00Z",
- "source": "Live /api/outcomes computed locally 2026-11-18 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
+ "snapshotAt": "2026-11-19T09:38:00Z",
+ "source": "Live /api/outcomes computed locally 2026-11-19 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
  "project": {
   "key": "reengage-ltd-core-plan",
   "label": "Always on - missed LTD leads",
@@ -159,7 +159,7 @@
    {
     "meetingId": "536654101715",
     "contactId": "908034994394",
-    "title": "GetGround Consultation | Luciano & Yoanna",
+    "title": "GetGround Consultation | {{name}} & Yoanna",
     "host": "Yoana Chung",
     "bookedAt": "2026-10-30T16:53:04.601Z",
     "startTime": "2026-11-05T17:00:00Z",
@@ -219,7 +219,7 @@
    {
     "meetingId": "531215880383",
     "contactId": "749335823574",
-    "title": "GetGround Property Strategy Session: Raz Shoukay",
+    "title": "GetGround Property Strategy Session: {{name}} Shoukay",
     "host": "Iglesias Ang",
     "bookedAt": "2026-10-22T13:14:32Z",
     "startTime": "2026-10-28T17:00:00Z",
@@ -322,13 +322,13 @@
     "callNo": "1"
    }
   ],
-  "totalCompleted": 1316,
-  "totalMatchedToCall": 1051,
-  "totalReached": 1084,
+  "totalCompleted": 1325,
+  "totalMatchedToCall": 1055,
+  "totalReached": 1088,
   "dispositions": [
    {
     "outcome": "No answer",
-    "tasks": 744,
+    "tasks": 749,
     "category": "no_contact",
     "contacts": [
      {
@@ -2848,6 +2848,10 @@
       "taskId": "542548493536"
      },
      {
+      "id": "574537533686",
+      "taskId": "543030256878"
+     },
+     {
       "id": "881736999100",
       "taskId": "543068106990"
      },
@@ -2870,10 +2874,6 @@
      {
       "id": "886850125037",
       "taskId": "543055622383"
-     },
-     {
-      "id": "3899651",
-      "taskId": "542759559391"
      },
      {
       "id": "882404017380",
@@ -2954,6 +2954,10 @@
      {
       "id": "884943489249",
       "taskId": "544195155158"
+     },
+     {
+      "id": "889512150209",
+      "taskId": "544257604845"
      },
      {
       "id": "876512778475",
@@ -3288,6 +3292,10 @@
       "taskId": "547360870636"
      },
      {
+      "id": "889512150209",
+      "taskId": "547284122869"
+     },
+     {
       "id": "884943489249",
       "taskId": "547371714775"
      },
@@ -3304,14 +3312,26 @@
       "taskId": "547373543651"
      },
      {
+      "id": "881107838181",
+      "taskId": "548344849657"
+     },
+     {
+      "id": "574537533686",
+      "taskId": "548298710216"
+     },
+     {
       "id": "19687451",
       "taskId": "548382822637"
+     },
+     {
+      "id": "717887186132",
+      "taskId": "548542287096"
      }
     ]
    },
    {
     "outcome": "(no outreach found)",
-    "tasks": 232,
+    "tasks": 237,
     "category": "unmatched",
     "contacts": [
      {
@@ -4241,6 +4261,26 @@
      {
       "id": "875993723097",
       "taskId": "547285948647"
+     },
+     {
+      "id": "886850125037",
+      "taskId": "548253809906"
+     },
+     {
+      "id": "19458160092",
+      "taskId": "548268199106"
+     },
+     {
+      "id": "840334569707",
+      "taskId": "548304001238"
+     },
+     {
+      "id": "108741742827",
+      "taskId": "548262800625"
+     },
+     {
+      "id": "887379153106",
+      "taskId": "548225192123"
      }
     ]
    },
@@ -5224,7 +5264,7 @@
    },
    {
     "outcome": "Follow up",
-    "tasks": 30,
+    "tasks": 29,
     "category": "unclassified_connected",
     "contacts": [
      {
@@ -5320,12 +5360,12 @@
       "taskId": "542582725856"
      },
      {
-      "id": "574537533686",
-      "taskId": "543030256878"
-     },
-     {
       "id": "887379153106",
       "taskId": "542861624548"
+     },
+     {
+      "id": "3899651",
+      "taskId": "542759559391"
      },
      {
       "id": "880550793420",
@@ -5340,12 +5380,8 @@
       "taskId": "544225536212"
      },
      {
-      "id": "889512150209",
-      "taskId": "544257604845"
-     },
-     {
-      "id": "889512150209",
-      "taskId": "547284122869"
+      "id": "3899651",
+      "taskId": "548344848591"
      }
     ]
    },
@@ -5693,17 +5729,17 @@
     }
    },
    "Iglesias Ang": {
-    "total": 302,
+    "total": 311,
     "outcomes": {
-     "No answer": 181,
+     "No answer": 186,
      "Uninterested": 19,
-     "(no outreach found)": 56,
+     "(no outreach found)": 61,
      "Closed won — Core new": 2,
      "Busy": 2,
      "Not a fit": 19,
      "Meeting booked — by rep": 6,
      "Contacted — note logged": 1,
-     "Follow up": 12,
+     "Follow up": 11,
      "Contacted via email": 1,
      "Wrong number": 2,
      "Positive": 1
@@ -12365,7 +12401,7 @@
    "543030256878": [
     1794923145543,
     "Iglesias Ang",
-    "Follow up",
+    "No answer",
     0
    ],
    "542753976533": [
@@ -12467,7 +12503,7 @@
    "542759559391": [
     1794922554834,
     "Iglesias Ang",
-    "No answer",
+    "Follow up",
     0
    ],
    "542781178061": [
@@ -12737,7 +12773,7 @@
    "544257604845": [
     1794850778478,
     "Iglesias Ang",
-    "Follow up",
+    "No answer",
     0
    ],
    "544271765737": [
@@ -13571,7 +13607,7 @@
    "547284122869": [
     1794937561799,
     "Iglesias Ang",
-    "Follow up",
+    "No answer",
     0
    ],
    "547371714775": [
@@ -13610,6 +13646,54 @@
     "No answer",
     0
    ],
+   "548344848591": [
+    1795021518845,
+    "Iglesias Ang",
+    "Follow up",
+    0
+   ],
+   "548253809906": [
+    1795020785504,
+    "Iglesias Ang",
+    "(no outreach found)",
+    0
+   ],
+   "548268199106": [
+    1795020781413,
+    "Iglesias Ang",
+    "(no outreach found)",
+    0
+   ],
+   "548304001238": [
+    1795020776906,
+    "Iglesias Ang",
+    "(no outreach found)",
+    0
+   ],
+   "548262800625": [
+    1795020770432,
+    "Iglesias Ang",
+    "(no outreach found)",
+    0
+   ],
+   "548225192123": [
+    1795020766302,
+    "Iglesias Ang",
+    "(no outreach found)",
+    0
+   ],
+   "548344849657": [
+    1795020727078,
+    "Iglesias Ang",
+    "No answer",
+    0
+   ],
+   "548298710216": [
+    1795015207163,
+    "Iglesias Ang",
+    "No answer",
+    0
+   ],
    "548375569604": [
     1795010240345,
     "Carlos Lam",
@@ -13618,6 +13702,12 @@
    ],
    "548382822637": [
     1795002748438,
+    "Iglesias Ang",
+    "No answer",
+    0
+   ],
+   "548542287096": [
+    1795015121262,
     "Iglesias Ang",
     "No answer",
     0
@@ -14673,8 +14763,12 @@
    "547298560244",
    "547362621657",
    "547373543651",
+   "548344848591",
+   "548344849657",
+   "548298710216",
    "548375569604",
-   "548382822637"
+   "548382822637",
+   "548542287096"
   ]
  }
 }
