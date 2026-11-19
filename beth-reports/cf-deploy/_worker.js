@@ -1481,7 +1481,8 @@ async function campaignAssets(url, env) {
       return { id, name: `Email ${id}`, link, error: String(err).slice(0, 120) };
     }
   }));
-  return json({ generatedAt: new Date().toISOString(), campaign: key, workflows, emails });
+  // Never-sent emails (drafts, e.g. the RRA day-of reminder Zoom sent instead) aren't shown (19 Nov).
+  return json({ generatedAt: new Date().toISOString(), campaign: key, workflows, emails: emails.filter((e) => e.error || !/DRAFT/i.test(e.state)) });
 }
 
 async function campaignEmails(url, env) {
@@ -1507,7 +1508,8 @@ async function campaignEmails(url, env) {
       return { id, label: label || "", link, error: String(err).slice(0, 200) };
     }
   }));
-  return json({ generatedAt: new Date().toISOString(), campaign: cfg.key, emails });
+  // Never-sent emails aren't shown anywhere in the reports (19 Nov).
+  return json({ generatedAt: new Date().toISOString(), campaign: cfg.key, emails: emails.filter((e) => e.error || e.stats.sent > 0) });
 }
 
 // ---- Non-call outreach (WhatsApp / email / note) ----------------------------------------
@@ -3882,7 +3884,7 @@ async function evaluate(env, item, sinceOverrideMs) {
   return {
     ...item,
     sinceMs, generatedAt: Date.now(),
-    emailStats, callTasks: item.callTasks ? callTasks : undefined, callTasksNote: item.callTasks?.note || null,
+    emailStats: emailStats.filter((e) => e.error || e.sent > 0), callTasks: item.callTasks ? callTasks : undefined, callTasksNote: item.callTasks?.note || null,
     cohortSizes: Object.fromEntries(item.cohorts.map((c) => [c.label, cohortMembers[c.label].length])),
     totalContacts: all.length,
     plans,
@@ -4059,7 +4061,7 @@ async function evaluateCompletePP(env, t) {
       emailStats.push({ label: e.label, sent: c.sent || 0, delivered: c.delivered || 0, opens: c.open || 0, clicks: c.click || 0 });
     } catch (err) { emailStats.push({ label: e.label, error: String(err.message || err) }); }
   }
-  return { ...t, sinceMs: launch, baseline: summarise(rows.filter((r) => r.at >= from && r.at < launch)), current: summarise(rows.filter((r) => r.at >= launch)), emailStats };
+  return { ...t, sinceMs: launch, baseline: summarise(rows.filter((r) => r.at >= from && r.at < launch)), current: summarise(rows.filter((r) => r.at >= launch)), emailStats: emailStats.filter((e) => e.error || e.sent > 0) };
 }
 
 async function toolsApi(url, env) {
