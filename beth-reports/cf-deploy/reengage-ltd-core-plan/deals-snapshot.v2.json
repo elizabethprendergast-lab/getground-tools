@@ -1,16 +1,16 @@
 {
- "snapshotAt": "2026-11-18T14:27:00Z",
- "source": "Live /api/deals computed locally 2026-11-18 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
+ "snapshotAt": "2026-11-19T09:38:00Z",
+ "source": "Live /api/deals computed locally 2026-11-19 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
  "project": {
   "key": "reengage-ltd-core-plan",
   "label": "Always on - missed LTD leads",
   "computed": true,
-  "totalContacts": 855,
+  "totalContacts": 887,
   "contactsWithClosedDeal": 2,
   "rows": [
    {
     "label": "(no closed Plans deal since enrolling)",
-    "count": 853,
+    "count": 885,
     "contacts": [
      {
       "id": "871727139005"
@@ -2570,6 +2570,102 @@
      },
      {
       "id": "712664635599"
+     },
+     {
+      "id": "717887186132"
+     },
+     {
+      "id": "779496486135"
+     },
+     {
+      "id": "885742502107"
+     },
+     {
+      "id": "888655663352"
+     },
+     {
+      "id": "886858661066"
+     },
+     {
+      "id": "803392926965"
+     },
+     {
+      "id": "674078406893"
+     },
+     {
+      "id": "574224513240"
+     },
+     {
+      "id": "887343874241"
+     },
+     {
+      "id": "884764835058"
+     },
+     {
+      "id": "887112804588"
+     },
+     {
+      "id": "888384542932"
+     },
+     {
+      "id": "781667616961"
+     },
+     {
+      "id": "892774453482"
+     },
+     {
+      "id": "888500482274"
+     },
+     {
+      "id": "895127004400"
+     },
+     {
+      "id": "888124684512"
+     },
+     {
+      "id": "145078070468"
+     },
+     {
+      "id": "886891853033"
+     },
+     {
+      "id": "800343737558"
+     },
+     {
+      "id": "823282393284"
+     },
+     {
+      "id": "614425948385"
+     },
+     {
+      "id": "892860740817"
+     },
+     {
+      "id": "888138114277"
+     },
+     {
+      "id": "895197762775"
+     },
+     {
+      "id": "895352833250"
+     },
+     {
+      "id": "887563911417"
+     },
+     {
+      "id": "888134133976"
+     },
+     {
+      "id": "451447716088"
+     },
+     {
+      "id": "31754101950"
+     },
+     {
+      "id": "717958815956"
+     },
+     {
+      "id": "777101133015"
      }
     ]
    },

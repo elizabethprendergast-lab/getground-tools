@@ -1,6 +1,6 @@
 {
- "snapshotAt": "2026-11-18T14:29:00Z",
- "source": "Live /api/outcomes computed locally 2026-11-18 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
+ "snapshotAt": "2026-11-19T09:37:00Z",
+ "source": "Live /api/outcomes computed locally 2026-11-19 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
  "project": {
   "key": "reengage-ltd",
   "label": "Experiment - missed LTD leads",
@@ -24,7 +24,7 @@
    {
     "meetingId": "539648613621",
     "contactId": "866492931273",
-    "title": "GetGround Consultation: Arun & Ryan Welby",
+    "title": "GetGround Consultation: {{name}} & Ryan Welby",
     "host": "Ryan Welby",
     "bookedAt": "2026-11-05T12:28:50.762Z",
     "startTime": "2026-11-10T17:00:00Z",
@@ -399,7 +399,7 @@
    {
     "meetingId": "526161663221",
     "contactId": "849245610229",
-    "title": "Akshay & Tristan | GetGround",
+    "title": "{{name}} & Tristan | GetGround",
     "host": "Tristan Webel",
     "bookedAt": "2026-10-09T15:54:20Z",
     "startTime": "2026-10-16T15:00:00Z",
@@ -639,7 +639,7 @@
    {
     "meetingId": "521914117322",
     "contactId": "637505479900",
-    "title": "Sunny <> Asya (GetGround) | Meet your Investment Consultant",
+    "title": "{{name}} <> Asya (GetGround) | Meet your Investment Consultant",
     "host": "Asya Wu",
     "bookedAt": "2026-09-24T16:09:27.266Z",
     "startTime": "2026-09-29T14:00:00Z",
