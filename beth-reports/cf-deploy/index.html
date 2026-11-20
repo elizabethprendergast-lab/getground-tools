@@ -1354,7 +1354,7 @@ function initiativePageHtml(stats, ini) {
   if (ini.web) stages.push({ k: "Web visitors", n: webVisitors, loading: webLoading, c: "var(--series-5)", sub: webCheckouts != null ? `${webCheckouts} checkouts completed` : "visits unavailable right now" });
   stages.push({ k: "Calls made", n: tasks.done, loading: false, c: "var(--purple)", sub: `${tasks.done.toLocaleString()} of ${tasks.total.toLocaleString()} call tasks done · ${callsLoading ? "…" : reached.toLocaleString()} people reached` });
   stages.push({ k: "Meetings booked", n: meetings.length, loading: callsLoading || webLoading || cohortLoading, c: "var(--series-4)", sub: [[toneCount.win, "went well"], [toneCount.pending, "upcoming"], [toneCount.unknown, "no outcome logged yet"], [toneCount.fail, "cancelled / no-show"]].filter(([n]) => n).map(([n, l]) => `${n} ${l}`).join(" · ") || "none yet" });
-  stages.push({ k: "Deals opened", n: dealMap.size, loading: callsLoading || cohortLoading, c: "var(--series-7)", sub: "any pipeline, opened after they entered the campaign" });
+  stages.push({ k: "Deals opened", n: dealMap.size, loading: callsLoading || cohortLoading, c: "var(--series-7)", sub: "Plans deals opened after they entered the campaign (call task or email booking)" });
   stages.push({ k: "Plans won", n: won.size, loading: callsLoading, c: "var(--teal-ink)", sub: "closed Plans deals" });
   const maxN = Math.max(1, ...stages.map((x) => x.n || 0));
   const w = (n) => n ? Math.max(3, Math.round(100 * Math.log10(n + 1) / Math.log10(maxN + 1))) : 0;
