@@ -509,7 +509,13 @@ const REPORTS = {
         // The re-engagement email is a one-off A/B batch send, not sent by either workflow:
         // "BF26 | Reengage email 01 - Specialised Accounting | 1126" (list 24683). Only list it —
         // ownEmailsOnly stops the ads workflow's email (5163907314) showing on this tab.
-        emails: [{ id: 511986247886, label: "BF26 Reengage email 01 — Specialised Accounting (A/B)" }],
+        emails: [
+          { id: 511986247886, label: "BF26 Reengage email 01 — Company leads — Specialised Accounting (A/B)" },
+          // Batch send 16 Nov to the company-signal list; B version is 514859070672.
+          { id: 512759344376, label: "BF26 Reengage email 02 — Company leads — Cheaper Accounting (A/B)" },
+          // Batch send 19 Nov to the no-company-signal, active-90d list (~27k).
+          { id: 519327638751, label: "BF26 Reengage email 01 — Generic leads — Specialised Accounting" },
+        ],
         ownEmailsOnly: true,
       },
       {
