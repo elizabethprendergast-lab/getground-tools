@@ -867,32 +867,56 @@ function assetsCardHtml(a, loading) {
 
 function dealCardHtml(label, d, portalId, loading) {
   const rows = (d && d.rows) || [];
+  const head = `<h2>Plans conversions — ${esc(label)}</h2>`;
   if (!rows.length) {
-    return `
-      <section class="card">
-        <h2>Deal attribution — ${esc(label)}</h2>
-        <p class="sub">Closed Plans deals — live</p>
-        <div class="empty-state">${loading ? "Loading live deal attribution for this campaign…" : "No contacts from this sequence yet."}</div>
+    return `<section class="card">${head}
+        <div class="empty-state">${loading ? "Loading…" : "No contacts from this sequence yet."}</div>
       </section>`;
   }
-  const max = Math.max(...rows.map(r => r.count));
-  const html = `
+  const contactLink = (id) => `https://app-eu1.hubspot.com/contacts/${portalId}/record/0-1/${id}`;
+  const dealLink = (id) => `https://app-eu1.hubspot.com/contacts/${portalId}/record/0-3/${id}`;
+  const fmt = (ms) => ms ? new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "";
+  const isMig = (r) => /^Migrated/.test(r.label);
+  const isNone = (r) => /^\(no closed/.test(r.label);
+  const wonRows = rows.filter((r) => !isMig(r) && !isNone(r));
+  const migRows = rows.filter(isMig);
+  const won = wonRows.reduce((n, r) => n + r.count, 0);
+  const migrated = migRows.reduce((n, r) => n + r.count, 0);
+  const act = (d.dealActivity && d.dealActivity.deals) || [];
+  const inProgress = act.filter((x) => x.status === "open");
+  const lost = act.filter((x) => x.status === "lost");
+  const converted = d.contactsWithClosedDeal || 0;
+  const pct = !d.totalContacts ? 0 : (converted && 100 * converted < d.totalContacts ? "<1" : Math.round(100 * converted / d.totalContacts));
+
+  const list = [
+    ...wonRows.flatMap((r) => (r.contacts || []).map((c) => ({ who: c, href: contactLink(c.id), result: "Won", tone: "s-happened", detail: r.label, ms: c.at }))),
+    ...migRows.flatMap((r) => (r.contacts || []).map((c) => ({ who: c, href: contactLink(c.id), result: "Migrated", tone: "s-happened", detail: r.label.replace(/^Migrated to /, "").replace(/^(\w+) \((.*)\)$/, "$1 — $2"), ms: c.at }))),
+    ...inProgress.map((x) => ({ who: { name: x.contactName || x.name }, href: dealLink(x.id), result: "In progress", tone: "", detail: x.stage || "", ms: x.createdMs })),
+    ...lost.map((x) => ({ who: { name: x.contactName || x.name }, href: dealLink(x.id), result: "Lost", tone: "s-cancelled", detail: x.stage || "", ms: x.createdMs })),
+  ];
+  const tiles = [
+    ["Contacts in sequence", d.totalContacts, ""],
+    ["Plans won", won, "done"],
+    ["Migrated to a plan", migrated, "done"],
+    ["Deals in progress", inProgress.length, ""],
+    ...(lost.length ? [["Deals lost", lost.length, "neg"]] : []),
+  ];
+  return `
     <section class="card">
-      <h2>Deal attribution — ${esc(label)}</h2>
-      <p class="sub">Contacts put into this sequence who closed a Plans deal (Core/Complete, new or upsell) — ${d.snapshotAt ? `snapshot as of ${fmtDate(d.snapshotAt)}` : "live"}${rangeIsSet() ? `, deals closed ${esc(rangeLabel())}` : ""}. Hover a row to see who, click a name to open them in HubSpot.</p>
-      ${rows.map((r, i) => `
-        <div class="outcome-bar-row" data-deal-index="${i}">
-          <span class="name" data-deal-index="${i}">${esc(r.label)}</span>
-          <div class="track"><div class="fill" style="width:${100 * r.count / max}%; background:${SERIES[i % SERIES.length]}"></div></div>
-          <span class="count">${r.count}<span class="share">${sharePct(r.count, d.totalContacts)}</span></span>
-        </div>
-      `).join("")}
-      <p class="sub" style="margin-top:12px">${d.contactsWithClosedDeal} of ${d.totalContacts} contacts put into this sequence have closed a Plans deal.</p>
-      ${dealActivityHtml(d.dealActivity, portalId)}
+      ${head}
+      <p class="sub">${d.snapshotAt ? `Snapshot as of ${fmtDate(d.snapshotAt)}` : "Live"}${rangeIsSet() ? `, ${esc(rangeLabel())}` : ""}. Only counts after the contact was put into this sequence.</p>
+      <div class="stat-row">${tiles.map(([l, v, c]) => `<div class="stat-tile ${c}"><div class="label">${l}</div><div class="value">${v}</div></div>`).join("")}</div>
+      <p class="sub" style="margin-top:10px"><b>${converted} of ${d.totalContacts} converted (${pct}%)</b> — ${won} won a Plans deal${migrated ? `, ${migrated} migrated (migrations don't create a deal)` : ""}.${inProgress.length ? ` ${inProgress.length} Plans deal${inProgress.length === 1 ? "" : "s"} still open.` : ""}</p>
+      ${list.length ? `<div class="mtg-table-wrap"><table class="mtg-table">
+        <thead><tr><th>Contact</th><th>Result</th><th>Plan / stage</th><th>Date</th></tr></thead>
+        <tbody>${list.map((r) => `<tr>
+          <td><a href="${r.href}" target="_blank" rel="noopener">${esc(r.who.name || "(no name)")}</a></td>
+          <td><span class="mtg-status ${r.tone}">${r.result}</span></td>
+          <td class="muted">${esc(r.detail)}</td>
+          <td class="nowrap">${fmt(r.ms)}</td></tr>`).join("")}
+        </tbody></table></div>
+      <p class="sub" style="margin-top:8px">Won / migrated = date closed. In progress / lost = date the deal was opened.</p>` : ""}
     </section>`;
-  window.__dealRowsByLabel = window.__dealRowsByLabel || {};
-  window.__dealRowsByLabel[label] = rows;
-  return html;
 }
 
 // All deals (any pipeline) opened by this campaign's contacts since they were enrolled.
