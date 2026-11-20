@@ -1,16 +1,16 @@
 {
- "snapshotAt": "2026-11-19T09:37:00Z",
- "source": "Live /api/deals computed locally 2026-11-19 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
+ "snapshotAt": "2026-11-20T12:03:00Z",
+ "source": "Live /api/deals computed locally 2026-11-20 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
  "project": {
   "key": "upsell-complete",
   "label": "Upsell — Complete plan upsell",
   "computed": true,
-  "totalContacts": 253,
+  "totalContacts": 263,
   "contactsWithClosedDeal": 2,
   "rows": [
    {
     "label": "(no closed Plans deal since enrolling)",
-    "count": 251,
+    "count": 261,
     "contacts": [
      {
       "id": "306427"
@@ -763,7 +763,37 @@
       "id": "16978991048"
      },
      {
+      "id": "907743"
+     },
+     {
+      "id": "903654"
+     },
+     {
+      "id": "395851929819"
+     },
+     {
+      "id": "6101103"
+     },
+     {
+      "id": "18151551"
+     },
+     {
       "id": "11358151"
+     },
+     {
+      "id": "2220951"
+     },
+     {
+      "id": "909477"
+     },
+     {
+      "id": "905760"
+     },
+     {
+      "id": "1113351"
+     },
+     {
+      "id": "34347201"
      }
     ]
    },
@@ -796,52 +826,15 @@
      "open": 2,
      "won": 2,
      "lost": 0
-    },
-    {
-     "pipeline": "Lettings & Management",
-     "opened": 2,
-     "open": 2,
-     "won": 0,
-     "lost": 0
-    },
-    {
-     "pipeline": "Mortgages",
-     "opened": 2,
-     "open": 1,
-     "won": 0,
-     "lost": 1
-    },
-    {
-     "pipeline": "Accounting & Tax (Stock) ",
-     "opened": 1,
-     "open": 0,
-     "won": 1,
-     "lost": 0
-    },
-    {
-     "pipeline": "Third Party Referrals",
-     "opened": 1,
-     "open": 1,
-     "won": 0,
-     "lost": 0
     }
    ],
    "total": {
-    "opened": 10,
-    "open": 6,
-    "won": 3,
-    "lost": 1
+    "opened": 4,
+    "open": 2,
+    "won": 2,
+    "lost": 0
    },
    "deals": [
-    {
-     "id": "545756154094",
-     "name": "{{name}} - Company Stock - In-app",
-     "pipeline": "Accounting & Tax (Stock) ",
-     "stage": "Complete",
-     "status": "won",
-     "createdMs": 1795034599677,
-     "contactId": "7844451"
-    },
     {
      "id": "545454781686",
      "name": "Plan - {{name}}",
@@ -861,33 +854,6 @@
      "contactId": "6335588071"
     },
     {
-     "id": "537168234713",
-     "name": "{{name}} - Mortgage - SDR Playbook",
-     "pipeline": "Mortgages",
-     "stage": "Terms sent ",
-     "status": "open",
-     "createdMs": 1793975203159,
-     "contactId": "112871"
-    },
-    {
-     "id": "532905948399",
-     "name": "Property Transfer Advice | {{name}} ",
-     "pipeline": "Third Party Referrals",
-     "stage": "Referral Sent",
-     "status": "open",
-     "createdMs": 1793182383209,
-     "contactId": "15851101"
-    },
-    {
-     "id": "532680004823",
-     "name": "{{name}} - Mortgage - SDR Playbook",
-     "pipeline": "Mortgages",
-     "stage": "Closed lost",
-     "status": "lost",
-     "createdMs": 1793124007349,
-     "contactId": "103959"
-    },
-    {
      "id": "528472839392",
      "name": "Core Plan - {{name}}",
      "pipeline": "Plans",
@@ -895,24 +861,6 @@
      "status": "won",
      "createdMs": 1792415408309,
      "contactId": "437549703411"
-    },
-    {
-     "id": "527968314587",
-     "name": "{{name}} - Lettings & Management - IC Playbook",
-     "pipeline": "Lettings & Management",
-     "stage": "Form Received",
-     "status": "open",
-     "createdMs": 1792207003076,
-     "contactId": "16978991048"
-    },
-    {
-     "id": "523257510131",
-     "name": "Complete Plan - {{name}} - L&M (1/1)",
-     "pipeline": "Lettings & Management",
-     "stage": "Discovery",
-     "status": "open",
-     "createdMs": 1790608570976,
-     "contactId": "339410780356"
     },
     {
      "id": "523185361105",
