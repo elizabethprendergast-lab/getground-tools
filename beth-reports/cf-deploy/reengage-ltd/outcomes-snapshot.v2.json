@@ -1,6 +1,6 @@
 {
- "snapshotAt": "2026-11-19T09:37:00Z",
- "source": "Live /api/outcomes computed locally 2026-11-19 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
+ "snapshotAt": "2026-11-20T12:02:00Z",
+ "source": "Live /api/outcomes computed locally 2026-11-20 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
  "project": {
   "key": "reengage-ltd",
   "label": "Experiment - missed LTD leads",

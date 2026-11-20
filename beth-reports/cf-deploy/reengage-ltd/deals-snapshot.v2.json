@@ -1,6 +1,6 @@
 {
- "snapshotAt": "2026-11-19T09:37:00Z",
- "source": "Live /api/deals computed locally 2026-11-19 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
+ "snapshotAt": "2026-11-20T12:02:00Z",
+ "source": "Live /api/deals computed locally 2026-11-20 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
  "project": {
   "key": "reengage-ltd",
   "label": "Experiment - missed LTD leads",
@@ -1928,46 +1928,18 @@
   "dealActivity": {
    "rows": [
     {
-     "pipeline": "Mortgages",
-     "opened": 4,
-     "open": 0,
-     "won": 0,
-     "lost": 4
-    },
-    {
      "pipeline": "Plans",
      "opened": 4,
      "open": 2,
      "won": 2,
      "lost": 0
-    },
-    {
-     "pipeline": "New Build | Direct",
-     "opened": 2,
-     "open": 1,
-     "won": 0,
-     "lost": 1
-    },
-    {
-     "pipeline": "Accounting & Tax",
-     "opened": 2,
-     "open": 0,
-     "won": 2,
-     "lost": 0
-    },
-    {
-     "pipeline": "Personal Landlords",
-     "opened": 1,
-     "open": 1,
-     "won": 0,
-     "lost": 0
     }
    ],
    "total": {
-    "opened": 13,
-    "open": 4,
-    "won": 4,
-    "lost": 5
+    "opened": 4,
+    "open": 2,
+    "won": 2,
+    "lost": 0
    },
    "deals": [
     {
@@ -1980,15 +1952,6 @@
      "contactId": "927976428768"
     },
     {
-     "id": "544124698840",
-     "name": "Core Plan - {{name}} - LTD Setup",
-     "pipeline": "Accounting & Tax",
-     "stage": "Closed won",
-     "status": "won",
-     "createdMs": 1794925307046,
-     "contactId": "927976428768"
-    },
-    {
      "id": "533640719575",
      "name": "Plan - {{name}}",
      "pipeline": "Plans",
@@ -1996,15 +1959,6 @@
      "status": "open",
      "createdMs": 1793284719880,
      "contactId": "146251"
-    },
-    {
-     "id": "532635130101",
-     "name": "{{name}} - Personal Landlord - 240264",
-     "pipeline": "Personal Landlords",
-     "stage": "Progressing",
-     "status": "open",
-     "createdMs": 1793138808835,
-     "contactId": "23622396883"
     },
     {
      "id": "529605885129",
@@ -2016,60 +1970,6 @@
      "contactId": "32023587026"
     },
     {
-     "id": "528690762970",
-     "name": "Colin Cain - Mortgage - SDR Playbook",
-     "pipeline": "Mortgages",
-     "stage": "Closed lost",
-     "status": "lost",
-     "createdMs": 1792427860027,
-     "contactId": "132232082631"
-    },
-    {
-     "id": "527946388724",
-     "name": "{{name}} - Mortgage - IC Playbook",
-     "pipeline": "Mortgages",
-     "stage": "Closed lost",
-     "status": "lost",
-     "createdMs": 1792165538682,
-     "contactId": "394450626756"
-    },
-    {
-     "id": "527641515241",
-     "name": "{{name}} - Property Strategy Session - IC Playbook",
-     "pipeline": "New Build | Direct",
-     "stage": "Property / Development Presented",
-     "status": "open",
-     "createdMs": 1792143446796,
-     "contactId": "892858398909"
-    },
-    {
-     "id": "526198227151",
-     "name": "{{name}} - Mortgage - SDR Playbook",
-     "pipeline": "Mortgages",
-     "stage": "Closed lost",
-     "status": "lost",
-     "createdMs": 1791905626843,
-     "contactId": "34536501"
-    },
-    {
-     "id": "523489944808",
-     "name": "{{name}} - Mortgage - IC Playbook",
-     "pipeline": "Mortgages",
-     "stage": "Closed lost",
-     "status": "lost",
-     "createdMs": 1790614582116,
-     "contactId": "377637322998"
-    },
-    {
-     "id": "522942106839",
-     "name": "Core Plan - {{name}} - LTD Setup",
-     "pipeline": "Accounting & Tax",
-     "stage": "Closed won",
-     "status": "won",
-     "createdMs": 1790349031060,
-     "contactId": "23622396883"
-    },
-    {
      "id": "522964276410",
      "name": "Core Plan - {{name}}",
      "pipeline": "Plans",
@@ -2077,15 +1977,6 @@
      "status": "won",
      "createdMs": 1790348974910,
      "contactId": "23622396883"
-    },
-    {
-     "id": "522627082448",
-     "name": "{{name}} - Property Strategy Session - IC Playbook",
-     "pipeline": "New Build | Direct",
-     "stage": "Closed lost",
-     "status": "lost",
-     "createdMs": 1790182136403,
-     "contactId": "802592942288"
     }
    ]
   }

@@ -1,6 +1,6 @@
 {
- "snapshotAt": "2026-11-19T09:37:00Z",
- "source": "Live /api/outcomes computed locally 2026-11-19 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
+ "snapshotAt": "2026-11-20T12:03:00Z",
+ "source": "Live /api/outcomes computed locally 2026-11-20 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
  "project": {
   "key": "upsell-complete",
   "label": "Upsell — Complete plan upsell",
@@ -13,8 +13,8 @@
     "host": "Tristan Webel",
     "bookedAt": "2026-11-18T18:16:22Z",
     "startTime": "2026-11-19T14:30:00Z",
-    "status": "Upcoming",
-    "result": "Upcoming",
+    "status": "Happened",
+    "result": "No outcome logged",
     "tone": "neutral",
     "taskIds": [
      "526582062274"
@@ -209,7 +209,7 @@
     "bookedAt": "2026-10-09T11:26:36.946Z",
     "startTime": "2026-10-09T14:00:00Z",
     "status": "Happened",
-    "result": "No outcome logged",
+    "result": "Call after: No answer",
     "tone": "neutral",
     "taskIds": [
      "522525288643"
@@ -337,13 +337,13 @@
     "callNo": "1"
    }
   ],
-  "totalCompleted": 213,
-  "totalMatchedToCall": 103,
-  "totalReached": 158,
+  "totalCompleted": 215,
+  "totalMatchedToCall": 105,
+  "totalReached": 160,
   "dispositions": [
    {
     "outcome": "No answer",
-    "tasks": 58,
+    "tasks": 59,
     "category": "no_contact",
     "contacts": [
      {
@@ -569,6 +569,10 @@
      {
       "id": "101316",
       "taskId": "527074902222"
+     },
+     {
+      "id": "903654",
+      "taskId": "537378844872"
      },
      {
       "id": "10368101",
@@ -1187,7 +1191,7 @@
    },
    {
     "outcome": "Uninterested",
-    "tasks": 4,
+    "tasks": 5,
     "category": "answered",
     "contacts": [
      {
@@ -1205,6 +1209,10 @@
      {
       "id": "92719503581",
       "taskId": "526590011630"
+     },
+     {
+      "id": "6101103",
+      "taskId": "537514172610"
      }
     ]
    },
@@ -1317,9 +1325,9 @@
     }
    },
    "Yoana Chung": {
-    "total": 73,
+    "total": 75,
     "outcomes": {
-     "No answer": 16,
+     "No answer": 17,
      "Contacted — note logged": 12,
      "(no outreach found)": 19,
      "Connected": 3,
@@ -1329,7 +1337,7 @@
      "Meeting booked — by rep": 4,
      "Positive": 1,
      "Not a fit": 10,
-     "Uninterested": 1,
+     "Uninterested": 2,
      "Busy": 2
     }
    },
@@ -2631,6 +2639,18 @@
     "(no outreach found)",
     0
    ],
+   "537378844872": [
+    1795173890166,
+    "Yoana Chung",
+    "No answer",
+    0
+   ],
+   "537514172610": [
+    1795175442711,
+    "Yoana Chung",
+    "Uninterested",
+    0
+   ],
    "537799351513": [
     1793894263596,
     "Yoana Chung",
@@ -2764,6 +2784,8 @@
    "526702272734",
    "526702273747",
    "527074902222",
+   "537378844872",
+   "537514172610",
    "539786294475",
    "539839020245"
   ]

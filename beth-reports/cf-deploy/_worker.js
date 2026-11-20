@@ -2298,6 +2298,8 @@ async function dealAttribution(url, env) {
         for (const did of contactToDeals[cid] || []) {
           const d = deals[did];
           if (!d || seen.has(did) || !d.createdate) continue;
+          // Plans pipeline only (Core/Complete) — Beth doesn't want Accounting & Tax etc. here.
+          if (d.pipeline !== PLANS_PIPELINE_ID) continue;
           const created = Date.parse(d.createdate);
           if (!(created >= enrolledMs) || !inRange(created)) continue;
           seen.add(did);

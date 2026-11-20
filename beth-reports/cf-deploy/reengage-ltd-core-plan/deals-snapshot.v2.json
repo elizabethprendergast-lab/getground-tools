@@ -1,16 +1,16 @@
 {
- "snapshotAt": "2026-11-19T09:38:00Z",
- "source": "Live /api/deals computed locally 2026-11-19 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
+ "snapshotAt": "2026-11-20T12:03:00Z",
+ "source": "Live /api/deals computed locally 2026-11-20 (no Cloudflare subrequest cap), same rules as the live report. Names are looked up from HubSpot when the page loads.",
  "project": {
   "key": "reengage-ltd-core-plan",
   "label": "Always on - missed LTD leads",
   "computed": true,
-  "totalContacts": 887,
+  "totalContacts": 917,
   "contactsWithClosedDeal": 2,
   "rows": [
    {
     "label": "(no closed Plans deal since enrolling)",
-    "count": 885,
+    "count": 915,
     "contacts": [
      {
       "id": "871727139005"
@@ -2666,6 +2666,96 @@
      },
      {
       "id": "777101133015"
+     },
+     {
+      "id": "746498282694"
+     },
+     {
+      "id": "813308937422"
+     },
+     {
+      "id": "825844529401"
+     },
+     {
+      "id": "824379465971"
+     },
+     {
+      "id": "884830298339"
+     },
+     {
+      "id": "871275850985"
+     },
+     {
+      "id": "868600102122"
+     },
+     {
+      "id": "893830016196"
+     },
+     {
+      "id": "883586441427"
+     },
+     {
+      "id": "886449621204"
+     },
+     {
+      "id": "883681386727"
+     },
+     {
+      "id": "760170194149"
+     },
+     {
+      "id": "784250132704"
+     },
+     {
+      "id": "885145877712"
+     },
+     {
+      "id": "885466160355"
+     },
+     {
+      "id": "885730953417"
+     },
+     {
+      "id": "886554380511"
+     },
+     {
+      "id": "894052729023"
+     },
+     {
+      "id": "896332676344"
+     },
+     {
+      "id": "888297227468"
+     },
+     {
+      "id": "896178132178"
+     },
+     {
+      "id": "828102001875"
+     },
+     {
+      "id": "593089617128"
+     },
+     {
+      "id": "18834566339"
+     },
+     {
+      "id": "894559607027"
+     },
+     {
+      "id": "894094179551"
+     },
+     {
+      "id": "860694536385"
+     },
+     {
+      "id": "887348278460"
+     },
+     {
+      "id": "814233599196"
+     },
+     {
+      "id": "891913046262"
      }
     ]
    },
@@ -2687,32 +2777,18 @@
   "dealActivity": {
    "rows": [
     {
-     "pipeline": "Mortgages",
-     "opened": 4,
-     "open": 3,
-     "won": 0,
-     "lost": 1
-    },
-    {
      "pipeline": "Plans",
      "opened": 3,
      "open": 1,
      "won": 2,
      "lost": 0
-    },
-    {
-     "pipeline": "Accounting & Tax",
-     "opened": 2,
-     "open": 0,
-     "won": 2,
-     "lost": 0
     }
    ],
    "total": {
-    "opened": 9,
-    "open": 4,
-    "won": 4,
-    "lost": 1
+    "opened": 3,
+    "open": 1,
+    "won": 2,
+    "lost": 0
    },
    "deals": [
     {
@@ -2725,24 +2801,6 @@
      "contactId": "912483379389"
     },
     {
-     "id": "544771537126",
-     "name": "Core Plan - {{name}} - LTD Setup",
-     "pipeline": "Accounting & Tax",
-     "stage": "Closed won",
-     "status": "won",
-     "createdMs": 1794942339657,
-     "contactId": "912483379389"
-    },
-    {
-     "id": "543932329188",
-     "name": "{{name}} - Mortgage - SDR Playbook",
-     "pipeline": "Mortgages",
-     "stage": "Closed lost",
-     "status": "lost",
-     "createdMs": 1794917857926,
-     "contactId": "876351904955"
-    },
-    {
      "id": "539767652560",
      "name": "Plan - {{name}}",
      "pipeline": "Plans",
@@ -2752,15 +2810,6 @@
      "contactId": "811368863991"
     },
     {
-     "id": "539936840918",
-     "name": "  - Company Flow - In-app",
-     "pipeline": "Accounting & Tax",
-     "stage": "Closed won",
-     "status": "won",
-     "createdMs": 1794412931331,
-     "contactId": "927973525746"
-    },
-    {
      "id": "539933248712",
      "name": "Core Plan - {{name}}",
      "pipeline": "Plans",
@@ -2768,33 +2817,6 @@
      "status": "won",
      "createdMs": 1794412487115,
      "contactId": "927973525746"
-    },
-    {
-     "id": "537088788702",
-     "name": "{{name}} - Mortgage - IC Playbook",
-     "pipeline": "Mortgages",
-     "stage": "Terms sent ",
-     "status": "open",
-     "createdMs": 1793961185079,
-     "contactId": "908034994394"
-    },
-    {
-     "id": "532899069158",
-     "name": "{{name}} - Mortgage - IC Playbook",
-     "pipeline": "Mortgages",
-     "stage": "Terms sent ",
-     "status": "open",
-     "createdMs": 1793197022779,
-     "contactId": "912483379389"
-    },
-    {
-     "id": "532660978934",
-     "name": "{{name}} - Mortgage - IC Playbook",
-     "pipeline": "Mortgages",
-     "stage": "Terms sent ",
-     "status": "open",
-     "createdMs": 1793196984280,
-     "contactId": "912483379389"
     }
    ]
   }

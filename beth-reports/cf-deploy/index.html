@@ -902,8 +902,8 @@ function dealActivityHtml(a, portalId) {
   const statusPill = (s) => `<span class="mtg-status ${s === "won" ? "s-happened" : s === "lost" ? "s-cancelled" : ""}">${s === "won" ? "Won" : s === "lost" ? "Lost" : "Open"}</span>`;
   const link = (id) => `https://app-eu1.hubspot.com/contacts/${portalId}/record/0-3/${id}`;
   return `
-      <h3 style="margin:22px 0 4px; font-size:14px">All deals opened</h3>
-      <p class="sub">Every deal, in any pipeline, opened by a contact in this sequence on or after they were put into it${rangeIsSet() ? ` (opened ${esc(rangeLabel())})` : ""} — and where it is now.</p>
+      <h3 style="margin:22px 0 4px; font-size:14px">Plans deals opened</h3>
+      <p class="sub">Every Plans deal (Core/Complete) opened by a contact in this sequence on or after they were put into it${rangeIsSet() ? ` (opened ${esc(rangeLabel())})` : ""} — and where it is now.</p>
       ${(a.rows || []).length ? `
       <div class="overflow-x">
         <table class="outcomes-table">
@@ -923,7 +923,7 @@ function dealActivityHtml(a, portalId) {
             </tbody>
           </table>
         </div>
-      </details>` : `<div class="empty-state">No deals opened by these contacts since they were put into the sequence.</div>`}`;
+      </details>` : `<div class="empty-state">No Plans deals opened by these contacts since they were put into the sequence.</div>`}`;
 }
 
 function wireDealHovers(label, portalId) {
@@ -1281,7 +1281,7 @@ function initiativePageHtml(stats, ini) {
 
   // Deals opened (any pipeline) by people in the campaign since they were enrolled / booked.
   const dealMap = new Map();
-  for (const pt of parts) for (const d of ((pt.dRaw && pt.dRaw.dealActivity && pt.dRaw.dealActivity.deals) || [])) if (inR(d.createdMs)) dealMap.set(String(d.id), { ...d, channel: chOf(pt.key), partKey: pt.key });
+  for (const pt of parts) for (const d of ((pt.dRaw && pt.dRaw.dealActivity && pt.dRaw.dealActivity.deals) || [])) if (isPlansDeal(d) && inR(d.createdMs)) dealMap.set(String(d.id), { ...d, channel: chOf(pt.key), partKey: pt.key });
   for (const m of ((cohort && cohort.meetings) || [])) for (const d of m.deals || []) if (inR(Date.parse(d.createdate))) dealMap.set(d.id ? String(d.id) : `c:${m.contactId}:${d.name}`, { channel: ini.cohortChannel || "Other", ...(dealMap.get(String(d.id)) || {}), id: d.id, name: d.name, pipeline: d.pipeline, stage: d.stage, status: d.status || "open", createdMs: Date.parse(d.createdate), contactName: m.name, contactId: m.contactId });
   const won = new Map();
   for (const pt of parts) for (const r of ((pt.d && pt.d.rows) || [])) if (!/^\(no /.test(r.label || "")) for (const c of r.contacts || []) won.set(String(c.id), { ...c, plan: r.label });
@@ -1697,9 +1697,11 @@ function sliceOutcomes(o) {
 // Deals: closed (or migrated) in the range; everyone else moves to the "no closed deal" row.
 // "All deals opened" table: re-slice by deal open date so it follows the same range as the
 // closed-Plans bars above it (it used to stay all-time while its label said "opened yesterday").
+// Plans pipeline only (Core/Complete) — older snapshots still carry other pipelines' deals.
+function isPlansDeal(x) { return !!x && x.pipeline === "Plans"; }
 function sliceDealActivity(a, has) {
   if (!a || !Array.isArray(a.deals)) return a;
-  const deals = a.deals.filter((x) => has(x.createdMs));
+  const deals = a.deals.filter((x) => isPlansDeal(x) && (!has || has(x.createdMs)));
   const byPipeline = new Map();
   for (const x of deals) {
     const row = byPipeline.get(x.pipeline) || { pipeline: x.pipeline, opened: 0, open: 0, won: 0, lost: 0 };
@@ -1712,8 +1714,8 @@ function sliceDealActivity(a, has) {
 }
 function sliceDeals(d) {
   const has = rangeTest();
+  if (d && d.dealActivity) d = { ...d, dealActivity: sliceDealActivity(d.dealActivity, has) };
   if (!has || !d || !d.rows) return d;
-  d = { ...d, dealActivity: sliceDealActivity(d.dealActivity, has) };
   const isWon = (r) => (r.contacts || []).some((c) => "at" in c);
   if (!d.rows.some(isWon)) return d; // no close dates (e.g. a closed campaign's snapshot) — leave as is
   const all = new Map();
