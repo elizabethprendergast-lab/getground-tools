@@ -1,6 +1,142 @@
 {
   "items": [
     {
+      "key": "bf-ic-personal-1126",
+      "title": "Black Friday IC personal emails (20 Nov)",
+      "description": "Personal 50% off Core email from each IC to warm non-customers (Tier 1+2 buying signals, not in Jen's BF sends). Goal: Core sign-ups before 30 Nov.",
+      "status": "active",
+      "start": "2026-11-20T17:43:00Z",
+      "cohorts": [
+        {
+          "label": "Ryan's list",
+          "listId": "25044"
+        },
+        {
+          "label": "Yoyo's list",
+          "listId": "25045"
+        },
+        {
+          "label": "Chey's list",
+          "listId": "25046"
+        },
+        {
+          "label": "Asya's list",
+          "listId": "25047"
+        }
+      ],
+      "owners": [
+        {
+          "id": "78571230",
+          "name": "Ryan Welby"
+        },
+        {
+          "id": "29178925",
+          "name": "Yoana Chung"
+        },
+        {
+          "id": "1297173186",
+          "name": "Chey Pienaar"
+        },
+        {
+          "id": "76256251",
+          "name": "Asya Wu"
+        }
+      ],
+      "emails": [
+        {
+          "label": "From Ryan",
+          "id": "519595344104"
+        },
+        {
+          "label": "From Yoyo",
+          "id": "519597143248"
+        },
+        {
+          "label": "From Chey",
+          "id": "519595344108"
+        },
+        {
+          "label": "From Asya",
+          "id": "519448959220"
+        }
+      ],
+      "links": [
+        {
+          "label": "Email (Ryan)",
+          "url": "https://app-eu1.hubspot.com/email/25516403/edit/519595344104/content"
+        }
+      ],
+      "tab": "BF IC emails"
+    },
+    {
+      "key": "complete-saver-1126",
+      "title": "Complete saver emails (19 Nov)",
+      "description": "Personal 'I did some sums' emails from each IC to Core customers using a letting agent with 1.2k+ rent. Goal: Complete upgrades.",
+      "status": "active",
+      "start": "2026-11-19T13:18:00Z",
+      "cohorts": [
+        {
+          "label": "Ryan's list",
+          "listId": "25014"
+        },
+        {
+          "label": "Yoyo's list",
+          "listId": "25015"
+        },
+        {
+          "label": "Chey's list",
+          "listId": "25016"
+        },
+        {
+          "label": "Asya's list",
+          "listId": "25017"
+        }
+      ],
+      "owners": [
+        {
+          "id": "78571230",
+          "name": "Ryan Welby"
+        },
+        {
+          "id": "29178925",
+          "name": "Yoana Chung"
+        },
+        {
+          "id": "1297173186",
+          "name": "Chey Pienaar"
+        },
+        {
+          "id": "76256251",
+          "name": "Asya Wu"
+        }
+      ],
+      "emails": [
+        {
+          "label": "From Ryan",
+          "id": "518581347530"
+        },
+        {
+          "label": "From Yoyo",
+          "id": "518619908335"
+        },
+        {
+          "label": "From Chey",
+          "id": "518619908338"
+        },
+        {
+          "label": "From Asya",
+          "id": "518581347533"
+        }
+      ],
+      "links": [
+        {
+          "label": "Email (Ryan)",
+          "url": "https://app-eu1.hubspot.com/email/25516403/edit/518581347530/content"
+        }
+      ],
+      "tab": "Complete saver"
+    },
+    {
       "key": "rra-cantonese-webinar-1126",
       "title": "RRA Cantonese webinar (17 Nov)",
       "description": "Florence + Yoana's Cantonese Renters' Rights webinar for influencer leads (SmallFishBa, HKEXLIVE, UK POA, Coco Gor, Moon Ma, Pure Sourcing). Goal: Complete Plan conversations.",
