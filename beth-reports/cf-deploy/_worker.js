@@ -2275,6 +2275,31 @@ async function dealAttribution(url, env) {
       }
     }
 
+    // Projects with utmMeetings: people who booked straight from the campaign email's booking link
+    // count too, even with no call task (20 Nov: 3 contacts opened Plans deals after booking from
+    // the BF reengage email but were missing from Deals and the Campaign page). They're enrolled from an hour before the booking — the same window the Meetings
+    // card uses for "Deal opened" — or from their task, whichever is earlier.
+    for (const c of report.projects || []) {
+      if (!(c.utmMeetings && c.utmMeetings.length) || !computedKeys.has(c.key)) continue;
+      try {
+        const found = await hsFetch(`${API}/crm/v3/objects/meetings/search`, { method: "POST", headers: H, body: JSON.stringify({
+          filterGroups: [{ filters: [{ propertyName: "utm_campaign_of_meeting", operator: "IN", values: c.utmMeetings }] }],
+          properties: ["hs_createdate"], limit: 200 }) });
+        const ms = (found.results || []).filter((m) => m.properties && m.properties.hs_createdate);
+        const m2c = await batchAssociations(API, H, "meetings", "contacts", ms.map((m) => m.id));
+        const map = (projectContacts[c.key] ||= new Map());
+        for (const m of ms) {
+          const at = Date.parse(m.properties.hs_createdate) - 3600 * 1000;
+          for (const cid of m2c[m.id] || []) {
+            const prev = map.get(cid);
+            if (prev === undefined || at < prev) map.set(cid, at);
+          }
+        }
+      } catch (e) {
+        console.log(`deals: utm meetings skipped for ${c.key} (${e})`);
+      }
+    }
+
     const allContactIds = [...new Set(Object.values(projectContacts).flatMap((m) => [...m.keys()]))];
     const contactToDeals = await batchAssociations(API, H, "contacts", "deals", allContactIds);
     const dealIds = [...new Set(Object.values(contactToDeals).flat())];
@@ -2401,7 +2426,7 @@ async function dealAttribution(url, env) {
       portalId: PORTAL_ID,
       projects,
       other,
-      method: "Every contact ever associated with a task in this sequence (any task status) is checked for a Closed Won deal in the \"Plans\" HubSpot pipeline that closed ON OR AFTER the date they were first enrolled in that sequence (their earliest task's creation date there) — a deal that closed before they were ever put into the sequence doesn't count. Where the campaign email went out before the call tasks (Nonpaying final followup: 6 Oct 11:35 UTC, for the first 22 contacts; EPC list experiment: first send 13 Oct 20:30 UTC), enrollment is the email send instead. The EPC list experiment's contacts and conversions are also split by epc_bucket, with email engagement per bucket: delivered/opened/clicked from HubSpot's email events for that email (falling back to the contact's last marketing email open/click date on or after enrollment if those events can't be read), and replied = an incoming email on the contact with the campaign's subject, on or after enrollment. Bucketed by plan type (plans___product_type: Core/Complete) and whether it was flagged an upsell (p_p___upsell). A contact can appear in more than one bucket if they closed more than one qualifying deal (e.g. closed Core shortly after enrolling, then upsold to Complete later) — both are real outcomes. SEPARATELY, contacts with no qualifying deal are checked against the \"Packs and Plans confirmed\" behavioral event (is_migration=true) — migrations never create a Plans deal, per the team, so they'd otherwise be invisible here. This event carries a real timestamp, so — same as deals — only an event that fired ON OR AFTER enrollment counts. Migration rows show whether MRR has actually started (hs_active_contracts_mrr) since these customers are usually still on trial.",
+      method: "Every contact ever associated with a task in this sequence (any task status) — plus, for campaigns whose email has a tagged booking link, everyone who booked from it (enrolled from an hour before booking) — is checked for a Closed Won deal in the \"Plans\" HubSpot pipeline that closed ON OR AFTER the date they were first enrolled in that sequence (their earliest task's creation date there) — a deal that closed before they were ever put into the sequence doesn't count. Where the campaign email went out before the call tasks (Nonpaying final followup: 6 Oct 11:35 UTC, for the first 22 contacts; EPC list experiment: first send 13 Oct 20:30 UTC), enrollment is the email send instead. The EPC list experiment's contacts and conversions are also split by epc_bucket, with email engagement per bucket: delivered/opened/clicked from HubSpot's email events for that email (falling back to the contact's last marketing email open/click date on or after enrollment if those events can't be read), and replied = an incoming email on the contact with the campaign's subject, on or after enrollment. Bucketed by plan type (plans___product_type: Core/Complete) and whether it was flagged an upsell (p_p___upsell). A contact can appear in more than one bucket if they closed more than one qualifying deal (e.g. closed Core shortly after enrolling, then upsold to Complete later) — both are real outcomes. SEPARATELY, contacts with no qualifying deal are checked against the \"Packs and Plans confirmed\" behavioral event (is_migration=true) — migrations never create a Plans deal, per the team, so they'd otherwise be invisible here. This event carries a real timestamp, so — same as deals — only an event that fired ON OR AFTER enrollment counts. Migration rows show whether MRR has actually started (hs_active_contracts_mrr) since these customers are usually still on trial.",
     }, 200);
   } catch (e) {
     return json({ error: String(e) }, 502);
