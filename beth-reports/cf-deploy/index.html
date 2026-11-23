@@ -1796,7 +1796,7 @@ function renderNav(stats, activeKey) {
   const liveIn = (k) => projects.filter((p) => !isClosed(p) && inSection(p, k));
   const top = [].concat(SECTIONS.map((x) => {
     const n = x.key === "campaigns" ? initiativesList(stats).length : liveIn(x.key).length;
-    return `<a href="/?section=${x.key}" class="${sec === x.key ? "on" : ""}">${x.label}<span class="count">${n}</span></a>`;
+    return `<a href="/?section=${x.key}" class="${sec === x.key ? "on" : ""}">${x.label}${stats.noStats ? "" : `<span class="count">${n}</span>`}</a>`;
   })).concat(REPS.map((r) => { const q = repCache.queue[r.key]; return `<a href="/?rep=${r.key}" class="${sec === "rep:" + r.key ? "on" : ""}">${esc(r.label)}${q ? `<span class="count">${q.campaigns.filter((c) => c.open && (/^Call\b/i.test(c.name) || c.project)).length}</span>` : ""}</a>`; }))
     .concat([`<a href="/tools/">Tools<span class="count">${TOOLS.length}</span></a>`]).join("");
   let sub = "";
@@ -2315,6 +2315,20 @@ function render() {
 }
 
 async function load({ force = false } = {}) {
+  // Rep tabs (e.g. Billy) don't need the main /api/stats load at all: paint the page straight
+  // away and fetch only that rep's endpoints. Counts on the other tabs come from this tab's last
+  // saved load if there is one, otherwise they're left off until you visit those tabs.
+  const repOnly = REPS.find((r) => r.key === currentRepKey());
+  if (repOnly) {
+    if (force) { repCache.queue = {}; repCache.activity = {}; repCache.plan = {}; }
+    let st = cache.stats;
+    if (!st) { try { const saved = JSON.parse(sessionStorage.getItem(lastLoadKey()) || "null"); if (saved && saved.stats) { cache = saved; st = saved.stats; } } catch (_) {} }
+    renderNav(st ? withMergedProjects(sliceStats(st)) : { projects: [], noStats: true }, null);
+    const main = document.getElementById("main");
+    if (!document.getElementById("rep-tiles")) main.innerHTML = repPageHtml(repOnly);
+    loadRep(repOnly);
+    return;
+  }
   try {
     if (!force && !cache.stats) {
       // Paint the previous load straight away (if this tab has one), then refresh it below.
@@ -2358,9 +2372,12 @@ document.addEventListener("click", (e) => {
   if (e.metaKey || e.ctrlKey || e.shiftKey || a.target === "_blank") return;
   e.preventDefault();
   history.pushState({}, "", url.pathname + url.search);
-  render();
+  navRender();
 });
-window.addEventListener("popstate", render);
+// The Billy tab can be opened without the main stats load; leaving it for a tab that needs them
+// triggers that load instead of rendering an empty page.
+const navRender = () => (cache.stats || REPS.some((r) => r.key === currentRepKey()) ? (REPS.some((r) => r.key === currentRepKey()) ? load() : render()) : load());
+window.addEventListener("popstate", navRender);
 // Restored from the back/forward cache mid-load: finish loading rather than sit on "Loading…".
 window.addEventListener("pageshow", (e) => { if (e.persisted && !cache.stats) load(); });
 
