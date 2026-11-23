@@ -2718,16 +2718,20 @@ async function repActivity(url, env) {
 // Daily slot plans per rep (Beth, 23 Nov): the rep's day split into calling slots, each with a
 // target and a rule for which open tasks belong in it. /api/rep-plan rebuilds the list from the
 // live queue on every load, so it changes each day with what's available.
+// Billy's "active" queues (Beth, 23 Nov): Active Lead campaigns, the Landlord savings calculator
+// experiment and the Black Friday 50%-off calls. "Call | Reengage | Black Friday email …" is a
+// reengage queue, not active, so Black Friday must be the campaign name right after "Call |".
+const isBillyActive = (t) => /^Call \| Active Lead\b/i.test(t.name) || /Landlord savings calculator/i.test(t.name) || /^Call \| Black Friday\b/i.test(t.name);
 const REP_PLANS = {
   "35666443": { // Billy Hunt
     slots: [
       { key: "fresh", start: "09:30", end: "12:30", title: "Active leads — fresh (#1 calls)", target: 50,
-        rule: (t) => /^Call \| Active Lead\b/i.test(t.name) && t.attempt === 1, sort: "newest" },
+        rule: (t) => isBillyActive(t) && t.attempt === 1, sort: "newest" },
       { key: "lunch", start: "12:30", end: "13:30", title: "Lunch", lunch: true },
       { key: "reengage", start: "13:30", end: "16:30", title: "Reengage — high priority first (Complete plan)", target: 50,
         rule: (t) => /\bRe-?engage(ment)?\b/i.test(t.name), sort: "priority" },
       { key: "followups", start: "16:30", end: "18:30", title: "Active leads — follow-ups (#2, #3, #4)", target: 50,
-        rule: (t) => /^Call \| Active Lead\b/i.test(t.name) && [2, 3, 4].includes(t.attempt), sort: "oldestDue" },
+        rule: (t) => isBillyActive(t) && [2, 3, 4].includes(t.attempt), sort: "oldestDue" },
     ],
   },
 };
