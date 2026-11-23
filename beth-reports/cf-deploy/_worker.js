@@ -649,6 +649,26 @@ const REPORTS = {
         meetingsAnyHost: true,
       },
       {
+        key: "accounting-vsl",
+        label: "Experiment — Accounting VSL call back (Plans)",
+        // Real subject: "#1 |  Call | Experiment | Accounting Call Back- Plans" (double space after
+        // "#1 |", no space before "-"), from the accounting VSL (ACC) form. First tasks 16 Nov 2026,
+        // all assigned to Billy; #2s made by the call automation.
+        match: (s) => s.includes("Accounting Call Back"),
+        namePattern: "Call | Experiment | Accounting Call Back- Plans",
+        searchTerm: "Accounting Call Back",
+        context: "Leads from the accounting VSL (ACC) form who asked for a call back, called about Plans.",
+        // Verified against real data (23 Nov): "Accounting" AND "Back" returns exactly the 9 tasks of
+        // this campaign, portal-wide. The Black Friday "Interest: Accounting" tasks don't contain "Back".
+        attributionSearch: { tokens: ["Accounting", "Back"], ownerFiltered: false },
+        // Same set-up as the Landlord savings calculator: calls only, no campaign email.
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
+        noCampaignEmail: true,
+        meetingsAnyHost: true,
+      },
+      {
         key: "reengage-post-webinar-bf",
         label: "Reengage — Post BF webinar email (follow up)",
         // Real subject: "#1 | Call | Reengage | Post-webinar email (BF 50% off 6M)" (single space),
@@ -2683,7 +2703,7 @@ async function repActivity(url, env) {
   buckets.forEach((b) => { b.tasksDone = 0; b.meetings = {}; b.byType = { Active: 0, Reengage: 0, Other: 0 }; });
   const famOf = (subj) => { const n = String(subj || "").replace(/^\s*#\s*\d+\s*\|\s*/, "").replace(/\s+/g, " ").trim();
     if (/\bRe-?engage(ment)?\b/i.test(n)) return "Reengage";
-    if (/\bActive\b/i.test(n) || /Landlord savings/i.test(n) || /^Call \| Black Friday\b/i.test(n)) return "Active";
+    if (/\bActive\b/i.test(n) || /Landlord savings/i.test(n) || /Accounting Call Back/i.test(n) || /^Call \| Black Friday\b/i.test(n)) return "Active";
     return "Other"; };
   if (part !== "meetings") {
   if (period === "day") {
@@ -2748,7 +2768,7 @@ async function repActivity(url, env) {
 // Billy's "active" queues (Beth, 23 Nov): Active Lead campaigns, the Landlord savings calculator
 // experiment and the Black Friday 50%-off calls. "Call | Reengage | Black Friday email …" is a
 // reengage queue, not active, so Black Friday must be the campaign name right after "Call |".
-const isBillyActive = (t) => /^Call \| Active Lead\b/i.test(t.name) || /Landlord savings calculator/i.test(t.name) || /^Call \| Black Friday\b/i.test(t.name);
+const isBillyActive = (t) => /^Call \| Active Lead\b/i.test(t.name) || /Landlord savings calculator/i.test(t.name) || /Accounting Call Back/i.test(t.name) || /^Call \| Black Friday\b/i.test(t.name);
 const REP_PLANS = {
   "35666443": { // Billy Hunt
     slots: [

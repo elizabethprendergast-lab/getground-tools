@@ -1571,12 +1571,13 @@ function referralPageHtml() {
 const SECTIONS = [
   { key: "campaigns", label: "Campaigns", desc: "Email campaigns, their call follow-up and web pages — sends, outcomes, meetings, deals and visitors." },
   { key: "calls", label: "Call tasks - Reengage", desc: "Calling queues — tasks done vs left, call outcomes, meetings and deals." },
-  { key: "acquisition", label: "Call tasks - Acquisition", desc: "New-customer calling queues: Black Friday and the Landlord savings calculator." },
+  { key: "acquisition", label: "Call tasks - Acquisition", desc: "New-customer calling queues: Black Friday, the Landlord savings calculator and the Accounting VSL." },
 ];
 // Call tasks - Acquisition (23 Nov): just these queues, shown the same way as Call tasks.
 const ACQ_GROUPS = [
   { title: "Black Friday", keys: ["black-friday"] },
   { title: "Landlord savings calculator", keys: ["landlord-savings-calculator"] },
+  { title: "Accounting VSL", keys: ["accounting-vsl"] },
 ];
 const ACQ_KEYS = ACQ_GROUPS.flatMap((g) => g.keys);
 // Always-on tools (Tools tab = /tools/, data proxied from Beth Watchlist).
@@ -1593,7 +1594,7 @@ const NAV_GROUPS = [
   { title: "Black Friday", keys: ["black-friday", "black-friday-reengage", "reengage-post-webinar-bf"], section: "campaigns", links: [{ href: "/black-friday-pages/", label: "Black Friday pages (web)" }] },
   { title: "Upsell / Complete", keys: ["experiment-epc", "rent-anniversary", "hapi-areas"] },
   { title: "Reengage & follow-up", keys: ["upsell-complete", "rra-cantonese-webinar", "properties-outside", "reengage-property-closed-lost", "reengage-ltd-core-plan", "reengage-nonpaying-master"] },
-  { title: "Active Lead & offers", keys: ["active-lead", "plan-close-month-end", "landlord-savings-calculator"] },
+  { title: "Active Lead & offers", keys: ["active-lead", "plan-close-month-end", "landlord-savings-calculator", "accounting-vsl"] },
   // Per-rep pages (Billy tab, 23 Nov) — listed under Call tasks like the campaign groups.
   { title: "Reps", keys: [], section: "calls", links: REPS_LINKS },
   // Web/funnel report pages (separate pages, or the Referral tab) — shown as links in Campaigns.
@@ -1639,6 +1640,7 @@ const NAV_SHORT = {
   "reengage-post-webinar-bf": "Post BF webinar email",
   "plan-close-month-end": "Plan close (month end)",
   "landlord-savings-calculator": "Landlord savings calculator",
+  "accounting-vsl": "Accounting VSL",
   "black-friday": "Black Friday",
   "black-friday-reengage": "Black Friday reengage",
 };
@@ -1761,7 +1763,7 @@ function renderRepActivity(rep, data) {
   const totalDone = tb.reduce((n, b) => n + b.total, 0), active = tb.filter((b) => b.total).length;
   const typeTot = (t) => tb.reduce((n, b) => n + (b.parts[t] || 0), 0);
   tEl.innerHTML = `<p class="sub">${fmtN(totalDone)} done · ${esc(repRangeLabel())} · avg ${fmtN(Math.round(totalDone / Math.max(1, active)))} per active ${per}</p>`
-    + `<div class="rep-legend">${TYPES.map((t) => `<span><span class="sw" style="background:${typeColor(t)}"></span>${t === "Active" ? "Active (Active Lead, Black Friday, Landlord savings calc)" : t} (${fmtN(typeTot(t))})</span>`).join("")}</div>`
+    + `<div class="rep-legend">${TYPES.map((t) => `<span><span class="sw" style="background:${typeColor(t)}"></span>${t === "Active" ? "Active (Active Lead, Black Friday, Landlord savings calc, Accounting VSL)" : t} (${fmtN(typeTot(t))})</span>`).join("")}</div>`
     + barChartSvg(tb, per, TYPES, typeColor)
     + `<details class="tbl"><summary>Show table</summary><table class="rep-table"><tr><th>${per[0].toUpperCase() + per.slice(1)}</th>${TYPES.map((t) => `<th class="n">${t}</th>`).join("")}<th class="n">Total</th></tr>${tb.map((b) => `<tr><td>${esc(bucketLabel(b.start, per, false))}</td>${TYPES.map((t) => `<td class="n">${fmtN(b.parts[t] || 0)}</td>`).join("")}<td class="n">${fmtN(b.total)}</td></tr>`).join("")}</table></details>`;
   wireBarTips(tEl, tb, per, TYPES, typeColor, "done");
