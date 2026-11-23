@@ -1695,9 +1695,9 @@ function periodSegHtml() {
 }
 function repPageHtml(rep) {
   const per = repPeriod();
-  return `<div class="rep-head"><div><h1>${esc(rep.name)}</h1><div class="sub">Live from HubSpot · call tasks done, meetings booked and what's in the queue now</div></div>
-    <div class="rep-controls" id="rep-controls">${repControlsHtml()}</div></div>
+  return `<div class="rep-head"><div><h1>${esc(rep.name)}</h1><div class="sub">Live from HubSpot · call tasks done, meetings booked and what's in the queue now</div></div></div>
     <section class="card rep-card"><h2>Today's plan</h2><p class="sub">Rebuilt from the live queue every time this page loads · aim for each slot's target.</p><div id="rep-plan"><p class="sub">Loading…</p></div></section>
+    <div class="rep-controls" id="rep-controls" style="margin: 4px 0 16px;">${repControlsHtml()}</div>
     <div class="stat-row" id="rep-tiles"><div class="stat-tile"><div class="label">Loading…</div><div class="value">–</div></div></div>
     <section class="card rep-card"><div class="card-head"><h2>Tasks completed</h2><span id="rep-period-wrap">${periodSegHtml()}</span></div><div id="rep-tasks-chart" class="rep-chart"><p class="sub">Loading…</p></div></section>
     <section class="card rep-card"><h2>Meetings booked</h2><p class="sub">Meetings ${esc(rep.label)} booked, split by the contact's call campaign.</p><div id="rep-meet-chart" class="rep-chart"><p class="sub">Loading…</p></div></section>
