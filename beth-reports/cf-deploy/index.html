@@ -480,6 +480,61 @@
   .mt-legend button.lg:hover { border-color: var(--border); }
   .mt-legend button.lg.sel { border-color: var(--t); background: color-mix(in srgb, var(--t) 10%, transparent); color: var(--text-primary); }
   .mt-legend { align-items: center; }
+
+  /* Rep overview pages (23 Nov): per-rep queue + history charts. Chart colours validated with the
+     dataviz validator (light vs #fff, dark vs #131b1f): all checks pass; amber has <3:1 contrast on
+     light, so every chart also has a legend, tooltips and a table view. */
+  :root { --rc-1: #13979b; --rc-2: #7b5cf0; --rc-3: #eda100; --rc-4: #2a78d6; --rc-5: #eb6834; --rc-other: #b6c0c8; }
+  @media (prefers-color-scheme: dark) { :root { --rc-1: #1f9fa2; --rc-2: #8a6ff2; --rc-3: #c98500; --rc-4: #3987e5; --rc-5: #d95926; --rc-other: #4a5a63; } }
+  .rep-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; margin: 6px 0 16px; }
+  .rep-head h1 { font-family: var(--head-font); font-size: 24px; margin: 0; }
+  .rep-head .sub { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .seg button { background: var(--surface-1); color: var(--text-secondary); border: 0; padding: 7px 14px; font: inherit; font-size: 13px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button.on { background: var(--purple-soft); color: var(--text-primary); font-weight: 600; }
+  .rep-chart { position: relative; }
+  .rep-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .rep-chart .grid { stroke: var(--gridline); stroke-width: 1; }
+  .rep-chart .base { stroke: var(--baseline); stroke-width: 1; }
+  .rep-chart text { fill: var(--text-muted); font-size: 11px; font-family: inherit; }
+  .rep-chart .hit { fill: transparent; cursor: default; }
+  .rep-chart .hit:hover + g .bar, .rep-chart g.col:hover .bar { opacity: 0.85; }
+  .rep-tip { position: absolute; pointer-events: none; background: var(--surface-1); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: 8px; padding: 8px 10px; font-size: 12px; color: var(--text-primary); white-space: nowrap; z-index: 5; display: none; }
+  .rep-tip .t { font-weight: 600; margin-bottom: 4px; }
+  .rep-tip .r { display: flex; gap: 8px; align-items: center; color: var(--text-secondary); }
+  .rep-tip .r b { color: var(--text-primary); margin-left: auto; font-weight: 600; }
+  .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+  .rep-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--text-secondary); margin: 0 0 12px; }
+  .rep-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .rep-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .rep-table th, .rep-table td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--border); }
+  .rep-table th { color: var(--text-muted); font-weight: 600; font-size: 12px; }
+  .rep-table td.n, .rep-table th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .rep-table a { color: inherit; }
+  .chip-mini { display: inline-block; font-size: 11px; color: var(--text-secondary); background: var(--page-plane); border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; margin: 0 3px 2px 0; }
+  details.tbl { margin-top: 10px; font-size: 12px; overflow-x: auto; } details.tbl summary { cursor: pointer; color: var(--text-muted); }
+  .warn-t { color: var(--critical); }
+
+  .rep-card { min-width: 0; max-width: 100%; overflow: hidden; }
+  .plan { display: grid; gap: 10px; }
+  .slot { display: grid; grid-template-columns: 112px 1fr; gap: 14px; align-items: start; }
+  @media (max-width: 700px) { .slot { grid-template-columns: 1fr; gap: 4px; } }
+  .slot .tm { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 13px; color: var(--text-secondary); padding-top: 12px; }
+  .slot .blk { border: 1px solid var(--border); border-left: 4px solid var(--rc-1); border-radius: 12px; padding: 12px 14px; background: var(--surface-1); min-width: 0; }
+  .slot.reengage .blk { border-left-color: var(--rc-2); } .slot.followups .blk { border-left-color: var(--rc-4); }
+  .slot.lunch .blk { border-left-color: var(--rc-other); background: transparent; border-style: dashed; color: var(--text-muted); padding: 8px 14px; }
+  .slot.now .blk { box-shadow: 0 0 0 2px var(--purple-soft), var(--shadow); }
+  .slot .ttl { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-weight: 600; }
+  .slot .now-b { font-size: 11px; font-weight: 700; color: var(--purple); background: var(--purple-soft); border-radius: 999px; padding: 2px 8px; }
+  .slot .meta { font-size: 12px; color: var(--text-muted); margin: 4px 0 8px; }
+  .prog { height: 8px; border-radius: 999px; background: var(--not-done); overflow: hidden; margin: 6px 0 4px; }
+  .prog > i { display: block; height: 100%; border-radius: 999px; background: var(--good); }
+  .slot details summary { cursor: pointer; font-size: 13px; color: var(--text-secondary); }
+  .slot ol { margin: 8px 0 0; padding-left: 22px; font-size: 13px; max-height: 360px; overflow: auto; }
+  .slot ol li { padding: 3px 0; border-bottom: 1px solid var(--gridline); }
+  .slot ol li .c { color: var(--text-muted); font-size: 12px; }
+  .short { font-size: 12px; color: var(--warning); margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -1511,8 +1566,8 @@ const SECTION_OF = {};
 // these labels. Keys not listed land in "Other".
 const NAV_GROUPS = [
   { title: "Black Friday", keys: ["black-friday", "black-friday-reengage", "reengage-post-webinar-bf"], section: "campaigns", links: [{ href: "/black-friday-pages/", label: "Black Friday pages (web)" }] },
-  { title: "Upsell / Complete", keys: ["upsell-complete", "experiment-epc", "rent-anniversary", "hapi-areas"] },
-  { title: "Reengage & follow-up", keys: ["rra-cantonese-webinar", "properties-outside", "reengage-property-closed-lost", "reengage-ltd-core-plan", "reengage-nonpaying-master"] },
+  { title: "Upsell / Complete", keys: ["experiment-epc", "rent-anniversary", "hapi-areas"] },
+  { title: "Reengage & follow-up", keys: ["upsell-complete", "rra-cantonese-webinar", "properties-outside", "reengage-property-closed-lost", "reengage-ltd-core-plan", "reengage-nonpaying-master"] },
   { title: "Active Lead & offers", keys: ["active-lead", "plan-close-month-end", "landlord-savings-calculator"] },
   // Web/funnel report pages (separate pages, or the Referral tab) — shown as links in Campaigns.
   { title: "Web & funnels", keys: [], section: "campaigns", links: [
@@ -1544,7 +1599,7 @@ const WEB_REPORTS = [
 ];
 // Short sub-tab labels (the section tab already says what kind of thing it is).
 const NAV_SHORT = {
-  "upsell-complete": "Complete plan upsell",
+  "upsell-complete": "Reengage | Complete plan upsell",
   "experiment-epc": "EPC list (experiment)",
   "rent-anniversary": "Rent anniversary (experiment)",
   "active-lead": "Active Lead – Ltd company",
@@ -1561,6 +1616,7 @@ const NAV_SHORT = {
 
 function currentSection(stats) {
   const q = new URLSearchParams(location.search);
+  if (q.get("rep")) return "rep:" + q.get("rep");
   if (q.get("section")) return q.get("section") === "reports" ? "campaigns" : q.get("section");
   if (q.get("view") === "calls") return "calls";
   if (q.get("initiative")) return "campaigns";
@@ -1571,6 +1627,167 @@ function currentSection(stats) {
   return p ? sectionOf(p) : null;
 }
 
+
+// ---- Rep overview pages (23 Nov) ---------------------------------------------------------
+// One tab per rep: tasks done per day/week/month, meetings booked (split by the contact's call
+// campaign), and the rep's live queue by campaign. Add a rep = add a row here (owner id = HubSpot
+// owner, user id = the HubSpot user who books meetings — the same number for most people).
+const REPS = [
+  { key: "billy", label: "Billy", name: "Billy Hunt", ownerId: "35666443", userId: "35666443" },
+];
+const repCache = { queue: {}, activity: {} };
+const currentRepKey = () => new URLSearchParams(location.search).get("rep");
+const repPeriod = () => { try { return sessionStorage.getItem("rep-period") || "day"; } catch (_) { return "day"; } };
+const fmtN = (n) => Number(n || 0).toLocaleString();
+function bucketLabel(iso, period, short) {
+  const d = new Date(iso);
+  if (period === "month") return d.toLocaleDateString("en-GB", { month: "short", year: short ? undefined : "numeric", timeZone: "UTC" });
+  if (period === "week") return (short ? "" : "w/c ") + d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+  return d.toLocaleDateString("en-GB", short ? { day: "numeric", month: "short", timeZone: "UTC" } : { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+}
+function repPageHtml(rep) {
+  const per = repPeriod();
+  return `<div class="rep-head"><div><h1>${esc(rep.name)}</h1><div class="sub">Live from HubSpot · call tasks done, meetings booked and what's in the queue now</div></div>
+    <div class="seg" id="rep-period">${["day", "week", "month"].map((p) => `<button data-p="${p}" class="${p === per ? "on" : ""}">${p[0].toUpperCase() + p.slice(1)}</button>`).join("")}</div></div>
+    <section class="card rep-card"><h2>Today's plan</h2><p class="sub">Rebuilt from the live queue every time this page loads · aim for each slot's target.</p><div id="rep-plan"><p class="sub">Loading…</p></div></section>
+    <div class="stat-row" id="rep-tiles"><div class="stat-tile"><div class="label">Loading…</div><div class="value">–</div></div></div>
+    <section class="card rep-card"><h2>Call tasks completed</h2><div id="rep-tasks-chart" class="rep-chart"><p class="sub">Loading…</p></div></section>
+    <section class="card rep-card"><h2>Meetings booked</h2><p class="sub">Meetings ${esc(rep.label)} booked, split by the contact's call campaign.</p><div id="rep-meet-chart" class="rep-chart"><p class="sub">Loading…</p></div></section>
+    <section class="card rep-card"><h2>Working on now</h2><p class="sub">Every campaign with open tasks, plus anything completed in the last 7 days.</p><div id="rep-queue"><p class="sub">Loading…</p></div></section>`;
+}
+function barChartSvg(buckets, period, stacks, colorOf) {
+  // buckets: [{start, total, parts:{name:n}}]; stacks: ordered names (null = single series).
+  const W = 760, Hh = 220, L = 34, R = 8, T = 10, B = 26;
+  const n = buckets.length, max = Math.max(1, ...buckets.map((b) => b.total));
+  const step = Math.pow(10, Math.floor(Math.log10(max))); const nice = Math.ceil(max / step) * step; const yMax = nice < max * 1.05 ? nice + step : nice;
+  const ticks = 4, cw = (W - L - R) / n, bw = Math.max(4, Math.min(36, cw * 0.62)), y = (v) => T + (Hh - T - B) * (1 - v / yMax);
+  let g = "";
+  for (let i = 0; i <= ticks; i++) { const v = Math.round((yMax / ticks) * i), yy = y(v); g += `<line class="${i ? "grid" : "base"}" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 6}" y="${yy + 3.5}" text-anchor="end">${fmtN(v)}</text>`; }
+  const every = period === "day" ? Math.ceil(n / 10) : 1;
+  buckets.forEach((b, i) => {
+    const x = L + cw * i + (cw - bw) / 2; let acc = 0, segs = "";
+    const parts = stacks ? stacks.map((s) => [s, (b.parts || {})[s] || 0]).filter((p) => p[1]) : [[null, b.total]];
+    parts.forEach(([name, v], k) => {
+      const y1 = y(acc + v), y0 = y(acc), top = k === parts.length - 1, h = Math.max(0, y0 - y1 - (k ? 2 : 0));
+      const r = top ? Math.min(4, h, bw / 2) : 0, yb = y0 - (k ? 2 : 0);
+      segs += `<path class="bar" fill="${colorOf(name)}" d="M${x},${yb} V${yb - h + r} Q${x},${yb - h} ${x + r},${yb - h} H${x + bw - r} Q${x + bw},${yb - h} ${x + bw},${yb - h + r} V${yb} Z"/>`;
+      acc += v;
+    });
+    g += `<g class="col" data-i="${i}"><rect class="hit" x="${L + cw * i}" y="${T}" width="${cw}" height="${Hh - T - B}"/>${segs}</g>`;
+    if (i % every === 0 || i === n - 1 && n < 14) g += `<text x="${x + bw / 2}" y="${Hh - 8}" text-anchor="middle">${esc(bucketLabel(b.start, period, true))}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${Hh}" role="img">${g}</svg><div class="rep-tip"></div>`;
+}
+function wireBarTips(el, buckets, period, stacks, colorOf, unit) {
+  const tip = el.querySelector(".rep-tip");
+  el.querySelectorAll("g.col").forEach((c) => {
+    c.addEventListener("mousemove", (e) => {
+      const b = buckets[+c.dataset.i], box = el.getBoundingClientRect();
+      const rows = stacks ? stacks.filter((s) => (b.parts || {})[s]).map((s) => `<div class="r"><span class="sw" style="background:${colorOf(s)}"></span>${esc(s)}<b>${fmtN(b.parts[s])}</b></div>`).join("") : "";
+      tip.innerHTML = `<div class="t">${esc(bucketLabel(b.start, period, false))}</div><div class="r">Total ${unit}<b>${fmtN(b.total)}</b></div>${rows}`;
+      tip.style.display = "block";
+      const x = e.clientX - box.left + 14, w = tip.offsetWidth;
+      tip.style.left = Math.min(x, box.width - w - 4) + "px"; tip.style.top = Math.max(0, e.clientY - box.top - 20) + "px";
+    });
+    c.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+  });
+}
+function renderRepActivity(rep, data) {
+  const per = data.period;
+  const tb = data.buckets.map((b) => ({ start: b.start, total: b.tasksDone }));
+  const tEl = document.getElementById("rep-tasks-chart");
+  if (!tEl) return;
+  const totalDone = tb.reduce((n, b) => n + b.total, 0), active = tb.filter((b) => b.total).length;
+  tEl.innerHTML = `<div class="rep-legend"><span>${fmtN(totalDone)} done · ${per === "day" ? "last 30 days" : per === "week" ? "last 13 weeks" : "last 6 months"} · avg ${fmtN(Math.round(totalDone / Math.max(1, active)))} per active ${per}</span></div>`
+    + barChartSvg(tb, per, null, () => "var(--rc-1)")
+    + `<details class="tbl"><summary>Show table</summary><table class="rep-table"><tr><th>${per[0].toUpperCase() + per.slice(1)}</th><th class="n">Call tasks done</th></tr>${tb.map((b) => `<tr><td>${esc(bucketLabel(b.start, per, false))}</td><td class="n">${fmtN(b.total)}</td></tr>`).join("")}</table></details>`;
+  wireBarTips(tEl, tb, per, null, null, "done");
+  const top = data.meetingCampaigns.slice(0, 5).map((c) => c.name), other = "Other campaigns";
+  const stacks = data.meetingCampaigns.length > 5 ? [...top, other] : top;
+  const colorOf = (name) => name === other ? "var(--rc-other)" : `var(--rc-${top.indexOf(name) + 1})`;
+  const mb = data.buckets.map((b) => { const parts = {}; let tot = 0; for (const [k, v] of Object.entries(b.meetings)) { const kk = top.includes(k) ? k : other; parts[kk] = (parts[kk] || 0) + v; tot += v; } return { start: b.start, total: tot, parts }; });
+  const mEl = document.getElementById("rep-meet-chart");
+  const mTot = mb.reduce((n, b) => n + b.total, 0);
+  mEl.innerHTML = !mTot ? `<p class="sub">No meetings booked in this period.</p>` :
+    `<div class="rep-legend">${stacks.map((s) => `<span><span class="sw" style="background:${colorOf(s)}"></span>${esc(s)} (${fmtN(s === other ? data.meetingCampaigns.slice(5).reduce((n, c) => n + c.n, 0) : data.meetingCampaigns.find((c) => c.name === s).n)})</span>`).join("")}</div>`
+    + barChartSvg(mb, per, stacks, colorOf)
+    + `<details class="tbl"><summary>Show table</summary><table class="rep-table"><tr><th>${per[0].toUpperCase() + per.slice(1)}</th>${stacks.map((s) => `<th class="n">${esc(s)}</th>`).join("")}<th class="n">Total</th></tr>${mb.map((b) => `<tr><td>${esc(bucketLabel(b.start, per, false))}</td>${stacks.map((s) => `<td class="n">${fmtN(b.parts[s] || 0)}</td>`).join("")}<td class="n">${fmtN(b.total)}</td></tr>`).join("")}</table></details>`;
+  if (mTot) wireBarTips(mEl, mb, per, stacks, colorOf, "meetings");
+  repTiles(rep);
+}
+function repTiles(rep) {
+  const q = repCache.queue[rep.key], a = repCache.activity[rep.key + ":" + repPeriod()];
+  const el = document.getElementById("rep-tiles"); if (!el) return;
+  const tile = (label, v, cls) => `<div class="stat-tile ${cls || ""}"><div class="label">${label}</div><div class="value">${v}</div></div>`;
+  const mt = a ? a.buckets.reduce((n, b) => n + Object.values(b.meetings).reduce((x, y) => x + y, 0), 0) : null;
+  el.innerHTML = tile("Open tasks", q ? fmtN(q.totals.open) : "…") + tile("Overdue", q ? `<span class="${q.totals.overdue ? "warn-t" : ""}">${fmtN(q.totals.overdue)}</span>` : "…")
+    + tile("Done last 7 days", q ? fmtN(q.totals.done7d) : "…", "done") + tile(`Meetings booked (${a ? (a.period === "day" ? "30 days" : a.period === "week" ? "13 weeks" : "6 months") : "…"})`, mt === null ? "…" : fmtN(mt))
+    + tile("Live campaigns", q ? fmtN(q.campaigns.filter((c) => c.open && (/^Call\b/i.test(c.name) || c.project)).length) : "…");
+}
+function renderRepQueue(rep, q) {
+  const el = document.getElementById("rep-queue"); if (!el) return;
+  const link = (c) => q.hubspot && q.hubspot.viewId ? `https://${q.hubspot.subdomain}/contacts/${q.hubspot.portalId}/objects/${q.hubspot.objectTypeId}/views/${q.hubspot.viewId}/list?query=${encodeURIComponent(c.name)}` : null;
+  // Campaign queues = "Call | …" tasks; free-text personal follow-ups ("investing ?", "follow up")
+  // are folded into one row so the list stays a list of campaigns.
+  const isCamp = (c) => /^#?\s*\d*\s*Call\b/i.test(c.name) || !!c.project;
+  const camps = q.campaigns.filter(isCamp), oneOffs = q.campaigns.filter((c) => !isCamp(c));
+  if (oneOffs.length) camps.push(oneOffs.reduce((a, c) => ({ ...a, open: a.open + c.open, overdue: a.overdue + c.overdue, dueToday: a.dueToday + c.dueToday, done7d: a.done7d + c.done7d, high: a.high + c.high,
+    byAttempt: {} }), { name: `One-off follow-ups (${oneOffs.length} different tasks)`, open: 0, overdue: 0, dueToday: 0, done7d: 0, high: 0, byAttempt: {}, project: null, oneOff: true }));
+  const rows = camps.map((c) => {
+    const att = Object.entries(c.byAttempt).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true })).map(([k, v]) => `<span class="chip-mini">${k === "-" ? "no #" : "#" + k}: ${fmtN(v)}</span>`).join("");
+    const rpt = c.project ? `<a href="/?campaign=${c.project.key}">report →</a>` : "";
+    const hs = link(c) && !c.oneOff ? `<a href="${link(c)}" target="_blank" rel="noopener">HubSpot ↗</a>` : "";
+    return `<tr><td>${esc(c.name)}${c.high ? ` <span class="chip-mini">${fmtN(c.high)} high</span>` : ""}<div>${att}</div></td><td class="n">${fmtN(c.open)}</td><td class="n ${c.overdue ? "warn-t" : ""}">${fmtN(c.overdue)}</td><td class="n">${fmtN(c.dueToday)}</td><td class="n">${fmtN(c.done7d)}</td><td>${[rpt, hs].filter(Boolean).join(" · ")}</td></tr>`;
+  }).join("");
+  el.innerHTML = `${q.truncated ? `<p class="sub warn-t">Showing the first 3,000 tasks only.</p>` : ""}<div style="overflow-x:auto"><table class="rep-table"><tr><th>Campaign / task</th><th class="n">Open</th><th class="n">Overdue</th><th class="n">Due today</th><th class="n">Done 7d</th><th></th></tr>${rows || `<tr><td colspan="6">Nothing open.</td></tr>`}</table></div>`;
+  repTiles(rep);
+}
+
+function renderRepPlan(rep, p) {
+  const el = document.getElementById("rep-plan"); if (!el) return;
+  const nowHM = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date());
+  const isToday = p.day === new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  const cl = (id) => `https://app-eu1.hubspot.com/contacts/${p.portalId}/record/0-1/${id}`;
+  const dueTxt = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "";
+  const slots = p.slots.map((x) => {
+    const now = isToday && nowHM >= x.start && nowHM < x.end ? " now" : "";
+    if (x.lunch) return `<div class="slot lunch${now}"><div class="tm">${x.start}–${x.end}</div><div class="blk">${esc(x.title)}${now ? ` <span class="now-b">Now</span>` : ""}</div></div>`;
+    const pct = Math.min(100, Math.round((x.doneToday / x.target) * 100));
+    const camps = x.byCampaign.slice(0, 4).map((c) => `<span class="chip-mini">${esc(c.name.replace(/^Call \| /, ""))}: ${fmtN(c.n)}</span>`).join("");
+    const list = x.tasks.map((t) => `<li>${t.contactId ? `<a href="${cl(t.contactId)}" target="_blank" rel="noopener">${esc(t.contactName || "Contact")}</a>` : "(no contact)"} <span class="c">· ${esc(t.name.replace(/^Call \| /, ""))}${t.attempt ? ` #${t.attempt}` : ""}${t.priority === "HIGH" ? " · high" : ""} · due ${dueTxt(t.due)}</span></li>`).join("");
+    const short = x.available < x.target ? `<div class="short">Only ${fmtN(x.available)} available for this slot today.</div>` : "";
+    return `<div class="slot ${x.key}${now}"><div class="tm">${x.start}–${x.end}</div><div class="blk">
+      <div class="ttl"><span>${esc(x.title)}</span><span>${now ? `<span class="now-b">Now</span> ` : ""}<span class="sub">${fmtN(x.doneToday)} / ${fmtN(x.target)} done today</span></span></div>
+      <div class="prog"><i style="width:${pct}%"></i></div>
+      <div class="meta">${fmtN(x.available)} in this queue · ${camps}</div>${short}
+      ${x.tasks.length ? `<details${now ? " open" : ""}><summary>Today's ${fmtN(x.tasks.length)} — in order</summary><ol>${list}</ol></details>` : ""}
+    </div></div>`;
+  }).join("");
+  const out = p.notInPlan.length ? `<details class="tbl"><summary>Not in today's plan: ${fmtN(p.notInPlan.reduce((n, c) => n + c.n, 0))} open tasks</summary><table class="rep-table">${p.notInPlan.map((c) => `<tr><td>${esc(c.name)}</td><td class="n">${fmtN(c.n)}</td></tr>`).join("")}</table></details>` : "";
+  el.innerHTML = `<div class="plan">${slots}</div>${out}`;
+}
+async function loadRep(rep) {
+  const per = repPeriod(), aKey = rep.key + ":" + per;
+  const qP = repCache.queue[rep.key] ? Promise.resolve(repCache.queue[rep.key]) : fetch(`/api/rep-queue?report=${REPORT_KEY}&owner=${rep.ownerId}`).then((r) => r.json());
+  const aP = repCache.activity[aKey] ? Promise.resolve(repCache.activity[aKey]) : fetch(`/api/rep-activity?owner=${rep.ownerId}&user=${rep.userId}&period=${per}`).then((r) => r.json());
+  if (!repCache.plan) repCache.plan = {};
+  (repCache.plan[rep.key] ? Promise.resolve(repCache.plan[rep.key]) : fetch(`/api/rep-plan?owner=${rep.ownerId}`).then((r) => r.json()))
+    .then((p) => { if (p.error) throw new Error(p.error); repCache.plan[rep.key] = p; renderRepPlan(rep, p); })
+    .catch((e) => { const el = document.getElementById("rep-plan"); if (el) el.innerHTML = `<p class="sub warn-t">Couldn't load today's plan: ${esc(e.message)}</p>`; });
+  qP.then((q) => { if (q.error) throw new Error(q.error); repCache.queue[rep.key] = q; renderRepQueue(rep, q); })
+    .catch((e) => { const el = document.getElementById("rep-queue"); if (el) el.innerHTML = `<p class="sub warn-t">Couldn't load the queue: ${esc(e.message)}</p>`; });
+  aP.then((a) => { if (a.error) throw new Error(a.error); repCache.activity[aKey] = a; if (repPeriod() === per) renderRepActivity(rep, a); })
+    .catch((e) => { ["rep-tasks-chart", "rep-meet-chart"].forEach((id) => { const el = document.getElementById(id); if (el) el.innerHTML = `<p class="sub warn-t">Couldn't load: ${esc(e.message)}</p>`; }); });
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("#rep-period button"); if (!b) return;
+  try { sessionStorage.setItem("rep-period", b.dataset.p); } catch (_) {}
+  document.querySelectorAll("#rep-period button").forEach((x) => x.classList.toggle("on", x === b));
+  const rep = REPS.find((r) => r.key === currentRepKey()); if (!rep) return;
+  ["rep-tasks-chart", "rep-meet-chart"].forEach((id) => { const el = document.getElementById(id); if (el && !repCache.activity[rep.key + ":" + b.dataset.p]) el.innerHTML = `<p class="sub">Loading…</p>`; });
+  loadRep(rep);
+});
+
 function renderNav(stats, activeKey) {
   const nav = document.getElementById("campaign-nav");
   const projects = sortedByPriority(stats.projects || []);
@@ -1580,7 +1797,8 @@ function renderNav(stats, activeKey) {
   const top = [].concat(SECTIONS.map((x) => {
     const n = x.key === "campaigns" ? initiativesList(stats).length : liveIn(x.key).length;
     return `<a href="/?section=${x.key}" class="${sec === x.key ? "on" : ""}">${x.label}<span class="count">${n}</span></a>`;
-  })).concat([`<a href="/tools/">Tools<span class="count">${TOOLS.length}</span></a>`]).join("");
+  })).concat(REPS.map((r) => { const q = repCache.queue[r.key]; return `<a href="/?rep=${r.key}" class="${sec === "rep:" + r.key ? "on" : ""}">${esc(r.label)}${q ? `<span class="count">${q.campaigns.filter((c) => c.open && (/^Call\b/i.test(c.name) || c.project)).length}</span>` : ""}</a>`; }))
+    .concat([`<a href="/tools/">Tools<span class="count">${TOOLS.length}</span></a>`]).join("");
   let sub = "";
   if (sec === "campaigns") {
     const iniKey = currentInitiativeKey();
@@ -2012,6 +2230,12 @@ function render() {
   const main = document.getElementById("main");
   main.classList.toggle("calls-view", new URLSearchParams(location.search).get("view") === "calls");
 
+  const repSel = REPS.find((r) => r.key === currentRepKey());
+  if (repSel) {
+    if (!document.getElementById("rep-tiles")) main.innerHTML = repPageHtml(repSel);
+    loadRep(repSel);
+    return;
+  }
   const secParam = ((s) => s === "reports" ? "campaigns" : s)(new URLSearchParams(location.search).get("section"));
   const iniKey = currentInitiativeKey();
   const ini = iniKey && initiativesList(statsRes).find((x) => x.key === iniKey);
