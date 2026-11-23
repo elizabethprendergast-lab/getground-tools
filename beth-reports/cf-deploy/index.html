@@ -1579,11 +1579,14 @@ const SECTION_COLOR = { campaigns: "var(--teal)", calls: "var(--purple)", report
 const SECTION_OF = {};
 // Groups inside a section: sub-tabs and section-page cards are laid out in this order, under
 // these labels. Keys not listed land in "Other".
+const REPS_LINKS = [{ href: "/?rep=billy", label: "Billy" }]; // keep in step with REPS below
 const NAV_GROUPS = [
   { title: "Black Friday", keys: ["black-friday", "black-friday-reengage", "reengage-post-webinar-bf"], section: "campaigns", links: [{ href: "/black-friday-pages/", label: "Black Friday pages (web)" }] },
   { title: "Upsell / Complete", keys: ["experiment-epc", "rent-anniversary", "hapi-areas"] },
   { title: "Reengage & follow-up", keys: ["upsell-complete", "rra-cantonese-webinar", "properties-outside", "reengage-property-closed-lost", "reengage-ltd-core-plan", "reengage-nonpaying-master"] },
   { title: "Active Lead & offers", keys: ["active-lead", "plan-close-month-end", "landlord-savings-calculator"] },
+  // Per-rep pages (Billy tab, 23 Nov) — listed under Call tasks like the campaign groups.
+  { title: "Reps", keys: [], section: "calls", links: REPS_LINKS },
   // Web/funnel report pages (separate pages, or the Referral tab) — shown as links in Campaigns.
   { title: "Web & funnels", keys: [], section: "campaigns", links: [
     { href: "/meetings-booked/", label: "Meetings booked" },
@@ -1631,7 +1634,7 @@ const NAV_SHORT = {
 
 function currentSection(stats) {
   const q = new URLSearchParams(location.search);
-  if (q.get("rep")) return "rep:" + q.get("rep");
+  if (q.get("rep")) return "calls";
   if (q.get("section")) return q.get("section") === "reports" ? "campaigns" : q.get("section");
   if (q.get("view") === "calls") return "calls";
   if (q.get("initiative")) return "campaigns";
@@ -1862,8 +1865,7 @@ function renderNav(stats, activeKey) {
   const top = [].concat(SECTIONS.map((x) => {
     const n = x.key === "campaigns" ? initiativesList(stats).length : liveIn(x.key).length;
     return `<a href="/?section=${x.key}" class="${sec === x.key ? "on" : ""}">${x.label}${stats.noStats ? "" : `<span class="count">${n}</span>`}</a>`;
-  })).concat(REPS.map((r) => { const q = repCache.queue[r.key]; return `<a href="/?rep=${r.key}" class="${sec === "rep:" + r.key ? "on" : ""}">${esc(r.label)}${q ? `<span class="count">${q.campaigns.filter((c) => c.open && (/^Call\b/i.test(c.name) || c.project)).length}</span>` : ""}</a>`; }))
-    .concat([`<a href="/tools/">Tools<span class="count">${TOOLS.length}</span></a>`]).join("");
+  })).concat([`<a href="/tools/">Tools<span class="count">${TOOLS.length}</span></a>`]).join("");
   let sub = "";
   if (sec === "campaigns") {
     const iniKey = currentInitiativeKey();
