@@ -550,6 +550,8 @@
   .rep-controls .upd { background: var(--purple); color: #fff; border: 0; font: inherit; font-weight: 600; font-size: 14px; padding: 8px 16px; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 12px rgba(123,92,240,0.25); }
   .card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
   .seg.sm button { padding: 4px 10px; font-size: 12px; } .seg button:disabled { opacity: 0.35; cursor: not-allowed; }
+  body[data-sec="acquisition"] { --sec: var(--purple); --sec-ink: var(--purple); --sec-soft: var(--purple-soft); }
+  body[data-sec="acquisition"] header { background: linear-gradient(180deg, var(--surface-1), color-mix(in srgb, var(--purple) 5%, var(--surface-1))); }
 </style>
 </head>
 <body>
@@ -1568,14 +1570,21 @@ function referralPageHtml() {
 // pages, grouped by initiative; Call tasks = calling queues only. SECTION_OF overrides the split.
 const SECTIONS = [
   { key: "campaigns", label: "Campaigns", desc: "Email campaigns, their call follow-up and web pages — sends, outcomes, meetings, deals and visitors." },
-  { key: "calls", label: "Call tasks", desc: "Calling queues — tasks done vs left, call outcomes, meetings and deals." },
+  { key: "calls", label: "Call tasks - Reengage", desc: "Calling queues — tasks done vs left, call outcomes, meetings and deals." },
+  { key: "acquisition", label: "Call tasks - Acquisition", desc: "New-customer calling queues: Black Friday and the Landlord savings calculator." },
 ];
+// Call tasks - Acquisition (23 Nov): just these queues, shown the same way as Call tasks.
+const ACQ_GROUPS = [
+  { title: "Black Friday", keys: ["black-friday"] },
+  { title: "Landlord savings calculator", keys: ["landlord-savings-calculator"] },
+];
+const ACQ_KEYS = ACQ_GROUPS.flatMap((g) => g.keys);
 // Always-on tools (Tools tab = /tools/, data proxied from Beth Watchlist).
 const TOOLS = [
   { key: "consultant-ticket-tool", label: "Consultant ticket tool" },
   { key: "complete-post-purchase", label: "Complete post-purchase" },
 ];
-const SECTION_COLOR = { campaigns: "var(--teal)", calls: "var(--purple)", reports: "var(--teal-ink)" };
+const SECTION_COLOR = { campaigns: "var(--teal)", calls: "var(--purple)", acquisition: "var(--purple)", reports: "var(--teal-ink)" };
 const SECTION_OF = {};
 // Groups inside a section: sub-tabs and section-page cards are laid out in this order, under
 // these labels. Keys not listed land in "Other".
@@ -1597,6 +1606,7 @@ const NAV_GROUPS = [
 ];
 // A group's report links only show in its own section (g.section).
 const groupsFor = (list, sec) => {
+  if (sec === "acquisition") return ACQ_GROUPS.map((g) => ({ ...g, items: list.filter((p) => g.keys.includes(p.key)), links: [] })).filter((g) => g.items.length);
   const known = new Set(NAV_GROUPS.flatMap((g) => g.keys));
   return NAV_GROUPS.map((g) => ({ ...g, items: list.filter((p) => g.keys.includes(p.key)), links: g.section === sec ? (g.links || []) : [] }))
     .concat([{ title: "Other", items: list.filter((p) => !known.has(p.key)), links: [] }])
@@ -1606,8 +1616,9 @@ const isLinkOn = (href) => href === location.pathname + location.search;
 const sectionOf = (p) => SECTION_OF[p.key] || (p.hasEmails ? "campaigns" : "calls");
 // Call tasks lists EVERY calling queue (campaigns' calls too) and shows only the call cards
 // (?view=calls hides emails + workflows). Campaigns = the full picture.
-const inSection = (p, sec) => sec === "calls" || sectionOf(p) === sec;
-const projectHref = (p, sec) => `/?campaign=${p.key}${sec === "calls" && sectionOf(p) !== "calls" ? "&view=calls" : ""}`;
+// Call tasks - Reengage = every calling queue except the acquisition ones (they have their own tab).
+const inSection = (p, sec) => sec === "calls" ? !ACQ_KEYS.includes(p.key) : sec === "acquisition" ? ACQ_KEYS.includes(p.key) : sectionOf(p) === sec;
+const projectHref = (p, sec) => `/?campaign=${p.key}${(sec === "calls" || sec === "acquisition") && sectionOf(p) !== "calls" ? "&view=calls" : ""}${sec === "acquisition" ? "&in=acquisition" : ""}`;
 const WEB_REPORTS = [
   { href: "/black-friday-pages/", label: "Black Friday pages", desc: "/black-friday and its cost comparison page — visitors by source, book-a-call and claim clicks, meetings, plans bought." },
   { href: "/meetings-booked/", label: "Meetings booked", desc: "Every meeting booked through a HubSpot meeting link — by link, GetGrounder, contact and UTM." },
@@ -1635,6 +1646,7 @@ const NAV_SHORT = {
 function currentSection(stats) {
   const q = new URLSearchParams(location.search);
   if (q.get("rep")) return "calls";
+  if (q.get("in") === "acquisition") return "acquisition";
   if (q.get("section")) return q.get("section") === "reports" ? "campaigns" : q.get("section");
   if (q.get("view") === "calls") return "calls";
   if (q.get("initiative")) return "campaigns";
