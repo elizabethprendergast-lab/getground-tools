@@ -2645,47 +2645,74 @@ async function repActivity(url, env) {
   const user = url.searchParams.get("user") || owner;
   const period = ["day", "week", "month"].includes(url.searchParams.get("period")) ? url.searchParams.get("period") : "day";
   if (!/^\d+$/.test(owner) || !/^\d+$/.test(user)) return json({ error: "owner required" }, 400);
+  // Range = from..to (YYYY-MM-DD, inclusive, UK days ≈ UTC days); default last 30 days. Buckets are
+  // clipped to the range. Caps keep each request inside Cloudflare's 50 subrequests: day view
+  // (paged fetch) ≤ 31 days, week/month views (3 count searches per bucket) ≤ 12 buckets.
   const d0 = new Date(); d0.setUTCHours(0, 0, 0, 0);
+  const pd = (v, dflt) => /^\d{4}-\d{2}-\d{2}$/.test(v || "") ? new Date(`${v}T00:00:00Z`) : dflt;
+  const rFrom = pd(url.searchParams.get("from"), new Date(d0.getTime() - 29 * 864e5));
+  const rEnd = new Date(pd(url.searchParams.get("to"), d0).getTime() + 864e5); // exclusive
+  if (!(rEnd > rFrom)) return json({ error: "bad range" }, 400);
   const buckets = [];
-  if (period === "day") {
-    for (let i = 29; i >= 0; i--) { const a = new Date(d0.getTime() - i * 864e5); buckets.push({ start: a, end: new Date(a.getTime() + 864e5) }); }
-  } else if (period === "week") {
-    const mon = new Date(d0.getTime() - ((d0.getUTCDay() + 6) % 7) * 864e5);
-    for (let i = 12; i >= 0; i--) { const a = new Date(mon.getTime() - i * 7 * 864e5); buckets.push({ start: a, end: new Date(a.getTime() + 7 * 864e5) }); }
-  } else {
-    for (let i = 5; i >= 0; i--) { const a = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() - i, 1)); buckets.push({ start: a, end: new Date(Date.UTC(a.getUTCFullYear(), a.getUTCMonth() + 1, 1)) }); }
+  let cur = new Date(rFrom);
+  if (period === "week") cur = new Date(cur.getTime() - ((cur.getUTCDay() + 6) % 7) * 864e5);
+  if (period === "month") cur = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth(), 1));
+  while (cur < rEnd) {
+    const nx = period === "day" ? new Date(cur.getTime() + 864e5) : period === "week" ? new Date(cur.getTime() + 7 * 864e5) : new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth() + 1, 1));
+    buckets.push({ start: new Date(Math.max(cur, rFrom)), end: new Date(Math.min(nx, rEnd)), label: cur.toISOString() });
+    cur = nx;
   }
-  const countDone = async (b) => {
-    const j = await hsFetch(`${API}/crm/v3/objects/tasks/search`, { method: "POST", headers: H, body: JSON.stringify({ limit: 1, properties: ["hs_task_subject"], filterGroups: [{ filters: [
-      { propertyName: "hubspot_owner_id", operator: "EQ", value: owner }, { propertyName: "hs_task_status", operator: "EQ", value: "COMPLETED" },
-      { propertyName: "hs_task_type", operator: "EQ", value: "CALL" },
-      { propertyName: "hs_task_completion_date", operator: "BETWEEN", value: b.start.toISOString(), highValue: new Date(b.end.getTime() - 1).toISOString() }] }] }) });
+  if ((period === "day" && buckets.length > 31) || (period !== "day" && buckets.length > 12)) return json({ error: `too many ${period}s for this range — pick a bigger grouping` }, 400);
+  // Task-type families (same split as the rep's daily plan). Week/month views count each family
+  // per bucket with token searches (OR = several filterGroups); day view classifies fetched tasks.
+  const base = (b) => [{ propertyName: "hubspot_owner_id", operator: "EQ", value: owner }, { propertyName: "hs_task_status", operator: "EQ", value: "COMPLETED" },
+    { propertyName: "hs_task_completion_date", operator: "BETWEEN", value: b.start.toISOString(), highValue: new Date(b.end.getTime() - 1).toISOString() }];
+  const tok = (v, op = "CONTAINS_TOKEN") => ({ propertyName: "hs_task_subject", operator: op, value: v });
+  const FAMILY_GROUPS = {
+    total: () => [[]],
+    active: () => [[tok("Active")], [tok("Landlord"), tok("savings")], [tok("Black"), tok("Friday"), tok("Reengage", "NOT_CONTAINS_TOKEN")]],
+    reengage: () => [[tok("Reengage")], [tok("Re-engagement")]],
+  };
+  const countFam = async (b, fam) => {
+    const j = await hsFetch(`${API}/crm/v3/objects/tasks/search`, { method: "POST", headers: H, body: JSON.stringify({ limit: 1, properties: ["hs_task_subject"],
+      filterGroups: FAMILY_GROUPS[fam]().map((extra) => ({ filters: base(b).concat(extra) })) }) });
     return j.total || 0;
   };
-  buckets.forEach((b) => { b.tasksDone = 0; b.meetings = {}; });
+
+  const part = url.searchParams.get("part") || "all"; // tasks | meetings | all
+  buckets.forEach((b) => { b.tasksDone = 0; b.meetings = {}; b.byType = { Active: 0, Reengage: 0, Other: 0 }; });
+  const famOf = (subj) => { const n = String(subj || "").replace(/^\s*#\s*\d+\s*\|\s*/, "").replace(/\s+/g, " ").trim();
+    if (/\bRe-?engage(ment)?\b/i.test(n)) return "Reengage";
+    if (/\bActive\b/i.test(n) || /Landlord savings/i.test(n) || /^Call \| Black Friday\b/i.test(n)) return "Active";
+    return "Other"; };
+  if (part !== "meetings") {
   if (period === "day") {
     // 30 count queries + meetings came to ~47 subrequests (cap 50), so fetch the month's completed
     // call tasks in pages of 200 instead (~15-20 requests at Billy's volume) and bucket them here.
     const r = await runTaskSearch(API, H, [{ filters: [{ propertyName: "hubspot_owner_id", operator: "EQ", value: owner }, { propertyName: "hs_task_status", operator: "EQ", value: "COMPLETED" },
-      { propertyName: "hs_task_type", operator: "EQ", value: "CALL" }, { propertyName: "hs_task_completion_date", operator: "GTE", value: buckets[0].start.toISOString() }] }], 30);
+      { propertyName: "hs_task_completion_date", operator: "BETWEEN", value: rFrom.toISOString(), highValue: new Date(rEnd.getTime() - 1).toISOString() }] }], 30);
     for (const t of r.results) {
       const ts = Date.parse(t.properties.hs_task_completion_date || ""); const b = buckets.find((x) => ts >= x.start.getTime() && ts < x.end.getTime());
-      if (b) b.tasksDone++;
+      if (b) { b.tasksDone++; b.byType[famOf(t.properties.hs_task_subject)]++; }
     }
   } else {
     // Search API allows ~4-5 req/s: count in small sequential batches (hsFetch retries any 429).
-    for (let i = 0; i < buckets.length; i += 4) {
-      const part = buckets.slice(i, i + 4);
-      const n = await Promise.all(part.map(countDone));
-      part.forEach((b, k) => { b.tasksDone = n[k]; });
+    const jobs = buckets.flatMap((b) => ["total", "active", "reengage"].map((f) => [b, f]));
+    for (let i = 0; i < jobs.length; i += 3) {
+      const chunk = jobs.slice(i, i + 3);
+      const n = await Promise.all(chunk.map(([b, f]) => countFam(b, f)));
+      chunk.forEach(([b, f], k) => { b["_" + f] = n[k]; });
     }
+    for (const b of buckets) { b.tasksDone = b._total; b.byType = { Active: b._active, Reengage: b._reengage, Other: Math.max(0, b._total - b._active - b._reengage) }; }
+  }
   }
   const from = buckets[0].start.toISOString();
-  const meetings = []; let after;
+  const meetings = []; let after; const totals = {};
+  if (part !== "tasks") {
   do {
     const j = await hsFetch(`${API}/crm/v3/objects/meetings/search`, { method: "POST", headers: H, body: JSON.stringify({ limit: 200, after,
       properties: ["hs_meeting_title", "hs_createdate", "hs_meeting_outcome", "hs_meeting_start_time"],
-      filterGroups: [{ filters: [{ propertyName: "hs_created_by_user_id", operator: "EQ", value: user }, { propertyName: "hs_createdate", operator: "GTE", value: from }] }] }) });
+      filterGroups: [{ filters: [{ propertyName: "hs_created_by_user_id", operator: "EQ", value: user }, { propertyName: "hs_createdate", operator: "BETWEEN", value: from, highValue: new Date(rEnd.getTime() - 1).toISOString() }] }] }) });
     meetings.push(...(j.results || [])); after = j.paging && j.paging.next && j.paging.next.after;
   } while (after && meetings.length < 1000);
   const m2c = {};
@@ -2699,7 +2726,6 @@ async function repActivity(url, env) {
     const j = await hsFetch(`${API}/crm/v3/objects/contacts/batch/read`, { method: "POST", headers: H, body: JSON.stringify({ inputs: cids.slice(i, i + 100).map((id) => ({ id })), properties: ["power_dialler__active_task"] }) });
     for (const r of j.results || []) camp[r.id] = String(r.properties.power_dialler__active_task || "").replace(/\s+/g, " ").trim();
   }
-  const totals = {};
   for (const m of meetings) {
     const t = Date.parse(m.properties.hs_createdate || "");
     const b = buckets.find((x) => t >= x.start.getTime() && t < x.end.getTime());
@@ -2707,9 +2733,10 @@ async function repActivity(url, env) {
     const c = camp[m2c[m.id]] || "No call campaign";
     b.meetings[c] = (b.meetings[c] || 0) + 1; totals[c] = (totals[c] || 0) + 1;
   }
+  }
   return json({
     owner, user, period, generatedAt: new Date().toISOString(),
-    buckets: buckets.map((b) => ({ start: b.start.toISOString(), end: b.end.toISOString(), tasksDone: b.tasksDone, meetings: b.meetings })),
+    part, from: rFrom.toISOString(), to: rEnd.toISOString(), buckets: buckets.map((b) => ({ start: b.label, from: b.start.toISOString(), end: b.end.toISOString(), tasksDone: b.tasksDone, byType: b.byType, meetings: b.meetings })),
     meetingCampaigns: Object.entries(totals).sort((a, b) => b[1] - a[1]).map(([name, n]) => ({ name, n })),
     meetingsTotal: meetings.length,
   });
@@ -2765,25 +2792,15 @@ async function repPlan(url, env) {
     const pool = openT.filter((t) => !used.has(t.id) && sl.rule(t)).sort(sorters[sl.sort] || sorters.oldestDue);
     const pick = pool.slice(0, sl.target); pick.forEach((t) => used.add(t.id));
     const byCampaign = {}; pool.forEach((t) => { byCampaign[t.name] = (byCampaign[t.name] || 0) + 1; });
+    const pickBy = {}; pick.forEach((t) => { pickBy[t.name] = (pickBy[t.name] || 0) + 1; });
     return { key: sl.key, start: sl.start, end: sl.end, title: sl.title, target: sl.target, available: pool.length, doneToday: doneT.filter(sl.rule).length,
-      byCampaign: Object.entries(byCampaign).sort((a, b) => b[1] - a[1]).map(([name, n]) => ({ name, n })), tasks: pick };
+      byCampaign: Object.entries(byCampaign).sort((a, b) => b[1] - a[1]).map(([name, n]) => ({ name, n, today: pickBy[name] || 0 })), picked: pick.length };
   });
-  // Contact names + links for the picked tasks only (≤ 150 → a handful of batch calls).
-  const picked = slots.flatMap((x) => x.tasks || []);
-  const t2c = {};
-  for (let i = 0; i < picked.length; i += 100) {
-    const j = await hsFetch(`${API}/crm/v4/associations/tasks/contacts/batch/read`, { method: "POST", headers: H, body: JSON.stringify({ inputs: picked.slice(i, i + 100).map((t) => ({ id: t.id })) }) });
-    for (const r of j.results || []) t2c[String(r.from.id)] = r.to && r.to[0] ? String(r.to[0].toObjectId) : null;
-  }
-  const cids = [...new Set(Object.values(t2c).filter(Boolean))], names = {};
-  for (let i = 0; i < cids.length; i += 100) {
-    const j = await hsFetch(`${API}/crm/v3/objects/contacts/batch/read`, { method: "POST", headers: H, body: JSON.stringify({ inputs: cids.slice(i, i + 100).map((id) => ({ id })), properties: ["firstname", "lastname"] }) });
-    for (const r of j.results || []) names[r.id] = [r.properties.firstname, r.properties.lastname].filter(Boolean).join(" ") || "(no name)";
-  }
-  picked.forEach((t) => { t.contactId = t2c[t.id] || null; t.contactName = t.contactId ? names[t.contactId] || "" : ""; });
   const inPlan = new Set(slots.flatMap((x) => x.lunch ? [] : openT.filter((t) => plan.slots.find((p) => p.key === x.key).rule(t)).map((t) => t.id)));
   const outside = {}; openT.filter((t) => !inPlan.has(t.id)).forEach((t) => { outside[t.name] = (outside[t.name] || 0) + 1; });
-  return json({ owner, day: londonDay, generatedAt: new Date().toISOString(), portalId: "25516403", truncated: open.truncated,
+  const [, report] = getReport(url);
+  const hubspot = { subdomain: report.hubspotSubdomain, portalId: "25516403", objectTypeId: "0-27", viewId: (report.ownerViews || {})[owner] || null };
+  return json({ owner, day: londonDay, generatedAt: new Date().toISOString(), portalId: "25516403", hubspot, truncated: open.truncated,
     slots, notInPlan: Object.entries(outside).sort((a, b) => b[1] - a[1]).map(([name, n]) => ({ name, n })) });
 }
 

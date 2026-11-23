@@ -535,6 +535,21 @@
   .slot ol li { padding: 3px 0; border-bottom: 1px solid var(--gridline); }
   .slot ol li .c { color: var(--text-muted); font-size: 12px; }
   .short { font-size: 12px; color: var(--warning); margin-top: 6px; }
+
+  .slot-btns { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+  .slot-btn { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; font-size: 13px; text-decoration: none; color: var(--text-primary); background: var(--page-plane); }
+  a.slot-btn:hover { border-color: var(--purple); }
+  .slot-btn b { font-variant-numeric: tabular-nums; min-width: 26px; }
+  .slot-btn span { margin-left: auto; color: var(--purple); font-size: 12px; white-space: nowrap; }
+
+  .rr-pill { border: 0; background: transparent; color: var(--text-secondary); white-space: nowrap; font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+  .rr-pill:hover { color: var(--text-primary); background: var(--gridline); }
+  .rr-pill.active { background: var(--text-primary); color: var(--surface-1); }
+  .rep-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .rep-controls input[type=date] { font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-1); color: var(--text-primary); }
+  .rep-controls .upd { background: var(--purple); color: #fff; border: 0; font: inherit; font-weight: 600; font-size: 14px; padding: 8px 16px; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 12px rgba(123,92,240,0.25); }
+  .card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .seg.sm button { padding: 4px 10px; font-size: 12px; } .seg button:disabled { opacity: 0.35; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -1637,7 +1652,27 @@ const REPS = [
 ];
 const repCache = { queue: {}, activity: {} };
 const currentRepKey = () => new URLSearchParams(location.search).get("rep");
-const repPeriod = () => { try { return sessionStorage.getItem("rep-period") || "day"; } catch (_) { return "day"; } };
+// Date range for the rep page (own state, so it never touches the main tabs' range).
+const REP_PRESETS = [["today", "Today"], ["yesterday", "Yesterday"], ["7d", "Last 7 days"], ["30d", "Last 30 days"], ["month", "This month"], ["3m", "Last 3 months"], ["custom", "Custom"]];
+const ukToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+const addDays = (d, n) => new Date(Date.parse(d + "T00:00:00Z") + n * 864e5).toISOString().slice(0, 10);
+let repRange = (() => { try { return JSON.parse(sessionStorage.getItem("rep-range")) || { preset: "30d" }; } catch (_) { return { preset: "30d" }; } })();
+function repRangeDates() {
+  const t = ukToday(), p = repRange.preset;
+  if (p === "today") return { from: t, to: t };
+  if (p === "yesterday") return { from: addDays(t, -1), to: addDays(t, -1) };
+  if (p === "7d") return { from: addDays(t, -6), to: t };
+  if (p === "month") return { from: t.slice(0, 8) + "01", to: t };
+  if (p === "3m") return { from: addDays(t, -90), to: t };
+  if (p === "custom") return { from: repRange.from || addDays(t, -29), to: repRange.to || t };
+  return { from: addDays(t, -29), to: t };
+}
+const rangeDays = () => { const r = repRangeDates(); return Math.round((Date.parse(r.to) - Date.parse(r.from)) / 864e5) + 1; };
+const allowedPeriods = () => { const n = rangeDays(); return { day: n <= 31, week: Math.ceil(n / 7) + 1 <= 12, month: true }; };
+const autoPeriod = () => { const n = rangeDays(); return n <= 31 ? "day" : Math.ceil(n / 7) + 1 <= 12 ? "week" : "month"; };
+const repPeriod = () => { let p; try { p = sessionStorage.getItem("rep-period"); } catch (_) {} return p && allowedPeriods()[p] ? p : autoPeriod(); };
+const repActKey = (rep) => { const r = repRangeDates(); return `${rep.key}:${repPeriod()}:${r.from}:${r.to}`; };
+const repRangeLabel = () => { const p = REP_PRESETS.find((x) => x[0] === repRange.preset); const r = repRangeDates(); return repRange.preset === "custom" ? `${r.from} to ${r.to}` : p[1].toLowerCase(); };
 const fmtN = (n) => Number(n || 0).toLocaleString();
 function bucketLabel(iso, period, short) {
   const d = new Date(iso);
@@ -1645,13 +1680,23 @@ function bucketLabel(iso, period, short) {
   if (period === "week") return (short ? "" : "w/c ") + d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
   return d.toLocaleDateString("en-GB", short ? { day: "numeric", month: "short", timeZone: "UTC" } : { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 }
+function repControlsHtml() {
+  const r = repRangeDates();
+  return `<span class="range-pills">${REP_PRESETS.map(([v, l]) => `<button type="button" class="rr-pill${repRange.preset === v ? " active" : ""}" data-rr="${v}">${l}</button>`).join("")}</span>`
+    + (repRange.preset === "custom" ? `<input type="date" id="rr-from" value="${r.from}"><span>–</span><input type="date" id="rr-to" value="${r.to}">` : "")
+    + `<button type="button" class="upd" id="rep-update">Update</button>`;
+}
+function periodSegHtml() {
+  const ok = allowedPeriods(), per = repPeriod();
+  return `<div class="seg sm" id="rep-period">${["day", "week", "month"].map((p) => `<button data-p="${p}" class="${p === per ? "on" : ""}"${ok[p] ? "" : " disabled"}>By ${p}</button>`).join("")}</div>`;
+}
 function repPageHtml(rep) {
   const per = repPeriod();
   return `<div class="rep-head"><div><h1>${esc(rep.name)}</h1><div class="sub">Live from HubSpot · call tasks done, meetings booked and what's in the queue now</div></div>
-    <div class="seg" id="rep-period">${["day", "week", "month"].map((p) => `<button data-p="${p}" class="${p === per ? "on" : ""}">${p[0].toUpperCase() + p.slice(1)}</button>`).join("")}</div></div>
+    <div class="rep-controls" id="rep-controls">${repControlsHtml()}</div></div>
     <section class="card rep-card"><h2>Today's plan</h2><p class="sub">Rebuilt from the live queue every time this page loads · aim for each slot's target.</p><div id="rep-plan"><p class="sub">Loading…</p></div></section>
     <div class="stat-row" id="rep-tiles"><div class="stat-tile"><div class="label">Loading…</div><div class="value">–</div></div></div>
-    <section class="card rep-card"><h2>Call tasks completed</h2><div id="rep-tasks-chart" class="rep-chart"><p class="sub">Loading…</p></div></section>
+    <section class="card rep-card"><div class="card-head"><h2>Tasks completed</h2><span id="rep-period-wrap">${periodSegHtml()}</span></div><div id="rep-tasks-chart" class="rep-chart"><p class="sub">Loading…</p></div></section>
     <section class="card rep-card"><h2>Meetings booked</h2><p class="sub">Meetings ${esc(rep.label)} booked, split by the contact's call campaign.</p><div id="rep-meet-chart" class="rep-chart"><p class="sub">Loading…</p></div></section>
     <section class="card rep-card"><h2>Working on now</h2><p class="sub">Every campaign with open tasks, plus anything completed in the last 7 days.</p><div id="rep-queue"><p class="sub">Loading…</p></div></section>`;
 }
@@ -1694,14 +1739,17 @@ function wireBarTips(el, buckets, period, stacks, colorOf, unit) {
 }
 function renderRepActivity(rep, data) {
   const per = data.period;
-  const tb = data.buckets.map((b) => ({ start: b.start, total: b.tasksDone }));
+  const TYPES = ["Active", "Reengage", "Other"], typeColor = (t) => t === "Active" ? "var(--rc-1)" : t === "Reengage" ? "var(--rc-2)" : "var(--rc-other)";
+  const tb = data.buckets.map((b) => ({ start: b.start, total: b.tasksDone, parts: b.byType || {} }));
   const tEl = document.getElementById("rep-tasks-chart");
   if (!tEl) return;
   const totalDone = tb.reduce((n, b) => n + b.total, 0), active = tb.filter((b) => b.total).length;
-  tEl.innerHTML = `<div class="rep-legend"><span>${fmtN(totalDone)} done · ${per === "day" ? "last 30 days" : per === "week" ? "last 13 weeks" : "last 6 months"} · avg ${fmtN(Math.round(totalDone / Math.max(1, active)))} per active ${per}</span></div>`
-    + barChartSvg(tb, per, null, () => "var(--rc-1)")
-    + `<details class="tbl"><summary>Show table</summary><table class="rep-table"><tr><th>${per[0].toUpperCase() + per.slice(1)}</th><th class="n">Call tasks done</th></tr>${tb.map((b) => `<tr><td>${esc(bucketLabel(b.start, per, false))}</td><td class="n">${fmtN(b.total)}</td></tr>`).join("")}</table></details>`;
-  wireBarTips(tEl, tb, per, null, null, "done");
+  const typeTot = (t) => tb.reduce((n, b) => n + (b.parts[t] || 0), 0);
+  tEl.innerHTML = `<p class="sub">${fmtN(totalDone)} done · ${esc(repRangeLabel())} · avg ${fmtN(Math.round(totalDone / Math.max(1, active)))} per active ${per}</p>`
+    + `<div class="rep-legend">${TYPES.map((t) => `<span><span class="sw" style="background:${typeColor(t)}"></span>${t === "Active" ? "Active (Active Lead, Black Friday, Landlord savings calc)" : t} (${fmtN(typeTot(t))})</span>`).join("")}</div>`
+    + barChartSvg(tb, per, TYPES, typeColor)
+    + `<details class="tbl"><summary>Show table</summary><table class="rep-table"><tr><th>${per[0].toUpperCase() + per.slice(1)}</th>${TYPES.map((t) => `<th class="n">${t}</th>`).join("")}<th class="n">Total</th></tr>${tb.map((b) => `<tr><td>${esc(bucketLabel(b.start, per, false))}</td>${TYPES.map((t) => `<td class="n">${fmtN(b.parts[t] || 0)}</td>`).join("")}<td class="n">${fmtN(b.total)}</td></tr>`).join("")}</table></details>`;
+  wireBarTips(tEl, tb, per, TYPES, typeColor, "done");
   const top = data.meetingCampaigns.slice(0, 5).map((c) => c.name), other = "Other campaigns";
   const stacks = data.meetingCampaigns.length > 5 ? [...top, other] : top;
   const colorOf = (name) => name === other ? "var(--rc-other)" : `var(--rc-${top.indexOf(name) + 1})`;
@@ -1716,13 +1764,12 @@ function renderRepActivity(rep, data) {
   repTiles(rep);
 }
 function repTiles(rep) {
-  const q = repCache.queue[rep.key], a = repCache.activity[rep.key + ":" + repPeriod()];
+  const q = repCache.queue[rep.key], a = repCache.activity[repActKey(rep)];
   const el = document.getElementById("rep-tiles"); if (!el) return;
   const tile = (label, v, cls) => `<div class="stat-tile ${cls || ""}"><div class="label">${label}</div><div class="value">${v}</div></div>`;
   const mt = a ? a.buckets.reduce((n, b) => n + Object.values(b.meetings).reduce((x, y) => x + y, 0), 0) : null;
   el.innerHTML = tile("Open tasks", q ? fmtN(q.totals.open) : "…") + tile("Overdue", q ? `<span class="${q.totals.overdue ? "warn-t" : ""}">${fmtN(q.totals.overdue)}</span>` : "…")
-    + tile("Done last 7 days", q ? fmtN(q.totals.done7d) : "…", "done") + tile(`Meetings booked (${a ? (a.period === "day" ? "30 days" : a.period === "week" ? "13 weeks" : "6 months") : "…"})`, mt === null ? "…" : fmtN(mt))
-    + tile("Live campaigns", q ? fmtN(q.campaigns.filter((c) => c.open && (/^Call\b/i.test(c.name) || c.project)).length) : "…");
+    + tile(`Tasks done (${repRangeLabel()})`, a ? fmtN(a.buckets.reduce((n, b) => n + (b.tasksDone || 0), 0)) : "…", "done") + tile(`Meetings booked (${repRangeLabel()})`, mt === null ? "…" : fmtN(mt));
 }
 function renderRepQueue(rep, q) {
   const el = document.getElementById("rep-queue"); if (!el) return;
@@ -1753,39 +1800,57 @@ function renderRepPlan(rep, p) {
     const now = isToday && nowHM >= x.start && nowHM < x.end ? " now" : "";
     if (x.lunch) return `<div class="slot lunch${now}"><div class="tm">${x.start}–${x.end}</div><div class="blk">${esc(x.title)}${now ? ` <span class="now-b">Now</span>` : ""}</div></div>`;
     const pct = Math.min(100, Math.round((x.doneToday / x.target) * 100));
-    const camps = x.byCampaign.slice(0, 4).map((c) => `<span class="chip-mini">${esc(c.name.replace(/^Call \| /, ""))}: ${fmtN(c.n)}</span>`).join("");
-    const list = x.tasks.map((t) => `<li>${t.contactId ? `<a href="${cl(t.contactId)}" target="_blank" rel="noopener">${esc(t.contactName || "Contact")}</a>` : "(no contact)"} <span class="c">· ${esc(t.name.replace(/^Call \| /, ""))}${t.attempt ? ` #${t.attempt}` : ""}${t.priority === "HIGH" ? " · high" : ""} · due ${dueTxt(t.due)}</span></li>`).join("");
+    const hv = (q) => p.hubspot && p.hubspot.viewId ? `https://${p.hubspot.subdomain}/contacts/${p.hubspot.portalId}/objects/${p.hubspot.objectTypeId}/views/${p.hubspot.viewId}/list?query=${encodeURIComponent(q)}` : null;
+    const att = x.key === "fresh" ? "#1" : x.key === "followups" ? "#2–#4" : "";
+    const btns = x.byCampaign.filter((c) => c.today).map((c) => { const u = hv(c.name); const lbl = `${esc(c.name.replace(/^Call \| /, ""))}${att ? ` ${att}` : ""}`;
+      return u ? `<a class="slot-btn" href="${u}" target="_blank" rel="noopener"><b>${fmtN(c.today)}</b> ${lbl} <span>open in HubSpot ↗</span></a>` : `<span class="slot-btn"><b>${fmtN(c.today)}</b> ${lbl}</span>`; }).join("");
     const short = x.available < x.target ? `<div class="short">Only ${fmtN(x.available)} available for this slot today.</div>` : "";
     return `<div class="slot ${x.key}${now}"><div class="tm">${x.start}–${x.end}</div><div class="blk">
       <div class="ttl"><span>${esc(x.title)}</span><span>${now ? `<span class="now-b">Now</span> ` : ""}<span class="sub">${fmtN(x.doneToday)} / ${fmtN(x.target)} done today</span></span></div>
       <div class="prog"><i style="width:${pct}%"></i></div>
-      <div class="meta">${fmtN(x.available)} in this queue · ${camps}</div>${short}
-      ${x.tasks.length ? `<details${now ? " open" : ""}><summary>Today's ${fmtN(x.tasks.length)} — in order</summary><ol>${list}</ol></details>` : ""}
+      <div class="meta">Today's ${fmtN(x.picked)} of ${fmtN(x.available)} in this queue${x.key === "reengage" ? " · High priority first" : x.key === "fresh" ? " · newest first" : " · oldest due first"}</div>${short}
+      <div class="slot-btns">${btns}</div>
     </div></div>`;
   }).join("");
   const out = p.notInPlan.length ? `<details class="tbl"><summary>Not in today's plan: ${fmtN(p.notInPlan.reduce((n, c) => n + c.n, 0))} open tasks</summary><table class="rep-table">${p.notInPlan.map((c) => `<tr><td>${esc(c.name)}</td><td class="n">${fmtN(c.n)}</td></tr>`).join("")}</table></details>` : "";
   el.innerHTML = `<div class="plan">${slots}</div>${out}`;
 }
 async function loadRep(rep) {
-  const per = repPeriod(), aKey = rep.key + ":" + per;
+  const per = repPeriod(), aKey = repActKey(rep), rd = repRangeDates();
   const qP = repCache.queue[rep.key] ? Promise.resolve(repCache.queue[rep.key]) : fetch(`/api/rep-queue?report=${REPORT_KEY}&owner=${rep.ownerId}`).then((r) => r.json());
-  const aP = repCache.activity[aKey] ? Promise.resolve(repCache.activity[aKey]) : fetch(`/api/rep-activity?owner=${rep.ownerId}&user=${rep.userId}&period=${per}`).then((r) => r.json());
+  // Tasks and meetings are separate requests (each gets its own Cloudflare subrequest budget).
+  const actUrl = (part) => `/api/rep-activity?owner=${rep.ownerId}&user=${rep.userId}&period=${per}&from=${rd.from}&to=${rd.to}&part=${part}`;
+  const aP = repCache.activity[aKey] ? Promise.resolve(repCache.activity[aKey]) : Promise.all([fetch(actUrl("tasks")).then((r) => r.json()), fetch(actUrl("meetings")).then((r) => r.json())])
+    .then(([t, m]) => { if (t.error || m.error) return { error: t.error || m.error }; return { ...t, buckets: t.buckets.map((b, i) => ({ ...b, meetings: (m.buckets[i] || {}).meetings || {} })), meetingCampaigns: m.meetingCampaigns, meetingsTotal: m.meetingsTotal }; });
   if (!repCache.plan) repCache.plan = {};
   (repCache.plan[rep.key] ? Promise.resolve(repCache.plan[rep.key]) : fetch(`/api/rep-plan?owner=${rep.ownerId}`).then((r) => r.json()))
     .then((p) => { if (p.error) throw new Error(p.error); repCache.plan[rep.key] = p; renderRepPlan(rep, p); })
     .catch((e) => { const el = document.getElementById("rep-plan"); if (el) el.innerHTML = `<p class="sub warn-t">Couldn't load today's plan: ${esc(e.message)}</p>`; });
   qP.then((q) => { if (q.error) throw new Error(q.error); repCache.queue[rep.key] = q; renderRepQueue(rep, q); })
     .catch((e) => { const el = document.getElementById("rep-queue"); if (el) el.innerHTML = `<p class="sub warn-t">Couldn't load the queue: ${esc(e.message)}</p>`; });
-  aP.then((a) => { if (a.error) throw new Error(a.error); repCache.activity[aKey] = a; if (repPeriod() === per) renderRepActivity(rep, a); })
+  aP.then((a) => { if (a.error) throw new Error(a.error); repCache.activity[aKey] = a; if (repActKey(rep) === aKey) renderRepActivity(rep, a); })
     .catch((e) => { ["rep-tasks-chart", "rep-meet-chart"].forEach((id) => { const el = document.getElementById(id); if (el) el.innerHTML = `<p class="sub warn-t">Couldn't load: ${esc(e.message)}</p>`; }); });
 }
+function repRefreshCharts(rep) {
+  const w = document.getElementById("rep-period-wrap"); if (w) w.innerHTML = periodSegHtml();
+  const c = document.getElementById("rep-controls"); if (c) c.innerHTML = repControlsHtml();
+  ["rep-tasks-chart", "rep-meet-chart"].forEach((id) => { const el = document.getElementById(id); if (el && !repCache.activity[repActKey(rep)]) el.innerHTML = `<p class="sub">Loading…</p>`; });
+  repTiles(rep); loadRep(rep);
+}
 document.addEventListener("click", (e) => {
-  const b = e.target.closest("#rep-period button"); if (!b) return;
-  try { sessionStorage.setItem("rep-period", b.dataset.p); } catch (_) {}
-  document.querySelectorAll("#rep-period button").forEach((x) => x.classList.toggle("on", x === b));
   const rep = REPS.find((r) => r.key === currentRepKey()); if (!rep) return;
-  ["rep-tasks-chart", "rep-meet-chart"].forEach((id) => { const el = document.getElementById(id); if (el && !repCache.activity[rep.key + ":" + b.dataset.p]) el.innerHTML = `<p class="sub">Loading…</p>`; });
-  loadRep(rep);
+  const pb = e.target.closest("#rep-period button");
+  if (pb && !pb.disabled) { try { sessionStorage.setItem("rep-period", pb.dataset.p); } catch (_) {} repRefreshCharts(rep); return; }
+  const rb = e.target.closest("[data-rr]");
+  if (rb) { repRange = { ...repRange, preset: rb.dataset.rr }; try { sessionStorage.setItem("rep-range", JSON.stringify(repRange)); sessionStorage.removeItem("rep-period"); } catch (_) {} repRefreshCharts(rep); return; }
+  if (e.target.closest("#rep-update")) { repCache.queue = {}; repCache.activity = {}; repCache.plan = {}; e.target.textContent = "Updating…"; repRefreshCharts(rep); }
+});
+document.addEventListener("change", (e) => {
+  if (!e.target.matches("#rr-from, #rr-to")) return;
+  const rep = REPS.find((r) => r.key === currentRepKey()); if (!rep) return;
+  repRange = { preset: "custom", from: document.getElementById("rr-from").value, to: document.getElementById("rr-to").value };
+  try { sessionStorage.setItem("rep-range", JSON.stringify(repRange)); sessionStorage.removeItem("rep-period"); } catch (_) {}
+  repRefreshCharts(rep);
 });
 
 function renderNav(stats, activeKey) {
