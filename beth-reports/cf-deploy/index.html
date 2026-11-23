@@ -1713,7 +1713,7 @@ function repPageHtml(rep) {
     <div class="stat-row" id="rep-tiles"><div class="stat-tile"><div class="label">Loading…</div><div class="value">–</div></div></div>
     <section class="card rep-card"><div class="card-head"><h2>Tasks completed</h2><span id="rep-period-wrap">${periodSegHtml()}</span></div><div id="rep-tasks-chart" class="rep-chart"><p class="sub">Loading…</p></div></section>
     <section class="card rep-card"><h2>Meetings booked</h2><p class="sub">Meetings ${esc(rep.label)} booked, split by the contact's call campaign.</p><div id="rep-meet-chart" class="rep-chart"><p class="sub">Loading…</p></div></section>
-    <section class="card rep-card"><h2>Working on now</h2><p class="sub">Every campaign with open tasks, plus anything completed in the last 7 days.</p><div id="rep-queue"><p class="sub">Loading…</p></div></section>`;
+    <section class="card rep-card"><h2>Working on now</h2><p class="sub">Billy's open tasks right now, by campaign.</p><div id="rep-queue"><p class="sub">Loading…</p></div></section>`;
 }
 function barChartSvg(buckets, period, stacks, colorOf) {
   // buckets: [{start, total, parts:{name:n}}]; stacks: ordered names (null = single series).
@@ -1792,16 +1792,17 @@ function renderRepQueue(rep, q) {
   // Campaign queues = "Call | …" tasks; free-text personal follow-ups ("investing ?", "follow up")
   // are folded into one row so the list stays a list of campaigns.
   const isCamp = (c) => /^#?\s*\d*\s*Call\b/i.test(c.name) || !!c.project;
-  const camps = q.campaigns.filter(isCamp), oneOffs = q.campaigns.filter((c) => !isCamp(c));
+  const openOnly = q.campaigns.filter((c) => c.open > 0);
+  const camps = openOnly.filter(isCamp), oneOffs = openOnly.filter((c) => !isCamp(c));
   if (oneOffs.length) camps.push(oneOffs.reduce((a, c) => ({ ...a, open: a.open + c.open, overdue: a.overdue + c.overdue, dueToday: a.dueToday + c.dueToday, done7d: a.done7d + c.done7d, high: a.high + c.high,
     byAttempt: {} }), { name: `One-off follow-ups (${oneOffs.length} different tasks)`, open: 0, overdue: 0, dueToday: 0, done7d: 0, high: 0, byAttempt: {}, project: null, oneOff: true }));
   const rows = camps.map((c) => {
     const att = Object.entries(c.byAttempt).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true })).map(([k, v]) => `<span class="chip-mini">${k === "-" ? "no #" : "#" + k}: ${fmtN(v)}</span>`).join("");
     const rpt = c.project ? `<a href="/?campaign=${c.project.key}">report →</a>` : "";
     const hs = link(c) && !c.oneOff ? `<a href="${link(c)}" target="_blank" rel="noopener">HubSpot ↗</a>` : "";
-    return `<tr><td>${esc(c.name)}${c.high ? ` <span class="chip-mini">${fmtN(c.high)} high</span>` : ""}<div>${att}</div></td><td class="n">${fmtN(c.open)}</td><td class="n ${c.overdue ? "warn-t" : ""}">${fmtN(c.overdue)}</td><td class="n">${fmtN(c.dueToday)}</td><td class="n">${fmtN(c.done7d)}</td><td>${[rpt, hs].filter(Boolean).join(" · ")}</td></tr>`;
+    return `<tr><td>${esc(c.name)}${c.high ? ` <span class="chip-mini">${fmtN(c.high)} high</span>` : ""}<div>${att}</div></td><td class="n">${fmtN(c.open)}</td><td class="n ${c.overdue ? "warn-t" : ""}">${fmtN(c.overdue)}</td><td class="n">${fmtN(c.dueToday)}</td><td>${[rpt, hs].filter(Boolean).join(" · ")}</td></tr>`;
   }).join("");
-  el.innerHTML = `${q.truncated ? `<p class="sub warn-t">Showing the first 3,000 tasks only.</p>` : ""}<div style="overflow-x:auto"><table class="rep-table"><tr><th>Campaign / task</th><th class="n">Open</th><th class="n">Overdue</th><th class="n">Due today</th><th class="n">Done 7d</th><th></th></tr>${rows || `<tr><td colspan="6">Nothing open.</td></tr>`}</table></div>`;
+  el.innerHTML = `${q.truncated ? `<p class="sub warn-t">Showing the first 3,000 tasks only.</p>` : ""}<div style="overflow-x:auto"><table class="rep-table"><tr><th>Campaign / task</th><th class="n">Open</th><th class="n">Overdue</th><th class="n">Due today</th><th></th></tr>${rows || `<tr><td colspan="5">Nothing open.</td></tr>`}</table></div>`;
   repTiles(rep);
 }
 
