@@ -1590,7 +1590,7 @@ const SECTION_COLOR = { campaigns: "var(--teal)", calls: "var(--purple)", acquis
 const SECTION_OF = {};
 // Groups inside a section: sub-tabs and section-page cards are laid out in this order, under
 // these labels. Keys not listed land in "Other".
-const REPS_LINKS = [{ href: "/?rep=billy", label: "Billy" }]; // keep in step with REPS below
+const REPS_LINKS = [{ href: "/?rep=billy", label: "Billy" }, { href: "/?rep=carlos", label: "Carlos" }]; // keep in step with REPS below
 const NAV_GROUPS = [
   { title: "Black Friday", keys: ["black-friday", "black-friday-reengage", "reengage-post-webinar-bf"], section: "campaigns", links: [{ href: "/black-friday-pages/", label: "Black Friday pages (web)" }] },
   { title: "Upsell / Complete", keys: ["experiment-epc", "rent-anniversary", "hapi-areas"] },
@@ -1667,6 +1667,7 @@ function currentSection(stats) {
 // owner, user id = the HubSpot user who books meetings — the same number for most people).
 const REPS = [
   { key: "billy", label: "Billy", name: "Billy Hunt", ownerId: "35666443", userId: "35666443" },
+  { key: "carlos", label: "Carlos", name: "Carlos Lam", ownerId: "30035011", userId: "30035011" },
 ];
 const repCache = { queue: {}, activity: {} };
 const currentRepKey = () => new URLSearchParams(location.search).get("rep");
