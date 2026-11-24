@@ -1798,7 +1798,7 @@ function renderRepSimple(rep, q) {
   const nice = (n) => n.replace(/^Call \| /, "").replace(/Active Lead \| Plan close - month end/i, "EOM · Plan close - month end");
   const camps = q.campaigns.filter((c) => c.open > 0 && /^Call\b/i.test(c.name)).sort((a, b) => b.open - a.open);
   el.innerHTML = camps.length ? `<div class="slot-btns">${camps.map((c) => { const u = hv(c.name); const att = Object.keys(c.byAttempt).filter((k) => k !== "-").sort((a, b) => a - b);
-    return `<a class="slot-btn" ${u ? `href="${u}" target="_blank" rel="noopener"` : ""}><b>${fmtN(c.open)}</b> ${esc(nice(c.name))}${att.length ? ` <span style="margin-left:6px;color:var(--text-muted)">#${att.join(", #")}</span>` : ""}${c.overdue ? ` <span style="margin-left:6px;color:var(--critical)">${fmtN(c.overdue)} overdue</span>` : ""}<span>open in HubSpot ↗</span></a>`; }).join("")}</div>` : `<p class="sub">No open campaign tasks.</p>`;
+    return `<a class="slot-btn" ${u ? `href="${u}" target="_blank" rel="noopener"` : ""}><b>${fmtN(c.open)}</b> ${esc(nice(c.name))}${att.length ? ` <span style="margin-left:6px;color:var(--text-muted)">#${att.join(", #")}</span>` : ""}<span>open in HubSpot ↗</span></a>`; }).join("")}</div>` : `<p class="sub">No open campaign tasks.</p>`;
 }
 function renderRepQueue(rep, q) {
   if (rep.simple) renderRepSimple(rep, q);
