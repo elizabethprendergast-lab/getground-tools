@@ -2783,7 +2783,7 @@ const repSlots = (ids = {}) => [
     ];
 const REP_PLANS = {
   "35666443": { slots: repSlots({ freshQ: "26605608", freshV: "163734977", reQ: "26605687", reV: "163745482", fuQ: "26605688", fuV: "163745472" }) }, // Billy Hunt
-  "30035011": { slots: repSlots() }, // Carlos Lam — add his queue/view ids here once made
+  "30035011": { slots: repSlots({ freshQ: "26605949", reQ: "26605950", fuQ: "26605951" }) }, // Carlos Lam (queues made via API 24 Nov; views to add)
 };
 async function repPlan(url, env) {
   const owner = url.searchParams.get("owner") || "";
@@ -2801,8 +2801,15 @@ async function repQueueSync(request, url, env) {
   if (request.method !== "POST") return json({ error: "POST only" }, 405);
   if (!env.REP_SYNC_KEY || request.headers.get("x-sync-key") !== env.REP_SYNC_KEY) return json({ error: "bad key" }, 401);
   if (!env.HUBSPOT_TASK_TOKEN) return json({ error: "HUBSPOT_TASK_TOKEN not set" }, 500);
-  const owner = url.searchParams.get("owner") || "";
-  if (!REP_PLANS[owner]) return json({ error: "no plan for this owner" }, 404);
+  const ownerParam = url.searchParams.get("owner") || "";
+  // n8n calls this for one rep; every rep with queues is refilled in the same run.
+  const owners = ownerParam === "all" || REP_PLANS[ownerParam] ? Object.keys(REP_PLANS).filter((o) => REP_PLANS[o].slots.some((x) => x.queueId)) : [];
+  if (!owners.length) return json({ error: "no plan for this owner" }, 404);
+  const results = [];
+  for (const owner of owners) results.push(await syncOneRep(owner, env));
+  return json({ ranAt: new Date().toISOString(), reps: results });
+}
+async function syncOneRep(owner, env) {
   const API = "https://api.hubapi.com";
   const HR = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
   const HW = { Authorization: `Bearer ${env.HUBSPOT_TASK_TOKEN}`, "Content-Type": "application/json" };
@@ -2821,7 +2828,7 @@ async function repQueueSync(request, url, env) {
     }
     report.push({ slot: sl.key, queueId: Q, picked: want.size, changed: updates.length });
   }
-  return json({ owner, day: out.day, ranAt: new Date().toISOString(), queues: report });
+  return { owner, day: out.day, queues: report };
 }
 async function buildRepPlan(owner, env) {
   const API = "https://api.hubapi.com";
