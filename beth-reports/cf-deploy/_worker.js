@@ -1023,6 +1023,8 @@ async function tagLtdCoreTesting(API, H, results) {
 // Live owner-name lookup, used so the per-rep breakdown shows whoever actually owns a task
 // (e.g. Yoana Chung) rather than only the names hardcoded in report.ownerNames. Portal has
 // ~117 owners total, so one paginated fetch is cheap and avoids N+1 lookups per distinct owner.
+// owner id -> HubSpot user id (filled by fetchOwnerNames); used to tell who booked a meeting.
+const OWNER_USER = {};
 async function fetchOwnerNames(API, H) {
   const map = {};
   let after;
@@ -1032,6 +1034,7 @@ async function fetchOwnerNames(API, H) {
     const j = await hsFetch(`${API}/crm/v3/owners?${params}`, { headers: H });
     for (const o of j.results || []) {
       map[String(o.id)] = [o.firstName, o.lastName].filter(Boolean).join(" ").trim() || o.email || String(o.id);
+      if (o.userId) OWNER_USER[String(o.id)] = String(o.userId);
     }
     after = j.paging && j.paging.next && j.paging.next.after;
   } while (after);
@@ -1695,6 +1698,12 @@ function outcomeForEnrollmentTask(p, ctx) {
         if (Date.parse(m.hs_createdate) < startMs) continue;
         if (projectCfg?.meetingsAnyHost) {
           if (Date.parse(m.hs_createdate) > hi) continue;
+          // A meeting a colleague put in their own calendar (synced / created by hand, not via a
+          // booking link) isn't this call's result — e.g. Yoana adding an RRA contact's WhatsApp
+          // call herself (Beth, 24 Nov). Link bookings record the LINK owner as creator, so they
+          // can't be told apart from contact self-bookings and still count (labelled "via link").
+          const by = m.hs_created_by_user_id, callerUser = OWNER_USER[String(p.hubspot_owner_id)];
+          if (m.hs_meeting_source !== "MEETINGS_PUBLIC" && by && callerUser && String(by) !== callerUser) continue;
         } else if (!repOk(m)) continue;
       }
       if (!meeting || m.hs_meeting_source === "MEETINGS_PUBLIC") { meeting = m; meetingId = id; meetingCid = cid; } // self-booked wins: the call didn't cause it
@@ -1702,9 +1711,12 @@ function outcomeForEnrollmentTask(p, ctx) {
   }
   if (meeting) {
     const base = { category: "meeting", meetingId, meetingCid };
-    return meeting.hs_meeting_source === "MEETINGS_PUBLIC" && !noCampaignEmail
-      ? { outcome: "Meeting booked — from email", ...base }
-      : { outcome: "Meeting booked — by rep", ...base };
+    const callerUser = OWNER_USER[String(p.hubspot_owner_id)];
+    const byCaller = callerUser && String(meeting.hs_created_by_user_id || "") === callerUser;
+    if (meeting.hs_meeting_source !== "MEETINGS_PUBLIC" || byCaller) return { outcome: "Meeting booked — by rep", ...base };
+    // Booked through a link and not by the caller: the contact booked it (campaign email, or a
+    // colleague's link), so don't credit it to the caller as "by rep".
+    return { outcome: noCampaignEmail ? "Meeting booked — via link" : "Meeting booked — from email", ...base };
   }
 
   const candidates = [];
@@ -2003,7 +2015,7 @@ async function outcomes(url, env) {
       let contactToMeetings = {}, meetings = {}, contactToDeals = {}, deals = {};
       try {
         contactToMeetings = await batchAssociations(API, H, "contacts", "meetings", enrollContactIds);
-        meetings = await batchRead(API, H, "meetings", [...new Set(Object.values(contactToMeetings).flat())], ["hs_createdate", "hs_meeting_source", "hubspot_owner_id", "hs_meeting_start_time", "hs_meeting_outcome", "hs_meeting_title", "utm_campaign_of_meeting"]);
+        meetings = await batchRead(API, H, "meetings", [...new Set(Object.values(contactToMeetings).flat())], ["hs_createdate", "hs_meeting_source", "hubspot_owner_id", "hs_meeting_start_time", "hs_meeting_outcome", "hs_meeting_title", "utm_campaign_of_meeting", "hs_created_by_user_id"]);
         contactToDeals = await batchAssociations(API, H, "contacts", "deals", enrollContactIds);
         deals = await batchRead(API, H, "deals", [...new Set(Object.values(contactToDeals).flat())], ["pipeline", "dealstage", "plans___product_type", "p_p___upsell", "closedate", "createdate", "dealname"]);
       } catch (e) {
