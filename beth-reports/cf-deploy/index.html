@@ -1669,7 +1669,7 @@ function currentSection(stats) {
 const REPS = [
   { key: "billy", label: "Billy", name: "Billy Hunt", ownerId: "35666443", userId: "35666443" },
   { key: "carlos", label: "Carlos", name: "Carlos Lam", ownerId: "30035011", userId: "30035011" },
-  { key: "ryan", label: "Ryan", name: "Ryan Welby", ownerId: "78571230", userId: "78571230" },
+  { key: "ryan", label: "Ryan", name: "Ryan Welby", ownerId: "78571230", userId: "78571230", simple: true }, // simple: campaign buttons, no timetable
 ];
 const repCache = { queue: {}, activity: {} };
 const currentRepKey = () => new URLSearchParams(location.search).get("rep");
@@ -1714,7 +1714,7 @@ function periodSegHtml() {
 function repPageHtml(rep) {
   const per = repPeriod();
   return `<div class="rep-head"><div><h1>${esc(rep.name)}</h1><div class="sub">Live from HubSpot · call tasks done, meetings booked and what's in the queue now</div></div></div>
-    <section class="card rep-card"><h2>Today's plan</h2><p class="sub">Rebuilt from the live queue every time this page loads · aim for each slot's target.</p><div id="rep-plan"><p class="sub">Loading…</p></div></section>
+    ${rep.simple ? `<section class="card rep-card"><h2>Your campaigns</h2><p class="sub">Click a campaign to open those tasks in HubSpot, then click Start tasks.</p><div id="rep-simple"><p class="sub">Loading…</p></div></section>` : `<section class="card rep-card"><h2>Today's plan</h2><p class="sub">Rebuilt from the live queue every time this page loads · aim for each slot's target.</p><div id="rep-plan"><p class="sub">Loading…</p></div></section>`}
     <div class="rep-controls" id="rep-controls" style="margin: 4px 0 16px;">${repControlsHtml()}</div>
     <div class="stat-row" id="rep-tiles"><div class="stat-tile"><div class="label">Loading…</div><div class="value">–</div></div></div>
     <section class="card rep-card"><div class="card-head"><h2>Tasks completed</h2><span id="rep-period-wrap">${periodSegHtml()}</span></div><div id="rep-tasks-chart" class="rep-chart"><p class="sub">Loading…</p></div></section>
@@ -1792,7 +1792,16 @@ function repTiles(rep) {
   el.innerHTML = tile("Open tasks", q ? fmtN(q.totals.open) : "…") + tile("Overdue", q ? `<span class="${q.totals.overdue ? "warn-t" : ""}">${fmtN(q.totals.overdue)}</span>` : "…")
     + tile(`Tasks done (${repRangeLabel()})`, a ? fmtN(a.buckets.reduce((n, b) => n + (b.tasksDone || 0), 0)) : "…", "done") + tile(`Meetings booked (${repRangeLabel()})`, mt === null ? "…" : fmtN(mt));
 }
+function renderRepSimple(rep, q) {
+  const el = document.getElementById("rep-simple"); if (!el) return;
+  const hv = (n) => q.hubspot && q.hubspot.viewId ? `https://${q.hubspot.subdomain}/contacts/${q.hubspot.portalId}/objects/${q.hubspot.objectTypeId}/views/${q.hubspot.viewId}/list?query=${encodeURIComponent(n)}` : null;
+  const nice = (n) => n.replace(/^Call \| /, "").replace(/Active Lead \| Plan close - month end/i, "EOM · Plan close - month end");
+  const camps = q.campaigns.filter((c) => c.open > 0 && /^Call\b/i.test(c.name)).sort((a, b) => b.open - a.open);
+  el.innerHTML = camps.length ? `<div class="slot-btns">${camps.map((c) => { const u = hv(c.name); const att = Object.keys(c.byAttempt).filter((k) => k !== "-").sort((a, b) => a - b);
+    return `<a class="slot-btn" ${u ? `href="${u}" target="_blank" rel="noopener"` : ""}><b>${fmtN(c.open)}</b> ${esc(nice(c.name))}${att.length ? ` <span style="margin-left:6px;color:var(--text-muted)">#${att.join(", #")}</span>` : ""}${c.overdue ? ` <span style="margin-left:6px;color:var(--critical)">${fmtN(c.overdue)} overdue</span>` : ""}<span>open in HubSpot ↗</span></a>`; }).join("")}</div>` : `<p class="sub">No open campaign tasks.</p>`;
+}
 function renderRepQueue(rep, q) {
+  if (rep.simple) renderRepSimple(rep, q);
   const el = document.getElementById("rep-queue"); if (!el) return;
   const link = (c) => q.hubspot && q.hubspot.viewId ? `https://${q.hubspot.subdomain}/contacts/${q.hubspot.portalId}/objects/${q.hubspot.objectTypeId}/views/${q.hubspot.viewId}/list?query=${encodeURIComponent(c.name)}` : null;
   // Campaign queues = "Call | …" tasks; free-text personal follow-ups ("investing ?", "follow up")
@@ -1841,7 +1850,26 @@ function renderRepPlan(rep, p) {
   const out = p.notInPlan.length ? `<details class="tbl"><summary>Not in today's plan: ${fmtN(p.notInPlan.reduce((n, c) => n + c.n, 0))} open tasks</summary><table class="rep-table">${p.notInPlan.map((c) => `<tr><td>${esc(c.name)}</td><td class="n">${fmtN(c.n)}</td></tr>`).join("")}</table></details>` : "";
   el.innerHTML = `<div class="plan">${slots}</div>${out}`;
 }
+// After a rep's page has loaded, quietly fetch the other reps' plan + queue + default charts so
+// switching between reps is instant.
+let repPrefetched = false;
+function prefetchOtherReps(current) {
+  if (repPrefetched) return; repPrefetched = true;
+  const rd = repRangeDates(), per = repPeriod();
+  REPS.filter((r) => r.key !== current.key).forEach((r, i) => setTimeout(() => {
+    if (!repCache.plan) repCache.plan = {};
+    if (!repCache.plan[r.key]) fetch(`/api/rep-plan?owner=${r.ownerId}`).then((x) => x.json()).then((p) => { if (!p.error) repCache.plan[r.key] = p; }).catch(() => {});
+    if (!repCache.queue[r.key]) fetch(`/api/rep-queue?report=${REPORT_KEY}&owner=${r.ownerId}`).then((x) => x.json()).then((q) => { if (!q.error) repCache.queue[r.key] = q; }).catch(() => {});
+    const k = repActKey(r);
+    if (!repCache.activity[k]) {
+      const u = (part) => `/api/rep-activity?owner=${r.ownerId}&user=${r.userId}&period=${per}&from=${rd.from}&to=${rd.to}&part=${part}`;
+      Promise.all([fetch(u("tasks")).then((x) => x.json()), fetch(u("meetings")).then((x) => x.json())])
+        .then(([t, m]) => { if (!t.error && !m.error) repCache.activity[k] = { ...t, buckets: t.buckets.map((b, j) => ({ ...b, meetings: (m.buckets[j] || {}).meetings || {} })), meetingCampaigns: m.meetingCampaigns, meetingsTotal: m.meetingsTotal }; }).catch(() => {});
+    }
+  }, 1500 + i * 2500));
+}
 async function loadRep(rep) {
+  setTimeout(() => prefetchOtherReps(rep), 0);
   const per = repPeriod(), aKey = repActKey(rep), rd = repRangeDates();
   const qP = repCache.queue[rep.key] ? Promise.resolve(repCache.queue[rep.key]) : fetch(`/api/rep-queue?report=${REPORT_KEY}&owner=${rep.ownerId}`).then((r) => r.json());
   // Tasks and meetings are separate requests (each gets its own Cloudflare subrequest budget).
@@ -1849,7 +1877,7 @@ async function loadRep(rep) {
   const aP = repCache.activity[aKey] ? Promise.resolve(repCache.activity[aKey]) : Promise.all([fetch(actUrl("tasks")).then((r) => r.json()), fetch(actUrl("meetings")).then((r) => r.json())])
     .then(([t, m]) => { if (t.error || m.error) return { error: t.error || m.error }; return { ...t, buckets: t.buckets.map((b, i) => ({ ...b, meetings: (m.buckets[i] || {}).meetings || {} })), meetingCampaigns: m.meetingCampaigns, meetingsTotal: m.meetingsTotal }; });
   if (!repCache.plan) repCache.plan = {};
-  (repCache.plan[rep.key] ? Promise.resolve(repCache.plan[rep.key]) : fetch(`/api/rep-plan?owner=${rep.ownerId}`).then((r) => r.json()))
+  if (!rep.simple) (repCache.plan[rep.key] ? Promise.resolve(repCache.plan[rep.key]) : fetch(`/api/rep-plan?owner=${rep.ownerId}`).then((r) => r.json()))
     .then((p) => { if (p.error) throw new Error(p.error); repCache.plan[rep.key] = p; renderRepPlan(rep, p); })
     .catch((e) => { const el = document.getElementById("rep-plan"); if (el) el.innerHTML = `<p class="sub warn-t">Couldn't load today's plan: ${esc(e.message)}</p>`; });
   qP.then((q) => { if (q.error) throw new Error(q.error); repCache.queue[rep.key] = q; renderRepQueue(rep, q); })
@@ -2323,10 +2351,12 @@ function render() {
 
   const repSel = REPS.find((r) => r.key === currentRepKey());
   if (repSel) {
-    if (!document.getElementById("rep-tiles")) main.innerHTML = repPageHtml(repSel);
+    // Redraw the shell whenever the rep changes (it used to keep the previous rep's page until data came back).
+    if (!document.getElementById("rep-tiles") || main.dataset.rep !== repSel.key) { main.innerHTML = repPageHtml(repSel); main.dataset.rep = repSel.key; }
     loadRep(repSel);
     return;
   }
+  delete main.dataset.rep;
   const secParam = ((s) => s === "reports" ? "campaigns" : s)(new URLSearchParams(location.search).get("section"));
   const iniKey = currentInitiativeKey();
   const ini = iniKey && initiativesList(statsRes).find((x) => x.key === iniKey);
@@ -2423,7 +2453,8 @@ async function load({ force = false } = {}) {
     if (!st) { try { const saved = JSON.parse(sessionStorage.getItem(lastLoadKey()) || "null"); if (saved && saved.stats) { cache = saved; st = saved.stats; } } catch (_) {} }
     renderNav(st ? withMergedProjects(sliceStats(st)) : { projects: [], noStats: true }, null);
     const main = document.getElementById("main");
-    if (!document.getElementById("rep-tiles")) main.innerHTML = repPageHtml(repOnly);
+    // Redraw the shell whenever the rep changes (it used to keep the previous rep's page until data came back).
+    if (!document.getElementById("rep-tiles") || main.dataset.rep !== repOnly.key) { main.innerHTML = repPageHtml(repOnly); main.dataset.rep = repOnly.key; }
     loadRep(repOnly);
     return;
   }
