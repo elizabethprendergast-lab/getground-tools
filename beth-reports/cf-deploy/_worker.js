@@ -2791,12 +2791,13 @@ const repSlots = (ids = {}) => [
       { key: "reengage", start: "13:30", end: "16:30", title: "Reengage — high priority first (Complete plan)", target: 50, queueId: ids.reQ, viewId: ids.reV,
         rule: (t) => /\bRe-?engage(ment)?\b/i.test(t.name), sort: "priority" },
       { key: "followups", start: "16:30", end: "18:30", title: ids.eveningTitle || "Active leads — follow-ups (#2, #3, #4)", target: 50, queueId: ids.fuQ, viewId: ids.fuV,
-        rule: (t) => (isBillyActive(t) && [2, 3, 4].includes(t.attempt)) || !!(ids.eveningExtra && ids.eveningExtra(t)), sort: "oldestDue", first: ids.eveningExtra },
+        rule: ids.eveningRule || ((t) => (isBillyActive(t) && [2, 3, 4].includes(t.attempt)) || !!(ids.eveningExtra && ids.eveningExtra(t))), sort: ids.eveningSort || "oldestDue", first: ids.eveningExtra },
     ];
 const REP_PLANS = {
   "35666443": { slots: repSlots({ freshQ: "26605608", freshV: "163734977", reQ: "26605687", reV: "163745482", fuQ: "26605688", fuV: "163745472" }) }, // Billy Hunt
   "30035011": { slots: repSlots({ eveningExtra: (t) => /^Call \| (Active \| )?Black Friday\b/i.test(t.name), // Carlos works Black Friday in his evening slot (Beth, 24 Nov)
-    eveningTitle: "Black Friday first, then active follow-ups (#2–#4)",
+    eveningTitle: "Fresh leads (#1 calls) — Black Friday first",
+    eveningRule: (t) => isBillyActive(t) && t.attempt === 1, eveningSort: "oldest", // evening = #1s only, no follow-ups/reengage
     freshQ: "26605949", freshV: "163751796", reQ: "26605950", reV: "163751827", fuQ: "26605951", fuV: "163751835" }) }, // Carlos Lam (queues made via API 24 Nov; views to add)
 };
 async function repPlan(url, env) {
