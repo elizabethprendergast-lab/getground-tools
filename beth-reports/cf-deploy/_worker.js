@@ -2795,6 +2795,7 @@ const repSlots = (ids = {}) => [
         rule: ids.eveningRule || ((t) => (isBillyActive(t) && [2, 3, 4].includes(t.attempt)) || !!(ids.eveningExtra && ids.eveningExtra(t))), sort: ids.eveningSort || "oldestDue", first: ids.eveningExtra },
     ];
 const REP_PLANS = {
+  "78571230": { slots: repSlots({ freshQ: "26606861", reQ: "26606862", fuQ: "26606863" }) }, // Ryan Welby (queues via API 24 Nov; views to add)
   "35666443": { slots: repSlots({ freshQ: "26605608", freshV: "163734977", reQ: "26605687", reV: "163745482", fuQ: "26605688", fuV: "163745472" }) }, // Billy Hunt
   // Carlos: 24 Nov only (Beth) — Black Friday #1s in a #1-only evening slot. From 25 Nov he's back
   // to the normal day like Billy (Black Friday treated as any other active campaign) unless asked.
