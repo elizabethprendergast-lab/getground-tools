@@ -2795,7 +2795,7 @@ const repSlots = (ids = {}) => [
     ];
 const REP_PLANS = {
   "35666443": { slots: repSlots({ freshQ: "26605608", freshV: "163734977", reQ: "26605687", reV: "163745482", fuQ: "26605688", fuV: "163745472" }) }, // Billy Hunt
-  "30035011": { slots: repSlots({ freshQ: "26605949", reQ: "26605950", reV: "163751827", fuQ: "26605951", fuV: "163751835" }) }, // Carlos Lam (queues made via API 24 Nov; views to add)
+  "30035011": { slots: repSlots({ freshQ: "26605949", freshV: "163751796", reQ: "26605950", reV: "163751827", fuQ: "26605951", fuV: "163751835" }) }, // Carlos Lam (queues made via API 24 Nov; views to add)
 };
 async function repPlan(url, env) {
   const owner = url.searchParams.get("owner") || "";
