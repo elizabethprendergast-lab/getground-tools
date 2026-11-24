@@ -2713,13 +2713,13 @@ async function repActivity(url, env) {
     return j.total || 0;
   };
 
-  const part = url.searchParams.get("part") || "all"; // tasks | meetings | all
+  const part = url.searchParams.get("part") || "all"; // tasks | meetings | calls | all
   buckets.forEach((b) => { b.tasksDone = 0; b.meetings = {}; b.byType = { Active: 0, Reengage: 0, Other: 0 }; });
   const famOf = (subj) => { const n = String(subj || "").replace(/^\s*#\s*\d+\s*\|\s*/, "").replace(/\s+/g, " ").trim();
     if (/\bRe-?engage(ment)?\b/i.test(n)) return "Reengage";
     if (/\bActive\b/i.test(n) || /Landlord savings/i.test(n) || /Accounting Call Back/i.test(n) || /^Call \| Black Friday\b/i.test(n)) return "Active";
     return "Other"; };
-  if (part !== "meetings") {
+  if (part !== "meetings" && part !== "calls") {
   if (period === "day") {
     // 30 count queries + meetings came to ~47 subrequests (cap 50), so fetch the month's completed
     // call tasks in pages of 200 instead (~15-20 requests at Billy's volume) and bucket them here.
@@ -2739,6 +2739,44 @@ async function repActivity(url, env) {
     }
     for (const b of buckets) { b.tasksDone = b._total; b.byType = { Active: b._active, Reengage: b._reengage, Other: Math.max(0, b._total - b._active - b._reengage) }; }
   }
+  }
+  // part=calls (Beth, 24 Nov): the rep's outbound calls in the range, bucketed by outcome group,
+  // plus a campaign x outcome table (campaign = contact's power_dialler__active_task now — same
+  // approximation as the meetings chart). Campaign lookup only for the latest 1,200 calls so the
+  // request stays under Cloudflare's 50-subrequest cap.
+  if (part === "calls") {
+    const dl = {}; for (const d of await hsFetch(`${API}/calling/v1/dispositions`, { headers: H })) dl[d.id] = d.label;
+    const calls = []; let ca;
+    do {
+      const j = await hsFetch(`${API}/crm/v3/objects/calls/search`, { method: "POST", headers: H, body: JSON.stringify({ limit: 200, after: ca, properties: ["hs_timestamp", "hs_call_disposition"], sorts: [{ propertyName: "hs_timestamp", direction: "DESCENDING" }],
+        filterGroups: [{ filters: [{ propertyName: "hubspot_owner_id", operator: "EQ", value: owner }, { propertyName: "hs_call_direction", operator: "EQ", value: "OUTBOUND" },
+          { propertyName: "hs_timestamp", operator: "BETWEEN", value: rFrom.toISOString(), highValue: new Date(rEnd.getTime() - 1).toISOString() }] }] }) });
+      calls.push(...(j.results || [])); ca = j.paging && j.paging.next && j.paging.next.after;
+    } while (ca && calls.length < 2000);
+    const GROUP = (l) => /^(Positive|Progress to deal|Thinking about it)$/i.test(l) ? "Positive" : /^(Connected|Follow up|Left live message)$/i.test(l) ? "Spoke to"
+      : /^(Uninterested|Not a fit)$/i.test(l) ? "Not interested" : /^(No answer|Busy|Left voicemail)$/i.test(l) ? "No answer" : "Other";
+    const sub = calls.slice(0, 1200), c2c = {}, camp = {};
+    for (let i = 0; i < sub.length; i += 100) {
+      const j = await hsFetch(`${API}/crm/v4/associations/calls/contacts/batch/read`, { method: "POST", headers: H, body: JSON.stringify({ inputs: sub.slice(i, i + 100).map((c) => ({ id: c.id })) }) });
+      for (const r of j.results || []) c2c[String(r.from.id)] = r.to && r.to[0] ? String(r.to[0].toObjectId) : null;
+    }
+    const cids = [...new Set(Object.values(c2c).filter(Boolean))];
+    for (let i = 0; i < cids.length; i += 100) {
+      const j = await hsFetch(`${API}/crm/v3/objects/contacts/batch/read`, { method: "POST", headers: H, body: JSON.stringify({ inputs: cids.slice(i, i + 100).map((id) => ({ id })), properties: ["power_dialler__active_task"] }) });
+      for (const r of j.results || []) camp[r.id] = String(r.properties.power_dialler__active_task || "").replace(/\s+/g, " ").trim();
+    }
+    const byOutcome = {}, byCamp = {};
+    buckets.forEach((b) => { b.calls = {}; });
+    for (const c of calls) {
+      const lbl = dl[c.properties.hs_call_disposition] || "No outcome logged", g = GROUP(lbl), t = Date.parse(c.properties.hs_timestamp || "");
+      const b = buckets.find((x) => t >= x.start.getTime() && t < x.end.getTime()); if (b) b.calls[g] = (b.calls[g] || 0) + 1;
+      byOutcome[lbl] = (byOutcome[lbl] || 0) + 1;
+      if (c.id in c2c) { const k = camp[c2c[c.id]] || "No call campaign"; const r = (byCamp[k] = byCamp[k] || { name: k, total: 0, groups: {} }); r.total++; r.groups[g] = (r.groups[g] || 0) + 1; }
+    }
+    return json({ owner, period, part, generatedAt: new Date().toISOString(), callsTotal: calls.length, truncated: !!ca, campaignSample: sub.length,
+      buckets: buckets.map((b) => ({ start: b.label, calls: b.calls })),
+      outcomes: Object.entries(byOutcome).sort((a, b) => b[1] - a[1]).map(([label, n]) => ({ label, n, group: GROUP(label) })),
+      campaigns: Object.values(byCamp).sort((a, b) => b.total - a.total) });
   }
   const from = buckets[0].start.toISOString();
   const meetings = []; let after; const totals = {};

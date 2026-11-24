@@ -1720,7 +1720,8 @@ function repPageHtml(rep) {
     <div class="stat-row" id="rep-tiles"><div class="stat-tile"><div class="label">Loading…</div><div class="value">–</div></div></div>
     <section class="card rep-card"><div class="card-head"><h2>Tasks completed</h2><span id="rep-period-wrap">${periodSegHtml()}</span></div><div id="rep-tasks-chart" class="rep-chart"><p class="sub">Loading…</p></div></section>
     <section class="card rep-card"><h2>Meetings booked</h2><p class="sub">Meetings ${esc(rep.label)} booked, split by the contact's call campaign.</p><div id="rep-meet-chart" class="rep-chart"><p class="sub">Loading…</p></div></section>
-    <section class="card rep-card"><h2>Working on now</h2><p class="sub">Billy's open tasks right now, by campaign.</p><div id="rep-queue"><p class="sub">Loading…</p></div></section>`;
+    <section class="card rep-card"><h2>Call outcomes</h2><p class="sub">Outbound calls ${esc(rep.label)} logged, by outcome.</p><div id="rep-calls-chart" class="rep-chart"><p class="sub">Loading…</p></div></section>
+    <section class="card rep-card"><h2>Working on now</h2><p class="sub">${esc(rep.label)}'s open tasks right now, by campaign.</p><div id="rep-queue"><p class="sub">Loading…</p></div></section>`;
 }
 function barChartSvg(buckets, period, stacks, colorOf) {
   // buckets: [{start, total, parts:{name:n}}]; stacks: ordered names (null = single series).
@@ -1784,6 +1785,26 @@ function renderRepActivity(rep, data) {
     + `<details class="tbl"><summary>Show table</summary><table class="rep-table"><tr><th>${per[0].toUpperCase() + per.slice(1)}</th>${stacks.map((s) => `<th class="n">${esc(s)}</th>`).join("")}<th class="n">Total</th></tr>${mb.map((b) => `<tr><td>${esc(bucketLabel(b.start, per, false))}</td>${stacks.map((s) => `<td class="n">${fmtN(b.parts[s] || 0)}</td>`).join("")}<td class="n">${fmtN(b.total)}</td></tr>`).join("")}</table></details>`;
   if (mTot) wireBarTips(mEl, mb, per, stacks, colorOf, "meetings");
   repTiles(rep);
+}
+const CALL_GROUPS = ["Positive", "Spoke to", "Not interested", "No answer", "Other"];
+const callColor = (g) => g === "Other" ? "var(--rc-other)" : `var(--rc-${CALL_GROUPS.indexOf(g) + 1})`;
+function renderRepCalls(rep, d) {
+  const el = document.getElementById("rep-calls-chart"); if (!el) return;
+  if (!d.callsTotal) { el.innerHTML = `<p class="sub">No outbound calls logged in this period.</p>`; return; }
+  const per = d.period, cb = d.buckets.map((b) => ({ start: b.start, total: Object.values(b.calls).reduce((x, y) => x + y, 0), parts: b.calls }));
+  const gTot = (g) => d.outcomes.filter((o) => o.group === g).reduce((n, o) => n + o.n, 0);
+  const pct = (n, t) => t ? Math.round((n / t) * 100) + "%" : "–";
+  const reached = gTot("Positive") + gTot("Spoke to") + gTot("Not interested");
+  const groups = CALL_GROUPS.filter((g) => gTot(g));
+  el.innerHTML = `<p class="sub">${fmtN(d.callsTotal)}${d.truncated ? "+" : ""} calls · ${esc(repRangeLabel())} · spoke to ${pct(reached, d.callsTotal)} · positive ${pct(gTot("Positive"), d.callsTotal)}</p>`
+    + `<div class="rep-legend">${groups.map((g) => `<span><span class="sw" style="background:${callColor(g)}"></span>${g} (${fmtN(gTot(g))})</span>`).join("")}</div>`
+    + barChartSvg(cb, per, groups, callColor)
+    + `<div style="overflow-x:auto"><table class="rep-table"><tr><th>Campaign</th><th class="n">Calls</th>${groups.map((g) => `<th class="n">${g}</th>`).join("")}<th class="n">Spoke to %</th></tr>`
+    + d.campaigns.map((c) => { const r = (c.groups.Positive || 0) + (c.groups["Spoke to"] || 0) + (c.groups["Not interested"] || 0);
+        return `<tr><td>${esc(c.name.replace(/^Call \| /, ""))}</td><td class="n">${fmtN(c.total)}</td>${groups.map((g) => `<td class="n">${fmtN(c.groups[g] || 0)}</td>`).join("")}<td class="n">${pct(r, c.total)}</td></tr>`; }).join("")
+    + `</table></div>${d.campaignSample < d.callsTotal ? `<p class="sub">Campaign split covers the latest ${fmtN(d.campaignSample)} calls.</p>` : ""}`
+    + `<details class="tbl"><summary>All outcomes</summary><table class="rep-table">${d.outcomes.map((o) => `<tr><td>${esc(o.label)}</td><td class="n">${fmtN(o.n)}</td><td class="n">${pct(o.n, d.callsTotal)}</td></tr>`).join("")}</table></details>`;
+  wireBarTips(el, cb, per, groups, callColor, "calls");
 }
 function repTiles(rep) {
   const q = repCache.queue[rep.key], a = repCache.activity[repActKey(rep)];
@@ -1878,6 +1899,10 @@ async function loadRep(rep) {
   const actUrl = (part) => `/api/rep-activity?owner=${rep.ownerId}&user=${rep.userId}&period=${per}&from=${rd.from}&to=${rd.to}&part=${part}`;
   const aP = repCache.activity[aKey] ? Promise.resolve(repCache.activity[aKey]) : Promise.all([fetch(actUrl("tasks")).then((r) => r.json()), fetch(actUrl("meetings")).then((r) => r.json())])
     .then(([t, m]) => { if (t.error || m.error) return { error: t.error || m.error }; return { ...t, buckets: t.buckets.map((b, i) => ({ ...b, meetings: (m.buckets[i] || {}).meetings || {} })), meetingCampaigns: m.meetingCampaigns, meetingsTotal: m.meetingsTotal }; });
+  if (!repCache.calls) repCache.calls = {};
+  (repCache.calls[aKey] ? Promise.resolve(repCache.calls[aKey]) : fetch(actUrl("calls")).then((r) => r.json()))
+    .then((c) => { if (c.error) throw new Error(c.error); repCache.calls[aKey] = c; if (repActKey(rep) === aKey) renderRepCalls(rep, c); })
+    .catch((e) => { const el = document.getElementById("rep-calls-chart"); if (el) el.innerHTML = `<p class="sub warn-t">Couldn't load: ${esc(e.message)}</p>`; });
   if (!repCache.plan) repCache.plan = {};
   if (!rep.simple) (repCache.plan[rep.key] ? Promise.resolve(repCache.plan[rep.key]) : fetch(`/api/rep-plan?owner=${rep.ownerId}`).then((r) => r.json()))
     .then((p) => { if (p.error) throw new Error(p.error); repCache.plan[rep.key] = p; renderRepPlan(rep, p); })
@@ -1891,6 +1916,7 @@ function repRefreshCharts(rep) {
   const w = document.getElementById("rep-period-wrap"); if (w) w.innerHTML = periodSegHtml();
   const c = document.getElementById("rep-controls"); if (c) c.innerHTML = repControlsHtml();
   ["rep-tasks-chart", "rep-meet-chart"].forEach((id) => { const el = document.getElementById(id); if (el && !repCache.activity[repActKey(rep)]) el.innerHTML = `<p class="sub">Loading…</p>`; });
+  { const el = document.getElementById("rep-calls-chart"); if (el && !(repCache.calls || {})[repActKey(rep)]) el.innerHTML = `<p class="sub">Loading…</p>`; }
   repTiles(rep); loadRep(rep);
 }
 document.addEventListener("click", (e) => {
