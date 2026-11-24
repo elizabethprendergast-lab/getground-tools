@@ -2777,9 +2777,9 @@ const REP_PLANS = {
       { key: "fresh", start: "09:30", end: "12:30", title: "Active leads — fresh (#1 calls)", target: 50, queueId: "26605608", viewId: "163734977", // HubSpot queue + view "Billy · 09:30 Active #1s"
         rule: (t) => isBillyActive(t) && t.attempt === 1, sort: "oldest" }, // oldest #1 first so carry-overs never get left behind (Beth, 24 Nov)
       { key: "lunch", start: "12:30", end: "13:30", title: "Lunch", lunch: true },
-      { key: "reengage", start: "13:30", end: "16:30", title: "Reengage — high priority first (Complete plan)", target: 50, viewId: "163745482", // HubSpot view "Billy · Reengage"
+      { key: "reengage", start: "13:30", end: "16:30", title: "Reengage — high priority first (Complete plan)", target: 50, queueId: "26605687", viewId: "163745482", // HubSpot queue + view "Billy · Reengage"
         rule: (t) => /\bRe-?engage(ment)?\b/i.test(t.name), sort: "priority" },
-      { key: "followups", start: "16:30", end: "18:30", title: "Active leads — follow-ups (#2, #3, #4)", target: 50, viewId: "163745472", // HubSpot view "Billy · Active follow-ups"
+      { key: "followups", start: "16:30", end: "18:30", title: "Active leads — follow-ups (#2, #3, #4)", target: 50, queueId: "26605688", viewId: "163745472", // HubSpot queue + view "Billy · Active follow-ups"
         rule: (t) => isBillyActive(t) && [2, 3, 4].includes(t.attempt), sort: "oldestDue" },
     ],
   },
