@@ -1669,7 +1669,8 @@ function currentSection(stats) {
 const REPS = [
   { key: "billy", label: "Billy", name: "Billy Hunt", ownerId: "35666443", userId: "35666443" },
   { key: "carlos", label: "Carlos", name: "Carlos Lam", ownerId: "30035011", userId: "30035011" },
-  { key: "ryan", label: "Ryan", name: "Ryan Welby", ownerId: "78571230", userId: "78571230", simple: true }, // simple: campaign buttons, no timetable
+  { key: "ryan", label: "Ryan", name: "Ryan Welby", ownerId: "78571230", userId: "78571230", simple: true, // simple: campaign buttons, no timetable
+    order: ["Property Analyser", "Plan close - month end", "Call contact to follow up"] }, // Beth 24 Nov: these first, in this order; rest by open count
 ];
 const repCache = { queue: {}, activity: {} };
 const currentRepKey = () => new URLSearchParams(location.search).get("rep");
@@ -1796,7 +1797,8 @@ function renderRepSimple(rep, q) {
   const el = document.getElementById("rep-simple"); if (!el) return;
   const hv = (n) => q.hubspot && q.hubspot.viewId ? `https://${q.hubspot.subdomain}/contacts/${q.hubspot.portalId}/objects/${q.hubspot.objectTypeId}/views/${q.hubspot.viewId}/list?query=${encodeURIComponent(n)}` : null;
   const nice = (n) => n.replace(/^Call \| /, "").replace(/Active Lead \| Plan close - month end/i, "EOM · Plan close - month end");
-  const camps = q.campaigns.filter((c) => c.open > 0 && /^Call\b/i.test(c.name)).sort((a, b) => b.open - a.open);
+  const rank = (c) => { const i = (rep.order || []).findIndex((o) => c.name.toLowerCase().includes(o.toLowerCase())); return i < 0 ? 99 : i; };
+  const camps = q.campaigns.filter((c) => c.open > 0 && /^Call\b/i.test(c.name)).sort((a, b) => rank(a) - rank(b) || b.open - a.open);
   el.innerHTML = camps.length ? `<div class="slot-btns">${camps.map((c) => { const u = hv(c.name); const att = Object.keys(c.byAttempt).filter((k) => k !== "-").sort((a, b) => a - b);
     return `<a class="slot-btn" ${u ? `href="${u}" target="_blank" rel="noopener"` : ""}><b>${fmtN(c.open)}</b> ${esc(nice(c.name))}${att.length ? ` <span style="margin-left:6px;color:var(--text-muted)">#${att.join(", #")}</span>` : ""}<span>open in HubSpot ↗</span></a>`; }).join("")}</div>` : `<p class="sub">No open campaign tasks.</p>`;
 }
