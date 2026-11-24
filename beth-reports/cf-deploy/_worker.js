@@ -2784,6 +2784,7 @@ async function repActivity(url, env) {
 // reengage queue, not active, so Black Friday must be the campaign name right after "Call |".
 const isBillyActive = (t) => /^Call \| Active Lead\b/i.test(t.name) || /^Call \| Active \|/i.test(t.name) || /Landlord savings calculator/i.test(t.name) || /Accounting Call Back/i.test(t.name) || /^Call \| Black Friday\b/i.test(t.name);
 // Same four-slot day for every rep (Beth, 24 Nov). ids = optional HubSpot queue/view per slot.
+const ukDay = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 const repSlots = (ids = {}) => [
       { key: "fresh", start: "09:30", end: "12:30", title: "Active leads — fresh (#1 calls)", target: 50, queueId: ids.freshQ, viewId: ids.freshV,
         rule: (t) => isBillyActive(t) && t.attempt === 1 && !(ids.eveningExtra && ids.eveningExtra(t)), sort: "oldest" },
@@ -2796,8 +2797,10 @@ const repSlots = (ids = {}) => [
 const REP_PLANS = {
   "35666443": { slots: repSlots({ freshQ: "26605608", freshV: "163734977", reQ: "26605687", reV: "163745482", fuQ: "26605688", fuV: "163745472" }) }, // Billy Hunt
   "30035011": { slots: repSlots({ eveningExtra: (t) => /^Call \| (Active \| )?Black Friday\b/i.test(t.name), // Carlos works Black Friday in his evening slot (Beth, 24 Nov)
-    eveningTitle: "Fresh leads (#1 calls) — Black Friday first",
-    eveningRule: (t) => isBillyActive(t) && t.attempt === 1, eveningSort: "oldest", // evening = #1s only, no follow-ups/reengage
+    // 24 Nov only (Beth): evening = #1 fresh leads only. Other days: Black Friday first, then #2–#4.
+    eveningTitle: () => ukDay() === "2026-11-24" ? "Fresh leads (#1 calls) — Black Friday first" : "Black Friday first, then active follow-ups (#2–#4)",
+    eveningRule: (t) => ukDay() === "2026-11-24" ? isBillyActive(t) && t.attempt === 1 : (isBillyActive(t) && [2, 3, 4].includes(t.attempt)) || /^Call \| (Active \| )?Black Friday\b/i.test(t.name),
+    eveningSort: () => ukDay() === "2026-11-24" ? "oldest" : "oldestDue",
     freshQ: "26605949", freshV: "163751796", reQ: "26605950", reV: "163751827", fuQ: "26605951", fuV: "163751835" }) }, // Carlos Lam (queues made via API 24 Nov; views to add)
 };
 async function repPlan(url, env) {
@@ -2873,7 +2876,7 @@ async function buildRepPlan(owner, env) {
   const used = new Set(), picksBySlot = {};
   const slots = plan.slots.map((sl) => {
     if (sl.lunch) return { key: sl.key, start: sl.start, end: sl.end, title: sl.title, lunch: true };
-    const srt = sorters[sl.sort] || sorters.oldestDue;
+    const srt = sorters[typeof sl.sort === "function" ? sl.sort() : sl.sort] || sorters.oldestDue;
     // sl.first: tasks matching it go to the top of the slot (e.g. Carlos's Black Friday in his evening).
     const pool = openT.filter((t) => !used.has(t.id) && sl.rule(t)).sort((a, b) => (sl.first ? (!!sl.first(b) - !!sl.first(a)) : 0) || srt(a, b));
     const pick = pool.slice(0, sl.target); pick.forEach((t) => used.add(t.id)); picksBySlot[sl.key] = pick.map((t) => t.id);
@@ -2882,7 +2885,7 @@ async function buildRepPlan(owner, env) {
     // (so the page lists rows in the order they're worked).
     const pickBy = {}, pickAtt = {}, pickPos = {};
     pick.forEach((t, i) => { pickBy[t.name] = (pickBy[t.name] || 0) + 1; (pickAtt[t.name] ||= new Set()).add(t.attempt); if (!(t.name in pickPos)) pickPos[t.name] = i; });
-    return { key: sl.key, start: sl.start, end: sl.end, title: sl.title, target: sl.target, viewId: sl.viewId || null, queueId: sl.queueId || null, available: pool.length, doneToday: doneT.filter(sl.rule).length,
+    return { key: sl.key, start: sl.start, end: sl.end, title: typeof sl.title === "function" ? sl.title() : sl.title, target: sl.target, viewId: sl.viewId || null, queueId: sl.queueId || null, available: pool.length, doneToday: doneT.filter(sl.rule).length,
       byCampaign: Object.entries(byCampaign).sort((a, b) => ((a[0] in pickPos ? pickPos[a[0]] : 1e9) - (b[0] in pickPos ? pickPos[b[0]] : 1e9)) || b[1] - a[1])
       .map(([name, n]) => ({ name, n, today: pickBy[name] || 0, attempts: [...(pickAtt[name] || [])].filter((x) => x != null).sort((x, y) => x - y) })), picked: pick.length };
   });
