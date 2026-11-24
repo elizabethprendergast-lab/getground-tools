@@ -2796,12 +2796,14 @@ const repSlots = (ids = {}) => [
     ];
 const REP_PLANS = {
   "35666443": { slots: repSlots({ freshQ: "26605608", freshV: "163734977", reQ: "26605687", reV: "163745482", fuQ: "26605688", fuV: "163745472" }) }, // Billy Hunt
-  "30035011": { slots: repSlots({ eveningExtra: (t) => /^Call \| (Active \| )?Black Friday\b/i.test(t.name), // Carlos works Black Friday in his evening slot (Beth, 24 Nov)
-    // 24 Nov only (Beth): evening = #1 fresh leads only. Other days: Black Friday first, then #2–#4.
-    eveningTitle: () => ukDay() === "2026-11-24" ? "Fresh leads (#1 calls) — Black Friday first" : "Black Friday first, then active follow-ups (#2–#4)",
-    eveningRule: (t) => ukDay() === "2026-11-24" ? isBillyActive(t) && t.attempt === 1 : (isBillyActive(t) && [2, 3, 4].includes(t.attempt)) || /^Call \| (Active \| )?Black Friday\b/i.test(t.name),
+  // Carlos: 24 Nov only (Beth) — Black Friday #1s in a #1-only evening slot. From 25 Nov he's back
+  // to the normal day like Billy (Black Friday treated as any other active campaign) unless asked.
+  "30035011": { slots: repSlots({
+    eveningExtra: (t) => ukDay() === "2026-11-24" && /^Call \| (Active \| )?Black Friday\b/i.test(t.name),
+    eveningTitle: () => ukDay() === "2026-11-24" ? "Fresh leads (#1 calls) — Black Friday first" : "Active leads — follow-ups (#2, #3, #4)",
+    eveningRule: (t) => ukDay() === "2026-11-24" ? isBillyActive(t) && t.attempt === 1 : isBillyActive(t) && [2, 3, 4].includes(t.attempt),
     eveningSort: () => ukDay() === "2026-11-24" ? "oldest" : "oldestDue",
-    freshQ: "26605949", freshV: "163751796", reQ: "26605950", reV: "163751827", fuQ: "26605951", fuV: "163751835" }) }, // Carlos Lam (queues made via API 24 Nov; views to add)
+    freshQ: "26605949", freshV: "163751796", reQ: "26605950", reV: "163751827", fuQ: "26605951", fuV: "163751835" }) }, // Carlos Lam
 };
 async function repPlan(url, env) {
   const owner = url.searchParams.get("owner") || "";
