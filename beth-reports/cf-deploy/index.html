@@ -552,6 +552,7 @@
   .seg.sm button { padding: 4px 10px; font-size: 12px; } .seg button:disabled { opacity: 0.35; cursor: not-allowed; }
   body[data-sec="acquisition"] { --sec: var(--purple); --sec-ink: var(--purple); --sec-soft: var(--purple-soft); }
   body[data-sec="acquisition"] header { background: linear-gradient(180deg, var(--surface-1), color-mix(in srgb, var(--purple) 5%, var(--surface-1))); }
+  #meta-line.stale { color: var(--warning); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -2378,9 +2379,14 @@ function render() {
   }
 
   const metaLine = document.getElementById("meta-line");
-  if (metaLine) metaLine.textContent = key === REFERRAL_TAB_KEY
-    ? "Referral programme"
-    : `${statsRes.name || "MRR Nov Sprint"} · live, updated ${fmtDateTime(statsRes.generatedAt)}`;
+  if (metaLine) {
+    metaLine.textContent = key === REFERRAL_TAB_KEY
+      ? "Referral programme"
+      : refreshingSaved
+        ? `Showing saved data from ${fmtDateTime(statsRes.generatedAt)} · refreshing from HubSpot…`
+        : `${statsRes.name || "MRR Nov Sprint"} · live, updated ${fmtDateTime(statsRes.generatedAt)}`;
+    metaLine.classList.toggle("stale", !!refreshingSaved && key !== REFERRAL_TAB_KEY);
+  }
   const other = statsRes.other || { total: 0 };
   const footer = document.getElementById("footer-line");
   if (footer) {
@@ -2396,6 +2402,8 @@ function render() {
   wireRangeControl();
 }
 
+// True while the page is showing the last saved load and the live refresh is still running.
+let refreshingSaved = false;
 async function load({ force = false } = {}) {
   // Rep tabs (e.g. Billy) don't need the main /api/stats load at all: paint the page straight
   // away and fetch only that rep's endpoints. Counts on the other tabs come from this tab's last
@@ -2416,7 +2424,7 @@ async function load({ force = false } = {}) {
       // Paint the previous load straight away (if this tab has one), then refresh it below.
       try {
         const saved = JSON.parse(sessionStorage.getItem(lastLoadKey()) || "null");
-        if (saved && saved.stats) { cache = saved; render(); force = true; }
+        if (saved && saved.stats) { cache = saved; refreshingSaved = true; render(); force = true; }
       } catch (_) { /* unreadable — fall through to a normal load */ }
     }
     const key = currentCampaignKey();
@@ -2434,8 +2442,10 @@ async function load({ force = false } = {}) {
       if (force && btn) btn.textContent = "Updating…";
       await fetchData();
     }
+    refreshingSaved = false;
     render();
   } catch (e) {
+    refreshingSaved = false;
     document.getElementById("main").innerHTML = `<div class="empty-state">Failed to load — ${esc(String(e))}</div>`;
   }
 }
