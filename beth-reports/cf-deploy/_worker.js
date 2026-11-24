@@ -2774,7 +2774,7 @@ const isBillyActive = (t) => /^Call \| Active Lead\b/i.test(t.name) || /^Call \|
 const REP_PLANS = {
   "35666443": { // Billy Hunt
     slots: [
-      { key: "fresh", start: "09:30", end: "12:30", title: "Active leads — fresh (#1 calls)", target: 50, queueId: "26605608", // HubSpot queue "Billy · 09:30 Active #1s"
+      { key: "fresh", start: "09:30", end: "12:30", title: "Active leads — fresh (#1 calls)", target: 50, queueId: "26605608", viewId: "163734977", // HubSpot queue + view "Billy · 09:30 Active #1s"
         rule: (t) => isBillyActive(t) && t.attempt === 1, sort: "oldest" }, // oldest #1 first so carry-overs never get left behind (Beth, 24 Nov)
       { key: "lunch", start: "12:30", end: "13:30", title: "Lunch", lunch: true },
       { key: "reengage", start: "13:30", end: "16:30", title: "Reengage — high priority first (Complete plan)", target: 50, viewId: "163745482", // HubSpot view "Billy · Reengage"
