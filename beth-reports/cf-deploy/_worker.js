@@ -2875,7 +2875,7 @@ async function buildRepPlan(owner, env) {
     oldestDue: (a, b) => Date.parse(a.due || 0) - Date.parse(b.due || 0),
     priority: (a, b) => (pr[a.priority] ?? 3) - (pr[b.priority] ?? 3) || (/Complete/i.test(b.name) - /Complete/i.test(a.name)) || Date.parse(a.due || 0) - Date.parse(b.due || 0),
   };
-  const used = new Set(), picksBySlot = {};
+  const used = new Set(), picksBySlot = {}, doneUsed = new Set();
   const slots = plan.slots.map((sl) => {
     if (sl.lunch) return { key: sl.key, start: sl.start, end: sl.end, title: sl.title, lunch: true };
     const srt = sorters[typeof sl.sort === "function" ? sl.sort() : sl.sort] || sorters.oldestDue;
@@ -2887,7 +2887,7 @@ async function buildRepPlan(owner, env) {
     // (so the page lists rows in the order they're worked).
     const pickBy = {}, pickAtt = {}, pickPos = {};
     pick.forEach((t, i) => { pickBy[t.name] = (pickBy[t.name] || 0) + 1; (pickAtt[t.name] ||= new Set()).add(t.attempt); if (!(t.name in pickPos)) pickPos[t.name] = i; });
-    return { key: sl.key, start: sl.start, end: sl.end, title: typeof sl.title === "function" ? sl.title() : sl.title, target: sl.target, viewId: sl.viewId || null, queueId: sl.queueId || null, available: pool.length, doneToday: doneT.filter(sl.rule).length,
+    return { key: sl.key, start: sl.start, end: sl.end, title: typeof sl.title === "function" ? sl.title() : sl.title, target: sl.target, viewId: sl.viewId || null, queueId: sl.queueId || null, available: pool.length, doneToday: doneT.filter((t) => !doneUsed.has(t.id) && sl.rule(t)).map((t) => doneUsed.add(t.id)).length, sortKey: typeof sl.sort === "function" ? sl.sort() : sl.sort,
       byCampaign: Object.entries(byCampaign).sort((a, b) => ((a[0] in pickPos ? pickPos[a[0]] : 1e9) - (b[0] in pickPos ? pickPos[b[0]] : 1e9)) || b[1] - a[1])
       .map(([name, n]) => ({ name, n, today: pickBy[name] || 0, attempts: [...(pickAtt[name] || [])].filter((x) => x != null).sort((x, y) => x - y) })), picked: pick.length };
   });
