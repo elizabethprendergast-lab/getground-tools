@@ -6,15 +6,14 @@ per tracked campaign.
 
 ## Deploying
 
-Deploys are **manual** — pushing here does not auto-publish. To go live:
+Deploys are **automatic**: the Cloudflare Pages project is connected to this GitHub repo
+(production branch `main`, build root `beth-reports/cf-deploy`). **Pushing to `main` publishes
+the site** within about a minute. You don't need Cloudflare access or `wrangler` to go live,
+just push access to this repo. A broken `_worker.js` breaks the whole site, so run
+`node --check beth-reports/cf-deploy/_worker.js` before pushing.
 
-```
-npx wrangler pages deploy beth-reports/cf-deploy --project-name beth-reports --branch main --commit-dirty=true
-```
-
-Requires Cloudflare access to the `beth-reports` Pages project (currently on
-Beth's personal Cloudflare account) — ask her to run the deploy, or to add you
-as a collaborator on the Pages project if you need to deploy independently.
+Only push to `main` what should be live. Work in progress belongs on a branch (branches
+don't publish to beth-reports.pages.dev).
 
 The `HUBSPOT_TOKEN` secret is already configured on the live Pages project —
 nothing to set up locally to deploy; you only need it if running the worker
