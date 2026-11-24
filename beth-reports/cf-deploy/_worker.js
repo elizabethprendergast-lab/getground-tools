@@ -848,6 +848,8 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (request.method === "POST" && url.pathname === "/__login") return handleLogin(request, env);
+    // Machine-to-machine (n8n): own key, no site password.
+    if (url.pathname === "/api/rep-queue-sync") return repQueueSync(request, url, env);
     if (!isAuthed(request, env)) {
       if (url.pathname.startsWith("/api/")) return json({ error: "Authentication required" }, 401);
       return new Response(loginPageHtml(url.pathname + url.search, false), { status: 401, headers: { "content-type": "text/html; charset=utf-8" } });
@@ -918,7 +920,7 @@ async function runTaskSearch(API, H, filterGroups, maxPages = 50) {
   do {
     const body = {
       filterGroups,
-      properties: ["hs_task_subject", "hs_task_status", "hubspot_owner_id", "hs_createdate", "hs_task_completion_date", "hs_task_priority", "hs_object_source_detail_1", "hs_timestamp"],
+      properties: ["hs_task_subject", "hs_task_status", "hubspot_owner_id", "hs_createdate", "hs_task_completion_date", "hs_task_priority", "hs_object_source_detail_1", "hs_timestamp", "hs_queue_membership_ids"],
       limit: 200,
     };
     if (after) body.after = after;
@@ -2772,22 +2774,58 @@ const isBillyActive = (t) => /^Call \| Active Lead\b/i.test(t.name) || /^Call \|
 const REP_PLANS = {
   "35666443": { // Billy Hunt
     slots: [
-      { key: "fresh", start: "09:30", end: "12:30", title: "Active leads — fresh (#1 calls)", target: 50,
+      { key: "fresh", start: "09:30", end: "12:30", title: "Active leads — fresh (#1 calls)", target: 50, queueId: "26605608", // HubSpot queue "Billy · 09:30 Active #1s"
         rule: (t) => isBillyActive(t) && t.attempt === 1, sort: "oldest" }, // oldest #1 first so carry-overs never get left behind (Beth, 24 Nov)
       { key: "lunch", start: "12:30", end: "13:30", title: "Lunch", lunch: true },
-      { key: "reengage", start: "13:30", end: "16:30", title: "Reengage — high priority first (Complete plan)", target: 50,
+      { key: "reengage", start: "13:30", end: "16:30", title: "Reengage — high priority first (Complete plan)", target: 50, viewId: "163745482", // HubSpot view "Billy · Reengage"
         rule: (t) => /\bRe-?engage(ment)?\b/i.test(t.name), sort: "priority" },
-      { key: "followups", start: "16:30", end: "18:30", title: "Active leads — follow-ups (#2, #3, #4)", target: 50,
+      { key: "followups", start: "16:30", end: "18:30", title: "Active leads — follow-ups (#2, #3, #4)", target: 50, viewId: "163745472", // HubSpot view "Billy · Active follow-ups"
         rule: (t) => isBillyActive(t) && [2, 3, 4].includes(t.attempt), sort: "oldestDue" },
     ],
   },
 };
 async function repPlan(url, env) {
+  const owner = url.searchParams.get("owner") || "";
+  if (!REP_PLANS[owner]) return json({ error: "no plan for this owner" }, 404);
+  const r = await buildRepPlan(owner, env);
+  const [, report] = getReport(url);
+  r.out.hubspot = { subdomain: report.hubspotSubdomain, portalId: "25516403", objectTypeId: "0-27", viewId: (report.ownerViews || {})[owner] || null };
+  return json(r.out);
+}
+// POST /api/rep-queue-sync?owner=<id>  (header x-sync-key: REP_SYNC_KEY) — called by n8n every
+// weekday morning. For each plan slot with a queueId, makes that HubSpot task queue contain
+// exactly today's picks: adds the picked tasks, removes anything else still open in it. Other
+// queue memberships on a task are kept. Writes use HUBSPOT_TASK_TOKEN (task write scope).
+async function repQueueSync(request, url, env) {
+  if (request.method !== "POST") return json({ error: "POST only" }, 405);
+  if (!env.REP_SYNC_KEY || request.headers.get("x-sync-key") !== env.REP_SYNC_KEY) return json({ error: "bad key" }, 401);
+  if (!env.HUBSPOT_TASK_TOKEN) return json({ error: "HUBSPOT_TASK_TOKEN not set" }, 500);
+  const owner = url.searchParams.get("owner") || "";
+  if (!REP_PLANS[owner]) return json({ error: "no plan for this owner" }, 404);
+  const API = "https://api.hubapi.com";
+  const HR = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
+  const HW = { Authorization: `Bearer ${env.HUBSPOT_TASK_TOKEN}`, "Content-Type": "application/json" };
+  const { out, openById, picksBySlot } = await buildRepPlan(owner, env);
+  const report = [];
+  for (const sl of REP_PLANS[owner].slots.filter((x) => x.queueId)) {
+    const Q = sl.queueId, want = new Set(picksBySlot[sl.key] || []);
+    // Open tasks currently in this queue (any owner — e.g. tasks moved to someone else).
+    const inQ = await runTaskSearch(API, HR, [{ filters: [{ propertyName: "hs_queue_membership_ids", operator: "IN", values: [Q] }, { propertyName: "hs_task_status", operator: "NEQ", value: "COMPLETED" }] }], 5);
+    const qs = (v) => String(v || "").split(";").filter(Boolean);
+    const updates = [];
+    for (const t of inQ.results) if (!want.has(t.id)) updates.push({ id: t.id, properties: { hs_queue_membership_ids: qs(t.properties.hs_queue_membership_ids).filter((x) => x !== Q).join(";") } });
+    for (const id of want) { const cur = qs((openById[id] || {}).queues); if (!cur.includes(Q)) updates.push({ id, properties: { hs_queue_membership_ids: cur.concat(Q).join(";") } }); }
+    for (let i = 0; i < updates.length; i += 100) {
+      await hsFetch(`${API}/crm/v3/objects/tasks/batch/update`, { method: "POST", headers: HW, body: JSON.stringify({ inputs: updates.slice(i, i + 100) }) });
+    }
+    report.push({ slot: sl.key, queueId: Q, picked: want.size, changed: updates.length });
+  }
+  return json({ owner, day: out.day, ranAt: new Date().toISOString(), queues: report });
+}
+async function buildRepPlan(owner, env) {
   const API = "https://api.hubapi.com";
   const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
-  const owner = url.searchParams.get("owner") || "";
   const plan = REP_PLANS[owner];
-  if (!plan) return json({ error: "no plan for this owner" }, 404);
   // London midnight today (UTC in winter, UTC+1 in summer).
   const londonDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
   const offH = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "numeric", hourCycle: "h23" }).format(new Date(`${londonDay}T12:00:00Z`))) - 12;
@@ -2798,7 +2836,7 @@ async function repPlan(url, env) {
   ]);
   const shape = (t) => { const subj = String(t.properties.hs_task_subject || ""); const m = subj.match(/^\s*#\s*(\d+)\s*\|/);
     return { id: t.id, subject: subj, name: subj.replace(/^\s*#\s*\d+\s*\|\s*/, "").replace(/\s+/g, " ").trim(), attempt: m ? Number(m[1]) : null,
-      priority: t.properties.hs_task_priority || "NONE", due: t.properties.hs_timestamp || null, created: t.properties.hs_createdate || null }; };
+      priority: t.properties.hs_task_priority || "NONE", due: t.properties.hs_timestamp || null, created: t.properties.hs_createdate || null, queues: t.properties.hs_queue_membership_ids || "" }; };
   const openT = open.results.map(shape), doneT = done.results.map(shape);
   const pr = { HIGH: 0, MEDIUM: 1, LOW: 2, NONE: 3 };
   const sorters = {
@@ -2807,22 +2845,22 @@ async function repPlan(url, env) {
     oldestDue: (a, b) => Date.parse(a.due || 0) - Date.parse(b.due || 0),
     priority: (a, b) => (pr[a.priority] ?? 3) - (pr[b.priority] ?? 3) || (/Complete/i.test(b.name) - /Complete/i.test(a.name)) || Date.parse(a.due || 0) - Date.parse(b.due || 0),
   };
-  const used = new Set();
+  const used = new Set(), picksBySlot = {};
   const slots = plan.slots.map((sl) => {
     if (sl.lunch) return { key: sl.key, start: sl.start, end: sl.end, title: sl.title, lunch: true };
     const pool = openT.filter((t) => !used.has(t.id) && sl.rule(t)).sort(sorters[sl.sort] || sorters.oldestDue);
-    const pick = pool.slice(0, sl.target); pick.forEach((t) => used.add(t.id));
+    const pick = pool.slice(0, sl.target); pick.forEach((t) => used.add(t.id)); picksBySlot[sl.key] = pick.map((t) => t.id);
     const byCampaign = {}; pool.forEach((t) => { byCampaign[t.name] = (byCampaign[t.name] || 0) + 1; });
     const pickBy = {}; pick.forEach((t) => { pickBy[t.name] = (pickBy[t.name] || 0) + 1; });
-    return { key: sl.key, start: sl.start, end: sl.end, title: sl.title, target: sl.target, available: pool.length, doneToday: doneT.filter(sl.rule).length,
+    return { key: sl.key, start: sl.start, end: sl.end, title: sl.title, target: sl.target, viewId: sl.viewId || null, queueId: sl.queueId || null, available: pool.length, doneToday: doneT.filter(sl.rule).length,
       byCampaign: Object.entries(byCampaign).sort((a, b) => b[1] - a[1]).map(([name, n]) => ({ name, n, today: pickBy[name] || 0 })), picked: pick.length };
   });
   const inPlan = new Set(slots.flatMap((x) => x.lunch ? [] : openT.filter((t) => plan.slots.find((p) => p.key === x.key).rule(t)).map((t) => t.id)));
   const outside = {}; openT.filter((t) => !inPlan.has(t.id)).forEach((t) => { outside[t.name] = (outside[t.name] || 0) + 1; });
-  const [, report] = getReport(url);
-  const hubspot = { subdomain: report.hubspotSubdomain, portalId: "25516403", objectTypeId: "0-27", viewId: (report.ownerViews || {})[owner] || null };
-  return json({ owner, day: londonDay, generatedAt: new Date().toISOString(), portalId: "25516403", hubspot, truncated: open.truncated,
-    slots, notInPlan: Object.entries(outside).sort((a, b) => b[1] - a[1]).map(([name, n]) => ({ name, n })) });
+  const out = { owner, day: londonDay, generatedAt: new Date().toISOString(), portalId: "25516403", truncated: open.truncated,
+    slots, notInPlan: Object.entries(outside).sort((a, b) => b[1] - a[1]).map(([name, n]) => ({ name, n })) };
+  const openById = Object.fromEntries(openT.map((t) => [t.id, t]));
+  return { out, openById, picksBySlot };
 }
 
 async function listSizes(url, env) {

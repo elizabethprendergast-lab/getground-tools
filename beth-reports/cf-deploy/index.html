@@ -1821,7 +1821,10 @@ function renderRepPlan(rep, p) {
     const pct = Math.min(100, Math.round((x.doneToday / x.target) * 100));
     const hv = (q) => p.hubspot && p.hubspot.viewId ? `https://${p.hubspot.subdomain}/contacts/${p.hubspot.portalId}/objects/${p.hubspot.objectTypeId}/views/${p.hubspot.viewId}/list?query=${encodeURIComponent(q)}` : null;
     const att = x.key === "fresh" ? "#1" : x.key === "followups" ? "#2–#4" : "";
-    const btns = x.byCampaign.filter((c) => c.today).map((c) => { const u = hv(c.name); const lbl = `${esc(c.name.replace(/^Call \| /, ""))}${att ? ` ${att}` : ""}`;
+    // A slot with its own HubSpot view/queue gets one "Start" button that opens exactly today's list.
+    const slotView = x.viewId && p.hubspot ? `https://${p.hubspot.subdomain}/contacts/${p.hubspot.portalId}/objects/${p.hubspot.objectTypeId}/views/${x.viewId}/list` : null;
+    const startBtn = slotView ? `<a class="slot-btn" href="${slotView}" target="_blank" rel="noopener" style="border-color:var(--purple)"><b>▶</b> Open today's list in HubSpot, then click Start tasks <span>open ↗</span></a>` : "";
+    const btns = startBtn + x.byCampaign.filter((c) => c.today).map((c) => { const u = hv(c.name); const lbl = `${esc(c.name.replace(/^Call \| /, ""))}${att ? ` ${att}` : ""}`;
       return u ? `<a class="slot-btn" href="${u}" target="_blank" rel="noopener"><b>${fmtN(c.today)}</b> ${lbl} <span>open in HubSpot ↗</span></a>` : `<span class="slot-btn"><b>${fmtN(c.today)}</b> ${lbl}</span>`; }).join("");
     const short = x.available < x.target ? `<div class="short">Only ${fmtN(x.available)} available for this slot today.</div>` : "";
     return `<div class="slot ${x.key}${now}"><div class="tm">${x.start}–${x.end}</div><div class="blk">
