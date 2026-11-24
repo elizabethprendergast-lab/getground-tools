@@ -2768,7 +2768,7 @@ async function repActivity(url, env) {
 // Billy's "active" queues (Beth, 23 Nov): Active Lead campaigns, the Landlord savings calculator
 // experiment and the Black Friday 50%-off calls. "Call | Reengage | Black Friday email …" is a
 // reengage queue, not active, so Black Friday must be the campaign name right after "Call |".
-const isBillyActive = (t) => /^Call \| Active Lead\b/i.test(t.name) || /Landlord savings calculator/i.test(t.name) || /Accounting Call Back/i.test(t.name) || /^Call \| Black Friday\b/i.test(t.name);
+const isBillyActive = (t) => /^Call \| Active Lead\b/i.test(t.name) || /^Call \| Active \|/i.test(t.name) || /Landlord savings calculator/i.test(t.name) || /Accounting Call Back/i.test(t.name) || /^Call \| Black Friday\b/i.test(t.name);
 const REP_PLANS = {
   "35666443": { // Billy Hunt
     slots: [
