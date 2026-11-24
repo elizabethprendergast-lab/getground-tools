@@ -2791,7 +2791,7 @@ const repSlots = (ids = {}) => [
       { key: "reengage", start: "13:30", end: "16:30", title: "Reengage — high priority first (Complete plan)", target: 50, queueId: ids.reQ, viewId: ids.reV,
         rule: (t) => /\bRe-?engage(ment)?\b/i.test(t.name), sort: "priority" },
       { key: "followups", start: "16:30", end: "18:30", title: "Active leads — follow-ups (#2, #3, #4)", target: 50, queueId: ids.fuQ, viewId: ids.fuV,
-        rule: (t) => (isBillyActive(t) && [2, 3, 4].includes(t.attempt)) || !!(ids.eveningExtra && ids.eveningExtra(t)), sort: "oldestDue" },
+        rule: (t) => (isBillyActive(t) && [2, 3, 4].includes(t.attempt)) || !!(ids.eveningExtra && ids.eveningExtra(t)), sort: "oldestDue", first: ids.eveningExtra },
     ];
 const REP_PLANS = {
   "35666443": { slots: repSlots({ freshQ: "26605608", freshV: "163734977", reQ: "26605687", reV: "163745482", fuQ: "26605688", fuV: "163745472" }) }, // Billy Hunt
@@ -2871,7 +2871,9 @@ async function buildRepPlan(owner, env) {
   const used = new Set(), picksBySlot = {};
   const slots = plan.slots.map((sl) => {
     if (sl.lunch) return { key: sl.key, start: sl.start, end: sl.end, title: sl.title, lunch: true };
-    const pool = openT.filter((t) => !used.has(t.id) && sl.rule(t)).sort(sorters[sl.sort] || sorters.oldestDue);
+    const srt = sorters[sl.sort] || sorters.oldestDue;
+    // sl.first: tasks matching it go to the top of the slot (e.g. Carlos's Black Friday in his evening).
+    const pool = openT.filter((t) => !used.has(t.id) && sl.rule(t)).sort((a, b) => (sl.first ? (!!sl.first(b) - !!sl.first(a)) : 0) || srt(a, b));
     const pick = pool.slice(0, sl.target); pick.forEach((t) => used.add(t.id)); picksBySlot[sl.key] = pick.map((t) => t.id);
     const byCampaign = {}; pool.forEach((t) => { byCampaign[t.name] = (byCampaign[t.name] || 0) + 1; });
     const pickBy = {}; pick.forEach((t) => { pickBy[t.name] = (pickBy[t.name] || 0) + 1; });
