@@ -2837,7 +2837,9 @@ async function buildRepPlan(owner, env) {
   const shape = (t) => { const subj = String(t.properties.hs_task_subject || ""); const m = subj.match(/^\s*#\s*(\d+)\s*\|/);
     return { id: t.id, subject: subj, name: subj.replace(/^\s*#\s*\d+\s*\|\s*/, "").replace(/\s+/g, " ").trim(), attempt: m ? Number(m[1]) : null,
       priority: t.properties.hs_task_priority || "NONE", due: t.properties.hs_timestamp || null, created: t.properties.hs_createdate || null, queues: t.properties.hs_queue_membership_ids || "" }; };
-  const openT = open.results.map(shape), doneT = done.results.map(shape);
+  // Only "Not started" tasks go into the plan/queues (Beth, 24 Nov): anything moved to another
+  // stage (In progress / No answer, Waiting, …) has already been touched and stays out.
+  const openT = open.results.filter((t) => (t.properties.hs_task_status || "NOT_STARTED") === "NOT_STARTED").map(shape), doneT = done.results.map(shape);
   const pr = { HIGH: 0, MEDIUM: 1, LOW: 2, NONE: 3 };
   const sorters = {
     newest: (a, b) => Date.parse(b.created || 0) - Date.parse(a.created || 0),
