@@ -2773,7 +2773,7 @@ const REP_PLANS = {
   "35666443": { // Billy Hunt
     slots: [
       { key: "fresh", start: "09:30", end: "12:30", title: "Active leads — fresh (#1 calls)", target: 50,
-        rule: (t) => isBillyActive(t) && t.attempt === 1, sort: "newest" },
+        rule: (t) => isBillyActive(t) && t.attempt === 1, sort: "oldest" }, // oldest #1 first so carry-overs never get left behind (Beth, 24 Nov)
       { key: "lunch", start: "12:30", end: "13:30", title: "Lunch", lunch: true },
       { key: "reengage", start: "13:30", end: "16:30", title: "Reengage — high priority first (Complete plan)", target: 50,
         rule: (t) => /\bRe-?engage(ment)?\b/i.test(t.name), sort: "priority" },
@@ -2803,6 +2803,7 @@ async function repPlan(url, env) {
   const pr = { HIGH: 0, MEDIUM: 1, LOW: 2, NONE: 3 };
   const sorters = {
     newest: (a, b) => Date.parse(b.created || 0) - Date.parse(a.created || 0),
+    oldest: (a, b) => Date.parse(a.created || 0) - Date.parse(b.created || 0),
     oldestDue: (a, b) => Date.parse(a.due || 0) - Date.parse(b.due || 0),
     priority: (a, b) => (pr[a.priority] ?? 3) - (pr[b.priority] ?? 3) || (/Complete/i.test(b.name) - /Complete/i.test(a.name)) || Date.parse(a.due || 0) - Date.parse(b.due || 0),
   };

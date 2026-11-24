@@ -1826,7 +1826,7 @@ function renderRepPlan(rep, p) {
     return `<div class="slot ${x.key}${now}"><div class="tm">${x.start}–${x.end}</div><div class="blk">
       <div class="ttl"><span>${esc(x.title)}</span><span>${now ? `<span class="now-b">Now</span> ` : ""}<span class="sub">${fmtN(x.doneToday)} / ${fmtN(x.target)} done today</span></span></div>
       <div class="prog"><i style="width:${pct}%"></i></div>
-      <div class="meta">Today's ${fmtN(x.picked)} of ${fmtN(x.available)} in this queue${x.key === "reengage" ? " · High priority first" : x.key === "fresh" ? " · newest first" : " · oldest due first"}</div>${short}
+      <div class="meta">Today's ${fmtN(x.picked)} of ${fmtN(x.available)} in this queue${x.key === "reengage" ? " · High priority first" : x.key === "fresh" ? " · oldest first" : " · oldest due first"}</div>${short}
       <div class="slot-btns">${btns}</div>
     </div></div>`;
   }).join("");
