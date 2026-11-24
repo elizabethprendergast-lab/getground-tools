@@ -879,8 +879,8 @@ function meetingsCardHtml(label, o, portalId, loading) {
   if (!rows) return ""; // campaign doesn't use enrollment matching — no meeting data
   const viaEmail = rows.some((r) => r.fromEmail);
   const sub = viaEmail
-    ? `Meetings booked from this campaign: the ones credited to a call task${rangeIsSet() ? ` completed ${esc(rangeLabel())}` : ""} (same as "Meeting booked" in Outcomes), plus every meeting booked straight from the campaign email's booking link${rangeIsSet() ? ` in that period` : ""}, with or without a call. Whether they've happened yet and how they went. Click a name to open them in HubSpot.`
-    : `Meetings booked from this campaign${rangeIsSet() ? ` (from call tasks completed ${esc(rangeLabel())}, same as "Meeting booked" in Outcomes)` : ""} — whether they've happened yet and how they went. Click a name to open them in HubSpot.`;
+    ? `Meetings booked from this campaign${rangeIsSet() ? ` ${esc(rangeLabel())} (by the date they were booked)` : ""}: the ones credited to a call task, plus every meeting booked straight from the campaign email's booking link, with or without a call. Whether they've happened yet and how they went. Click a name to open them in HubSpot.`
+    : `Meetings booked from this campaign${rangeIsSet() ? ` ${esc(rangeLabel())} (by the date they were booked)` : ""} — whether they've happened yet and how they went. Click a name to open them in HubSpot.`;
   if (!rows.length) {
     return `<section class="card"><h2>Meetings — ${esc(label)}</h2><p class="sub">${sub}</p><div class="empty-state">No meetings booked from this campaign yet.</div></section>`;
   }
@@ -904,13 +904,14 @@ function meetingsCardHtml(label, o, portalId, loading) {
       <p class="sub">${sub}</p>
       <div class="stat-row">${tiles.map(([l, v, c]) => `<div class="stat-tile ${c}"><div class="label">${l}</div><div class="value">${v}</div></div>`).join("")}</div>
       <div class="mtg-table-wrap"><table class="mtg-table">
-        <thead><tr><th>Contact</th><th>Call</th><th>Meeting</th><th>With</th><th>When</th><th>Status</th><th>Result</th></tr></thead>
+        <thead><tr><th>Contact</th><th>Call</th><th>Meeting</th><th>With</th><th>Booked</th><th>When</th><th>Status</th><th>Result</th></tr></thead>
         <tbody>${sorted.map(r => `
           <tr>
             <td><a href="https://app-eu1.hubspot.com/contacts/${portalId}/record/0-1/${r.contactId}" target="_blank" rel="noopener">${esc(r.name)}</a></td>
             <td class="muted nowrap">${r.callNo ? `#${esc(r.callNo)}` : "—"}${r.fromEmail ? `<div class="ph-note">from email</div>` : ""}</td>
             <td class="muted">${esc(r.title)}</td>
             <td>${esc(r.host || "—")}</td>
+            <td class="nowrap muted">${r.bookedAt ? fmtDateTime(r.bookedAt) : "—"}</td>
             <td class="nowrap">${r.startTime ? fmtDateTime(r.startTime) : "—"}</td>
             <td><span class="mtg-status s-${esc(r.status.toLowerCase().replace(/[^a-z]/g, ""))}">${esc(r.status)}</span></td>
             <td class="mtg-result t-${esc(r.tone)}">${esc(r.status === "Upcoming" ? "—" : r.result)}</td>
@@ -2018,8 +2019,9 @@ function sliceOutcomes(o) {
   }
   // Same basis as the outcome bars: meetings credited to a call task completed in the period.
   // Email-booked meetings with no credited task (fromEmail, no taskIds) go by when they were booked.
-  const meetings = o.meetings && o.meetings.filter((m) => (m.taskIds || []).length
-    ? m.taskIds.some((id) => keep.has(String(id))) : has(Date.parse(m.bookedAt)));
+  // Meetings go by when they were BOOKED (Beth, 24 Nov): filtering by the credited task's
+  // completion date pulled in meetings booked days earlier whose task was ticked off later.
+  const meetings = o.meetings && o.meetings.filter((m) => has(Date.parse(m.bookedAt)));
   return { ...o, dispositions, byRep, meetings, totalCompleted: keep.size,
     totalMatchedToCall: (o.callTasks || []).filter((id) => keep.has(String(id))).length, totalReached: reached };
 }
