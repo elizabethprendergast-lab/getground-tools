@@ -853,6 +853,8 @@ export default {
     if (request.method === "POST" && url.pathname === "/__login") return handleLogin(request, env);
     // Machine-to-machine (n8n): own key, no site password.
     if (url.pathname === "/api/rep-queue-sync") return repQueueSync(request, url, env);
+    // Twilio WhatsApp webhooks (marketing number): own key in the query string, no site password.
+    if (url.pathname === "/api/twilio-wa") return twilioWhatsApp(request, url, env, ctx);
     if (!isAuthed(request, env)) {
       if (url.pathname.startsWith("/api/")) return json({ error: "Authentication required" }, 401);
       return new Response(loginPageHtml(url.pathname + url.search, false), { status: 401, headers: { "content-type": "text/html; charset=utf-8" } });
@@ -4533,3 +4535,129 @@ async function toolsApi(url, env) {
 function json(o, s = 200) { return new Response(JSON.stringify(o), { status: s, headers: { "content-type": "application/json", "cache-control": "no-store" } }); }
 return { toolsApi };
 })();
+
+
+// ---------------------------------------------------------------------------------------------
+// Twilio WhatsApp → HubSpot (marketing number +44 7863 781489, subaccount "GetGround Marketing WhatsApp").
+// POST /api/twilio-wa?key=TWILIO_WA_KEY&kind=inbound|status   (form-encoded, set on the Twilio Messaging Service)
+//  - inbound: logs the reply as a WhatsApp Communication on the contact timeline, opens a HubSpot
+//    task "WhatsApp reply" for WA_REPLY_OWNER (one open task per contact), and marks opt-outs.
+//  - status:  on "sent", fetches the message body from Twilio and logs it as an outgoing Communication;
+//    on Meta "user opted out / blocked marketing" errors, marks the contact as opted out.
+// Writes use HUBSPOT_TASK_TOKEN. Twilio reads use TWILIO_WA_SID/TWILIO_WA_SECRET/TWILIO_WA_AC.
+// ---------------------------------------------------------------------------------------------
+const WA_OPT_OUT_RE = /^\s*(stop|stopall|unsubscribe|cancel|end|quit|opt[\s-]?out)\s*[.!]*\s*$|remove me|delete my (name|number)|take me off|unsubscribe|don'?t (message|contact|text) me|no more messages|not interested|唔好再|唔使再|取消訂閱|不要再|退訂/i;
+const WA_OPT_OUT_ERRORS = new Set(["63049", "131050", "63032"]); // Meta: user stopped marketing / blocked / opted out
+const WA_COUNTRY_CODES = ["852", "853", "886", "971", "44", "86", "65", "60", "61", "1"];
+
+async function twilioWhatsApp(request, url, env, ctx) {
+  if (!env.TWILIO_WA_KEY || url.searchParams.get("key") !== env.TWILIO_WA_KEY) return json({ error: "bad key" }, 401);
+  if (request.method !== "POST") return json({ ok: true });
+  const f = Object.fromEntries(await request.formData());
+  if (env.TWILIO_WA_AC && f.AccountSid && f.AccountSid !== env.TWILIO_WA_AC) return json({ error: "wrong account" }, 403);
+  const kind = url.searchParams.get("kind") || (f.MessageStatus ? "status" : "inbound");
+  // Reply to Twilio straight away; do the HubSpot work after the response.
+  const work = (kind === "status" ? waStatus(f, env) : waInbound(f, env)).catch((e) => console.log("twilio-wa error", String(e)));
+  ctx.waitUntil(work);
+  return new Response("<Response/>", { headers: { "content-type": "text/xml" } });
+}
+
+function waHeaders(env) { return { Authorization: `Bearer ${env.HUBSPOT_TASK_TOKEN}`, "Content-Type": "application/json" }; }
+
+async function waFindContact(env, phone) {
+  const e164 = String(phone || "").replace(/^whatsapp:/, "").trim();
+  const digits = e164.replace(/\D/g, "");
+  if (!digits) return null;
+  const cc = WA_COUNTRY_CODES.find((c) => digits.startsWith(c));
+  const national = cc ? digits.slice(cc.length).replace(/^0/, "") : digits.slice(-10);
+  const eq = (p, v) => ({ filters: [{ propertyName: p, operator: "EQ", value: v }] });
+  const body = {
+    filterGroups: [eq("phone", e164), eq("mobilephone", e164), eq("hs_whatsapp_phone_number", e164),
+      eq("hs_searchable_calculated_mobile_number", national), eq("hs_searchable_calculated_phone_number", national)],
+    properties: ["firstname", "lastname", "hubspot_owner_id", "whatsapp_marketing_opt_out"],
+    sorts: [{ propertyName: "lastmodifieddate", direction: "DESCENDING" }], limit: 1,
+  };
+  const r = await fetch(`${API}/crm/v3/objects/contacts/search`, { method: "POST", headers: waHeaders(env), body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(`contact search ${r.status}`);
+  return (await r.json()).results?.[0] || null;
+}
+
+async function waLogCommunication(env, contactId, { body, direction, at }) {
+  const props = {
+    hs_communication_channel_type: "WHATS_APP",
+    hs_communication_logged_from: "CRM",
+    hs_communication_body: `${direction === "in" ? "⬅️ WhatsApp reply" : "➡️ WhatsApp sent (Twilio marketing number)"}\n\n${body || "(no text — media or reaction)"}`,
+    hs_timestamp: at || new Date().toISOString(),
+  };
+  const payload = { properties: props };
+  if (contactId) payload.associations = [{ to: { id: contactId }, types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 81 }] }];
+  const r = await fetch(`${API}/crm/v3/objects/communications`, { method: "POST", headers: waHeaders(env), body: JSON.stringify(payload) });
+  if (!r.ok) throw new Error(`communication ${r.status} ${await r.text()}`);
+}
+
+async function waOptOut(env, contactId, reason) {
+  if (!contactId) return;
+  const r = await fetch(`${API}/crm/v3/objects/contacts/${contactId}`, {
+    method: "PATCH", headers: waHeaders(env),
+    body: JSON.stringify({ properties: { whatsapp_marketing_opt_out: "true", whatsapp_opt_out_date: new Date().toISOString(), whatsapp_opt_out_reason: String(reason).slice(0, 250) } }),
+  });
+  if (!r.ok) throw new Error(`opt-out ${r.status}`);
+}
+
+async function waReplyTask(env, contact, phone, text, optedOut) {
+  const owner = env.WA_REPLY_OWNER || "30146603";
+  const subject = "WhatsApp reply (marketing number)";
+  if (contact) {
+    // Only one open reply task per contact — later messages just land on the timeline.
+    const q = { filterGroups: [{ filters: [
+      { propertyName: "associations.contact", operator: "EQ", value: contact.id },
+      { propertyName: "hs_task_subject", operator: "EQ", value: subject },
+      { propertyName: "hs_task_status", operator: "NEQ", value: "COMPLETED" }] }], limit: 1 };
+    const r = await fetch(`${API}/crm/v3/objects/tasks/search`, { method: "POST", headers: waHeaders(env), body: JSON.stringify(q) });
+    if (r.ok && (await r.json()).total > 0) return;
+  }
+  const name = contact ? [contact.properties.firstname, contact.properties.lastname].filter(Boolean).join(" ") : "";
+  const props = {
+    hs_task_subject: subject,
+    hs_task_body: `${name || "Unknown contact"} (${phone}) replied on WhatsApp:\n\n"${text || "(media / reaction)"}"` +
+      (optedOut ? "\n\nMarked as WhatsApp marketing opt-out." : "") +
+      `\n\nReply from the Twilio console (Messaging → Logs) within 24h of their message — WhatsApp only allows free-form replies inside that window.`,
+    hs_task_status: "NOT_STARTED", hs_task_priority: optedOut ? "LOW" : "HIGH", hs_task_type: "TODO",
+    hs_timestamp: new Date().toISOString(), hubspot_owner_id: owner,
+  };
+  const payload = { properties: props };
+  if (contact) payload.associations = [{ to: { id: contact.id }, types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 204 }] }];
+  const r = await fetch(`${API}/crm/v3/objects/tasks`, { method: "POST", headers: waHeaders(env), body: JSON.stringify(payload) });
+  if (!r.ok) throw new Error(`task ${r.status}`);
+}
+
+async function waInbound(f, env) {
+  const phone = String(f.From || "").replace(/^whatsapp:/, "");
+  const text = String(f.Body || "").trim();
+  const contact = await waFindContact(env, phone);
+  await waLogCommunication(env, contact?.id, { body: text + (Number(f.NumMedia) > 0 ? `\n[${f.NumMedia} attachment(s) — see Twilio console]` : ""), direction: "in" });
+  const optedOut = WA_OPT_OUT_RE.test(text);
+  if (optedOut) await waOptOut(env, contact?.id, `Replied: ${text}`);
+  await waReplyTask(env, contact, phone, text, optedOut);
+}
+
+async function waStatus(f, env) {
+  const status = f.MessageStatus || f.SmsStatus;
+  const err = String(f.ErrorCode || "");
+  const to = String(f.To || "");
+  if (!to.startsWith("whatsapp:")) return;
+  if (WA_OPT_OUT_ERRORS.has(err)) {
+    const c = await waFindContact(env, to);
+    await waOptOut(env, c?.id, `Twilio error ${err} (blocked / opted out of marketing)`);
+    return;
+  }
+  if (status !== "sent") return; // log each outbound message once
+  let body = "";
+  if (env.TWILIO_WA_SID && env.TWILIO_WA_SECRET && env.TWILIO_WA_AC && f.MessageSid) {
+    const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_WA_AC}/Messages/${f.MessageSid}.json`,
+      { headers: { Authorization: "Basic " + btoa(`${env.TWILIO_WA_SID}:${env.TWILIO_WA_SECRET}`) } });
+    if (r.ok) body = (await r.json()).body || "";
+  }
+  const c = await waFindContact(env, to);
+  if (c) await waLogCommunication(env, c.id, { body, direction: "out" });
+}
