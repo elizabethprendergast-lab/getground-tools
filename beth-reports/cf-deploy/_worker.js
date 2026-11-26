@@ -521,6 +521,8 @@ const REPORTS = {
           { id: 512759344376, label: "BF26 Reengage email 02 — Company leads — Cheaper Accounting (A/B)" },
           // Batch send 19 Nov to the no-company-signal, active-90d list (~27k).
           { id: 519327638751, label: "BF26 Reengage email 01 — Generic leads — Specialised Accounting" },
+          // Final reminder to all leads, 25 Nov ("Can I save you a slot before Monday?").
+          { id: 523440659661, label: "BF26 Reengage — All leads — Final reminder" },
         ],
         ownEmailsOnly: true,
       },
@@ -1543,13 +1545,73 @@ async function campaignEmails(url, env) {
         fromName: prettyTokens(e.from && e.from.fromName), publishedAt: e.publishDate || e.publishedAt || null,
         stats: { sent: c.sent || 0, delivered: c.delivered || 0, opened: c.open || 0, clicked: c.click || 0, replied: c.reply || 0, unsubscribed: c.unsubscribed || 0, bounced: c.bounce || 0 },
         body: emailBodyText(e),
+        campaignIds: [...new Set([e.primaryEmailCampaignId, ...(e.allEmailCampaignIds || [])].filter(Boolean).map(String))],
       };
     } catch (err) {
       return { id, label: label || "", link, error: String(err).slice(0, 200) };
     }
   }));
+  let meetingAttribution = null;
+  if (cfg.utmMeetings && cfg.utmMeetings.length) {
+    try { meetingAttribution = await emailMeetings(API, H, cfg, emails); }
+    catch (err) { meetingAttribution = { error: String(err).slice(0, 200) }; }
+  }
+  for (const e of emails) delete e.campaignIds;
   // Never-sent emails aren't shown anywhere in the reports (19 Nov).
-  return json({ generatedAt: new Date().toISOString(), campaign: cfg.key, emails: emails.filter((e) => e.error || e.stats.sent > 0) });
+  return json({ generatedAt: new Date().toISOString(), campaign: cfg.key, emails: emails.filter((e) => e.error || e.stats.sent > 0), meetingAttribution });
+}
+
+// Meetings booked per email (26 Nov). Every email in a utmMeetings campaign shares one
+// utm_campaign (e.g. bf_reengage_1126), and meetings only keep utm_campaign — not utm_content —
+// so the meeting alone can't say which email it came from. Instead: each meeting with that UTM is
+// credited to the campaign email its contact last CLICKED before booking (HubSpot email events,
+// one call per contact), else the one they last OPENED; anyone with neither stays unattributed.
+// Sets e.meetings on each email and returns the totals. Capped at 38 contacts so the whole
+// endpoint stays under Cloudflare's 50-subrequest limit; the rest count as unattributed.
+const EMAIL_MEETINGS_MAX_CONTACTS = 38;
+async function emailMeetings(API, H, cfg, emails) {
+  const byCampaign = new Map();
+  for (const e of emails) for (const c of e.campaignIds || []) byCampaign.set(c, e);
+  for (const e of emails) if (!e.error) e.meetings = 0;
+  const found = [];
+  let after;
+  do {
+    const j = await hsFetch(`${API}/crm/v3/objects/meetings/search`, { method: "POST", headers: H, body: JSON.stringify({
+      filterGroups: [{ filters: [{ propertyName: "utm_campaign_of_meeting", operator: "IN", values: cfg.utmMeetings }] }],
+      properties: ["hs_createdate"], limit: 100, ...(after ? { after } : {}) }) });
+    found.push(...(j.results || []));
+    after = j.paging && j.paging.next && j.paging.next.after;
+  } while (after && found.length < 300);
+  if (!found.length) return { total: 0, attributed: 0, unattributed: 0 };
+  const assoc = await hsFetch(`${API}/crm/v4/associations/meetings/contacts/batch/read`, { method: "POST", headers: H, body: JSON.stringify({ inputs: found.slice(0, 100).map((m) => ({ id: m.id })) }) });
+  const contactOf = {};
+  for (const r of assoc.results || []) { const t = (r.to || [])[0]; if (t) contactOf[String(r.from.id)] = String(t.toObjectId); }
+  const contactIds = [...new Set(Object.values(contactOf))].slice(0, EMAIL_MEETINGS_MAX_CONTACTS);
+  const emailOf = {};
+  if (contactIds.length) {
+    const cj = await hsFetch(`${API}/crm/v3/objects/contacts/batch/read`, { method: "POST", headers: H, body: JSON.stringify({ inputs: contactIds.map((id) => ({ id })), properties: ["email"] }) });
+    for (const c of cj.results || []) if (c.properties && c.properties.email) emailOf[String(c.id)] = c.properties.email;
+  }
+  const since = Math.min(...found.map((m) => Date.parse(m.properties.hs_createdate))) - 30 * 86400000;
+  const events = {};
+  await Promise.all(Object.entries(emailOf).map(async ([cid, addr]) => {
+    try {
+      const j = await hsFetch(`${API}/email/public/v1/events?recipient=${encodeURIComponent(addr)}&startTimestamp=${since}&limit=1000`, { headers: H });
+      events[cid] = (j.events || []).filter((ev) => (ev.type === "CLICK" || ev.type === "OPEN") && byCampaign.has(String(ev.emailCampaignId)));
+    } catch { events[cid] = []; }
+  }));
+  let attributed = 0;
+  for (const m of found) {
+    const cid = contactOf[String(m.id)];
+    const booked = Date.parse(m.properties.hs_createdate);
+    const evs = (events[cid] || []).filter((ev) => ev.created <= booked + 5 * 60000);
+    const pick = (type) => evs.filter((ev) => ev.type === type).sort((a, b) => b.created - a.created)[0];
+    const ev = pick("CLICK") || pick("OPEN");
+    if (!ev) continue;
+    byCampaign.get(String(ev.emailCampaignId)).meetings++;
+    attributed++;
+  }
+  return { total: found.length, attributed, unattributed: found.length - attributed };
 }
 
 // ---- Non-call outreach (WhatsApp / email / note) ----------------------------------------
