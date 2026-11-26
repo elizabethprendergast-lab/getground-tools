@@ -1358,6 +1358,7 @@ function initiativePageHtml(stats, ini) {
   for (const pt of parts) for (const e of ((pt.emails && pt.emails.emails) || [])) if (!emailMap.has(String(e.id))) emailMap.set(String(e.id), { ...e, part: pt.key });
   const emails = [...emailMap.values()];
   const emailsLoading = parts.some((pt) => pt.p.hasEmails && pt.emails === undefined);
+  const emailMtg = parts.reduce((a, pt) => { const x = pt.emails && pt.emails.meetingAttribution; if (x && !x.error) { a.total += x.total; a.unattributed += x.unattributed; a.on = true; } return a; }, { total: 0, unattributed: 0, on: false });
   const es = emails.reduce((a, e) => { const t = e.stats || {}; for (const k of ["sent", "delivered", "opened", "clicked", "unsubscribed"]) a[k] += Number(t[k] || 0); return a; }, { sent: 0, delivered: 0, opened: 0, clicked: 0, unsubscribed: 0 });
 
   const tasks = parts.reduce((a, pt) => ({ total: a.total + pt.p.tasks.total, done: a.done + pt.p.tasks.done }), { total: 0, done: 0 });
@@ -1419,7 +1420,7 @@ function initiativePageHtml(stats, ini) {
     const kfmt = (n) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n);
     const split = emails.map((e) => ({ n: Number((e.stats || {}).sent || 0), l: e.label || e.name })).filter((x) => x.n).sort((a, b) => b.n - a.n)
       .map((x) => `${kfmt(x.n)} ${String(x.l).replace(/^\(?[AB]\)?\s*/, "").replace(/\s*[—|-]\s*\d{4}$/, "").slice(0, 34)}`).join(" · ");
-    stages.push({ k: "Email sends", n: es.sent, loading: emailsLoading, c: "var(--teal)", sub: `${emails.length} email${emails.length === 1 ? "" : "s"} (sends, not unique people): ${split}<br>${pct(es.opened, es.delivered)} opened · ${pct(es.clicked, es.opened)} CTR · ${pct(es.unsubscribed, es.delivered)} unsubscribed` });
+    stages.push({ k: "Email sends", n: es.sent, loading: emailsLoading, c: "var(--teal)", sub: `${emails.length} email${emails.length === 1 ? "" : "s"} (sends, not unique people): ${split}<br>${pct(es.opened, es.delivered)} opened · ${pct(es.clicked, es.opened)} CTR · ${pct(es.unsubscribed, es.delivered)} unsubscribed${emailMtg.on ? ` · ${emailMtg.total} meetings booked from email links` : ""}` });
   }
   if (ini.webinar) {
     stages.push({ k: "Registered", n: registered, loading: wbLoading, c: "var(--series-8)", sub: `signed up for the ${esc(ini.webinar.date)} webinar` });
@@ -1455,7 +1456,8 @@ function initiativePageHtml(stats, ini) {
 
   const emailRows = emails.map((e) => { const t = e.stats || {}; const op = t.delivered ? t.opened / t.delivered : 0; const cl = t.delivered ? t.clicked / t.delivered : 0;
     return `<tr><td><a href="${e.link}" target="_blank" rel="noopener">${esc(e.label || e.name)}</a><div class="muted">${esc(prettyTokensClient(e.subject || ""))}</div></td>
-    <td class="num">${Number(t.sent || 0).toLocaleString()}</td><td><div class="cellbar"><span class="mini"><i style="width:${Math.round(100 * op)}%"></i></span>${pct(t.opened, t.delivered)}</div></td><td class="num">${pct(t.clicked, t.opened)}</td><td class="num">${pct(t.unsubscribed, t.delivered)}</td></tr>`; }).join("");
+    <td class="num">${Number(t.sent || 0).toLocaleString()}</td><td><div class="cellbar"><span class="mini"><i style="width:${Math.round(100 * op)}%"></i></span>${pct(t.opened, t.delivered)}</div></td><td class="num">${pct(t.clicked, t.opened)}</td><td class="num">${pct(t.unsubscribed, t.delivered)}</td>${emailMtg.on ? `<td class="num">${e.meetings == null ? "–" : e.meetings}</td>` : ""}</tr>`; }).join("")
+    + (emailMtg.on && emailMtg.unattributed ? `<tr><td class="muted">Booked with the email link but no tracked click or open on these emails (tracking blocked, or the link was forwarded / sent by a rep)</td><td></td><td></td><td></td><td></td><td class="num">${emailMtg.unattributed}</td></tr>` : "");
 
   let webHtml = "";
   if (ini.web) {
@@ -1549,7 +1551,7 @@ function initiativePageHtml(stats, ini) {
       ${leadsKey ? `<section class="card"><h2>Paid leads</h2>${leadsHtml}</section>` : ""}
       <section class="card ov-wide"><h2>What's running</h2>
         <div class="overflow-x"><table class="ov-table"><thead><tr><th>Part</th><th class="num">Emails sent</th><th>Calls done</th><th class="num">Reached</th><th class="num">Meetings</th><th class="num">Plans won</th><th></th></tr></thead><tbody>${partRows}</tbody></table></div></section>
-      ${emails.length || emailsLoading ? `<section class="card ov-wide"><h2>Emails</h2>${emailsLoading && !emails.length ? '<p class="muted">Loading…</p>' : `<div class="overflow-x"><table class="ov-table"><thead><tr><th>Email</th><th class="num">Sent</th><th>Opened</th><th class="num">CTR</th><th class="num">Unsubs</th></tr></thead><tbody>${emailRows}</tbody></table></div>`}</section>` : ""}
+      ${emails.length || emailsLoading ? `<section class="card ov-wide"><h2>Emails</h2>${emailsLoading && !emails.length ? '<p class="muted">Loading…</p>' : `<div class="overflow-x"><table class="ov-table"><thead><tr><th>Email</th><th class="num">Sent</th><th>Opened</th><th class="num">CTR</th><th class="num">Unsubs</th>${emailMtg.on ? `<th class="num" title="Meetings booked with this campaign's UTM, credited to the email the person last clicked (else opened) before booking">Meetings</th>` : ""}</tr></thead><tbody>${emailRows}</tbody></table></div>${emailMtg.on ? `<p class="muted small">Meetings: booked via the email booking link (utm_campaign), credited to the email the person last clicked, or if no click, last opened, before booking.</p>` : ""}`}</section>` : ""}
       ${ini.web ? `<section class="card ov-wide"><div class="card-head"><h2>Web pages</h2><a href="${ini.webLink}">Full web report →</a></div>${webHtml}</section>` : ""}
     </div>
     <footer id="footer-line"></footer>`;
