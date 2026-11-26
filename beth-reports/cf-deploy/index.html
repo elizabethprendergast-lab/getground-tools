@@ -1457,7 +1457,8 @@ function initiativePageHtml(stats, ini) {
   const emailRows = emails.map((e) => { const t = e.stats || {}; const op = t.delivered ? t.opened / t.delivered : 0; const cl = t.delivered ? t.clicked / t.delivered : 0;
     return `<tr><td><a href="${e.link}" target="_blank" rel="noopener">${esc(e.label || e.name)}</a><div class="muted">${esc(prettyTokensClient(e.subject || ""))}</div></td>
     <td class="num">${Number(t.sent || 0).toLocaleString()}</td><td><div class="cellbar"><span class="mini"><i style="width:${Math.round(100 * op)}%"></i></span>${pct(t.opened, t.delivered)}</div></td><td class="num">${pct(t.clicked, t.opened)}</td><td class="num">${pct(t.unsubscribed, t.delivered)}</td>${emailMtg.on ? `<td class="num">${e.meetings == null ? "–" : e.meetings}</td>` : ""}</tr>`; }).join("")
-    + (emailMtg.on && emailMtg.unattributed ? `<tr><td class="muted">Booked with the email link but no tracked click or open on these emails (tracking blocked, or the link was forwarded / sent by a rep)</td><td></td><td></td><td></td><td></td><td class="num">${emailMtg.unattributed}</td></tr>` : "");
+    + (emailMtg.on && emailMtg.unattributed ? `<tr><td class="muted">Email unknown <span class="small">(booked with the email link, but no tracked click or open, e.g. tracking blocked or link forwarded)</span></td><td></td><td></td><td></td><td></td><td class="num">${emailMtg.unattributed}</td></tr>` : "")
+    + (emailMtg.on ? `<tr><td><b>Total meetings booked via email</b></td><td></td><td></td><td></td><td></td><td class="num"><b>${emailMtg.total}</b></td></tr>` : "");
 
   let webHtml = "";
   if (ini.web) {
