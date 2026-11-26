@@ -108,11 +108,12 @@ const REPORTS = {
         // Tasks are split by the month in the title instead of by call attempt (see monthOfSubject).
         breakdownBy: "month",
         // 18 Nov: track the four ICs only (drop Talha / Carlos #2s that landed with them as contact owners).
-        taskOwnerIds: ["76256251", "1297173186", "29178925", "78571230"], // Asya, Chey, Yoana, Ryan
+        // 26 Nov: + Luke Worrell (mortgage leads moved over from Chey while she's off).
+        taskOwnerIds: ["76256251", "1297173186", "29178925", "78571230", "1620806855"], // Asya, Chey, Yoana, Ryan, Luke
         // 7 open Oct 26 tasks bulk-closed by API on 18 Nov to start Nov fresh, not real calls.
         excludeTaskIds: ["533761622233", "533797219558", "533518030019", "544266537209", "544259519719", "548348353741", "548296843494"],
         campaignRepsOnly: true,
-        campaignRepIds: ["76256251", "1297173186", "29178925", "78571230"],
+        campaignRepIds: ["76256251", "1297173186", "29178925", "78571230", "1620806855"],
       },
       {
         key: "reengage-nonpaying-master",
