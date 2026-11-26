@@ -4557,8 +4557,11 @@ async function twilioWhatsApp(request, url, env, ctx) {
   if (env.TWILIO_WA_AC && f.AccountSid && f.AccountSid !== env.TWILIO_WA_AC) return json({ error: "wrong account" }, 403);
   const kind = url.searchParams.get("kind") || (f.MessageStatus ? "status" : "inbound");
   // Reply to Twilio straight away; do the HubSpot work after the response.
-  const work = (kind === "status" ? waStatus(f, env) : waInbound(f, env)).catch((e) => console.log("twilio-wa error", String(e)));
-  ctx.waitUntil(work);
+  const run = kind === "status" ? waStatus(f, env) : waInbound(f, env);
+  if (url.searchParams.get("debug") === "1") {
+    try { await run; return json({ ok: true }); } catch (e) { return json({ ok: false, error: String(e) }, 500); }
+  }
+  ctx.waitUntil(run.catch((e) => console.log("twilio-wa error", String(e))));
   return new Response("<Response/>", { headers: { "content-type": "text/xml" } });
 }
 

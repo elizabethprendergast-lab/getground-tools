@@ -175,12 +175,19 @@ function button(name, b, url, kind) {
   const font = { color: fg, font: 'Helvetica,Arial,sans-serif', font_set: 'DEFAULT', size: { units: 'px', value: 17 },
     styles: { bold: true, 'font-weight': 'bold', italic: false, underline: false } };
   return { type: 'module', module_id: 1976948, name, id: name, order: 0,
-    body: { module_id: 1976948, path: '@hubspot/button_email', schema_version: 2, text: `${b.label}  →`, link_to: 'url',
+    body: { module_id: 1976948, path: '@hubspot/button_email', schema_version: 2, text: /→\s*$/.test(b.label) ? b.label : `${b.label}  →`, link_to: 'url',
       destination: url, alignment: b.align || 'left', hs_enable_module_padding: true, hs_wrapper_css: wrap(20),
       style: { alignment: b.align || 'left', background_color: { color: bg, opacity: 100 }, border_enabled: false,
         corner_radius: 12, font_style: font, inner_horizontal_padding: 28, inner_vertical_padding: 15, make_full_width: false } },
     child_css: {}, css: {}, styles: {} };
 }
+// Standard GetGround email header (same image module as the IC/owner-sent emails, e.g. 478067884226).
+const HEADER_IMG = 'https://25516403.fs1.hubspotusercontent-eu1.net/hubfs/25516403/GENERIC_EMAIL_HEADER-1.png';
+const headerImage = (name) => ({ type: 'module', module_id: 1367093, name, id: name, order: 0,
+  body: { module_id: 1367093, hs_enable_module_padding: true,
+    hs_wrapper_css: { 'padding-bottom': '0px', 'padding-left': '0px', 'padding-right': '0px', 'padding-top': '0px' },
+    img: { alt: 'GetGround', height: 150, width: 600, loading: 'disabled', size_type: null, src: HEADER_IMG } },
+  child_css: {}, css: {}, styles: {} });
 const footer = (name) => ({ type: 'module', module_id: 2869621, name, id: name, order: 0,
   body: { align: 'center', css_class: 'dnd-module', module_id: 2869621, path: '@hubspot/email_footer', schema_version: 2,
     unsubscribe_link_type: 'both', hs_enable_module_padding: false,
@@ -208,6 +215,13 @@ function build(spec, D) {
 
   // style-only first module
   const sName = nm(); widgets[sName] = rawHtml(sName, styleBlock()); sections.push(sectionFor(sName, sName));
+
+  // Personal (IC / contact-owner) and notification emails always open with the standard GetGround header. Opt out only with header:false.
+  if ((kind === 'personal' || kind === 'notification') && spec.header !== false) {
+    const hName = nm(); widgets[hName] = headerImage(hName); sections.push(sectionFor(hName, hName, 40));
+  }
+  if (kind === 'personal' && spec.blocks.some((b) => /HERO: MARKETING|linear-gradient\(160deg,#06363A/.test(b.html || ''))) warnings.push('Personal emails use the standard GetGround header, not a marketing hero');
+  if (kind === 'notification' && spec.blocks.some((b) => /gg-hero|#EBFEFE/.test(b.html || ''))) warnings.push('Notification emails use the standard GetGround header and plain letter-style copy, not a hero panel');
 
   spec.blocks.forEach((b, i) => {
     const name = nm(); const label = fmt(b.id || `${b.kind}${i + 1}`);
@@ -271,6 +285,8 @@ function previewHtml({ payload }) {
       inner = `<div style="text-align:${st.alignment};padding:0 20px"><a href="${esc(b.destination)}" class="dm-keep-cyanbtn" style="display:inline-block;background:${st.background_color.color};color:${st.font_style.color};font:700 17px Helvetica,Arial,sans-serif;padding:15px 28px;border-radius:12px;text-decoration:none">${esc(b.text)}</a></div>`;
     } else if (b.path === '@hubspot/email_footer') {
       inner = '<p style="text-align:center;font:12px Arial;color:#46625F">GetGround · 1 Lyric Square, London · <u>Unsubscribe</u> · <u>Manage preferences</u></p>';
+    } else if (b.img) {
+      inner = `<img src="${esc(b.img.src)}" alt="${esc(b.img.alt || '')}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0">`;
     } else inner = `<div style="padding:0 ${b.hs_wrapper_css['padding-left']}">${b.html}</div>`;
     const bg = s.style.backgroundColor ? `background:${s.style.backgroundColor};` : '';
     return `<tr><td class="hse-section" style="${bg}padding:${pt} 0 ${pb} 0">${inner}</td></tr>`;
