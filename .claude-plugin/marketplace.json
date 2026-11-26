@@ -14,6 +14,11 @@
       "name": "hubspot-email-direct",
       "source": "./plugins/hubspot-email-direct",
       "description": "DEPRECATED: merged into email-builder 0.2.0. Only for editing legacy custom-coded HubSpot templates via the CMS Source Code API."
+    },
+    {
+      "name": "getground-deck",
+      "source": "./plugins/getground-deck",
+      "description": "Build on-brand GetGround (or BuyAssociation) slide decks as Claude Slides artifacts: GetGround Design System, Notion tone of voice, required disclaimers, compliance flags, speaker notes. Export to Google Slides or PowerPoint."
     }
   ]
 }

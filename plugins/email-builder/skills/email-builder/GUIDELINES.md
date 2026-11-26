@@ -16,8 +16,8 @@ Reference builds:
 | Type | Use for | Look | From / reply-to | Subscription |
 |---|---|---|---|---|
 | **Marketing** | Campaigns, offers, webinars, seminars, newsletters, nurture | Dark teal gradient hero, bold, visual | The GetGround Team / gethelp@ | Product Marketing |
-| **Personal** | Upsell, invites, sales follow-ups sent "from a person" | Light or no hero, conversational, photo sign-off | The contact owner (majority owner for a list), replies to them | Product Marketing |
-| **Notification** | Receipts, next steps, form confirmations, service changes, feature updates | Light hero panel, calm, instructional, no selling | The sending team (e.g. GetGround Lettings / lettings@) or The GetGround Team / gethelp@ | Transactional where legally appropriate, otherwise Product Marketing |
+| **Personal** | Upsell, invites, sales follow-ups sent "from a person" (ICs, account managers) | Standard GetGround header image (added automatically), no hero, conversational, photo sign-off | The contact owner (majority owner for a list), replies to them | Product Marketing |
+| **Notification** | Receipts, next steps, form confirmations, service changes, feature updates | Standard GetGround header image (added automatically), then a normal letter-style email: no hero panel, no cards, calm, instructional, no selling | The sending team (e.g. GetGround Lettings / lettings@) or The GetGround Team / gethelp@ | Transactional where legally appropriate, otherwise Product Marketing |
 
 Never send from hello@, info@ or team@.
 
@@ -119,8 +119,8 @@ QA: check at 375px, with `<style>` stripped, in light and dark, before handing o
 - Control line breaks so the key phrase sits together on one line.
 - No logo. No side images or extra cards in the hero (too busy on mobile). Optional eyebrow (12–13px caps, 0.08em tracking).
 - Marketing: dark gradient hero, cyan button (#A3ECEE bg, #06363A text).
-- Notification: #EBFEFE panel, #6EDDE1 button with #094C51 text.
-- Personal: simple header or none; it should feel like a letter.
+- Notification: ALWAYS the standard GetGround header image (added automatically), then a normal letter-style email. No hero panel, no cards. Button #6EDDE1 with #094C51 text.
+- Personal (ICs / contact owner): ALWAYS the standard GetGround header image at the top (GENERIC_EMAIL_HEADER-1.png, added automatically by the builder), then letter-style copy. No hero.
 - Events/webinars: show date, time and place as a small calendar-style details block, and repeat it in the final CTA panel.
 
 ## 7. Buttons & CTAs
@@ -136,6 +136,7 @@ QA: check at 375px, with `<style>` stripped, in light and dark, before handing o
 
 ## 8. Images & video
 
+- Graphics are optional and rare. Don't add a product/plan graphic by default; only use one when it genuinely explains something.
 - Graphics are on-brand (UX-imagery style), minimal or no text, readable at phone size, with an obvious meaning. Nothing "AI-looking".
 - Host in HubSpot Files `/email-images`. `width="600" style="width:100%;max-width:600px"`.
 - **Video:** the thumbnail with a play button is its own full-width block **outside the hero**, radius 16, with the CTA button 20px underneath.
@@ -161,6 +162,7 @@ QA: check at 375px, with `<style>` stripped, in light and dark, before handing o
 ### Notification specifics
 - Calm, human, instructional, **no upsell**.
 - Receipt = receipt plus "next steps will follow". The next-steps email follows separately.
+- Standard GetGround header, then plain copy: greeting, short paragraphs, a simple numbered list if there are steps. No hero panel, no cards or boxes.
 - One task CTA, an optional ghost "Read the full guide", and the detail on the page.
 - After the sign-off and a divider: a "Need a hand?" block with mailto links (team inbox / gethelp@).
 
