@@ -672,6 +672,110 @@ const REPORTS = {
         meetingsAnyHost: true,
       },
       {
+        key: "unprofitable-landlord",
+        label: "Active — Unprofitable Landlord (Plans)",
+        // Real subject: "#1 |  Call | Active | Unprofitable Landlord - Plans" (double space after
+        // "#1 |"; the #2 has a single space). First tasks 23 Nov 2026, all assigned to Billy (Adam, 27 Nov).
+        match: (s) => s.includes("Unprofitable Landlord"),
+        namePattern: "Call | Active | Unprofitable Landlord - Plans",
+        searchTerm: "Unprofitable Landlord",
+        context: "Landlords whose buy-to-let isn't making a profit, called about Plans.",
+        // Verified against real data (27 Nov): "Unprofitable" AND "Landlord" returns exactly the 3
+        // tasks of this campaign, portal-wide, and no others.
+        attributionSearch: { tokens: ["Unprofitable", "Landlord"], ownerFiltered: false },
+        // Same set-up as the Accounting VSL / Landlord savings calculator: calls only, no campaign email.
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
+        noCampaignEmail: true,
+        meetingsAnyHost: true,
+      },
+      {
+        key: "new-meta-form-btl",
+        label: "Active — New Meta Form BTL (Property)",
+        // Real subject: "#1 | Call | Active | New Meta Form BTL - Property". First tasks 26 Nov 2026, all Carlos's (Adam, 27 Nov).
+        match: (s) => s.includes("New Meta Form BTL"),
+        namePattern: "Call | Active | New Meta Form BTL - Property",
+        searchTerm: "New Meta Form BTL",
+        context: "Leads from the new Meta property lead form, called about Property.",
+        // Verified against real data (27 Nov): "Meta" AND "BTL" returns exactly the 4
+        // tasks of this campaign, portal-wide, and no others.
+        attributionSearch: { tokens: ["Meta", "BTL"], ownerFiltered: false },
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
+        noCampaignEmail: true,
+        meetingsAnyHost: true,
+      },
+      {
+        key: "ltd-company-btl-lm",
+        label: "Active — Should you get a limited company for your BTL (Property)",
+        // Real subject: "#1 | Call | Active | Should you get a limited company for your BTL LM - Property". First tasks 25 Nov 2026, all Carlos's (Adam, 27 Nov).
+        match: (s) => s.includes("Should you get a limited company for your BTL"),
+        namePattern: "Call | Active | Should you get a limited company for your BTL LM - Property",
+        searchTerm: "Should you get a limited company for your BTL",
+        context: "Leads from the Should you get a limited company for your BTL lead magnet, called about Property.",
+        // Verified against real data (27 Nov): "Should" AND "limited" returns exactly the 14
+        // tasks of this campaign, portal-wide, and no others.
+        attributionSearch: { tokens: ["Should", "limited"], ownerFiltered: false },
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
+        noCampaignEmail: true,
+        meetingsAnyHost: true,
+      },
+      {
+        key: "best-budget-btl",
+        label: "Active — Best Budget For BTL (Property)",
+        // Real subject: "#1 | Call | Active | Best Budget For BTL  - Property". First tasks 23 Nov 2026, all Carlos's (Adam, 27 Nov).
+        match: (s) => s.includes("Best Budget For BTL"),
+        namePattern: "Call | Active | Best Budget For BTL  - Property",
+        searchTerm: "Best Budget For BTL",
+        context: "Leads from the Best Budget For BTL campaign, called about Property.",
+        // Verified against real data (27 Nov): "Best" AND "Budget" AND "BTL" returns exactly the 9
+        // tasks of this campaign, portal-wide, and no others.
+        attributionSearch: { tokens: ["Best", "Budget", "BTL"], ownerFiltered: false },
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
+        noCampaignEmail: true,
+        meetingsAnyHost: true,
+      },
+      {
+        key: "best-setup-btl",
+        label: "Active — Best Setup For BTL VSL (Property)",
+        // /btl-consult VSL, HubSpot form "Best Setup For BTL Form [P1]" (Adam, 27 Nov). No call tasks yet: the subject is assumed from Carlos's other P campaigns — update `match` once the workflow's first task appears. Counted from the form meanwhile (FORM_LEADS in index.html).
+        match: (s) => s.includes("Best Setup For BTL"),
+        namePattern: "Call | Active | Best Setup For BTL - Property",
+        searchTerm: "Best Setup For BTL",
+        context: "Leads from the /btl-consult VSL (Best Setup For BTL Form [P1]); £30k+ deposits can book a call themselves.",
+        // 27 Nov: "Best" AND "Setup" AND "BTL" matches 0 tasks portal-wide (none created yet), so no
+        // other campaign's tasks can be pulled in. Re-check once real tasks exist.
+        attributionSearch: { tokens: ["Best", "Setup", "BTL"], ownerFiltered: false },
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
+        noCampaignEmail: true,
+        meetingsAnyHost: true,
+      },
+      {
+        key: "hands-free-property",
+        label: "Active — Hands Free Property VSL (Property)",
+        // /tpwp-consult time-poor VSL, HubSpot form "Hands Free Property [P4]" (Adam, 27 Nov). No call tasks yet: the subject is assumed from Carlos's other P campaigns — update `match` once the workflow's first task appears. Counted from the form meanwhile (FORM_LEADS in index.html).
+        match: (s) => s.includes("Hands Free Property"),
+        namePattern: "Call | Active | Hands Free Property - Property",
+        searchTerm: "Hands Free Property",
+        context: "Leads from the /tpwp-consult time-poor professionals VSL (Hands Free Property [P4]); £30k+ deposits can book a call themselves.",
+        // 27 Nov: "Hands" AND "Free" matches 0 tasks portal-wide (none created yet), so no
+        // other campaign's tasks can be pulled in. Re-check once real tasks exist.
+        attributionSearch: { tokens: ["Hands", "Free"], ownerFiltered: false },
+        outcomeMatching: "enrollment",
+        campaignRepsOnly: true,
+        campaignRepIds: ["76256251", "1297173186", "29178925", "35666443", "30345554", "30035011"], // Asya, Chey, Yoana, Billy Hunt, Iglesias Ang, Carlos Lam
+        noCampaignEmail: true,
+        meetingsAnyHost: true,
+      },
+      {
         key: "reengage-post-webinar-bf",
         label: "Reengage — Post BF webinar email (follow up)",
         // Real subject: "#1 | Call | Reengage | Post-webinar email (BF 50% off 6M)" (single space),
@@ -871,6 +975,7 @@ export default {
     if (url.pathname === "/api/bf-pages") return bfPagesReport(url, env, ctx);
     if (url.pathname === "/api/campaign-leads") return campaignLeads(url, env);
     if (url.pathname === "/api/campaign-meetings") return campaignMeetings(url, env);
+    if (url.pathname === "/api/form-leads") return formLeads(url, env);
     if (url.pathname === "/api/watchlist") return TOOLS_LIB.toolsApi(url, env);
     if (url.pathname === "/api/list-sizes") return listSizes(url, env);
     if (url.pathname === "/api/rep-queue") return repQueue(url, env);
@@ -2890,12 +2995,12 @@ const isBillyActive = (t) => /^Call \| Active Lead\b/i.test(t.name) || /^Call \|
 const ukDay = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 const repSlots = (ids = {}) => [
       { key: "fresh", start: "09:30", end: "12:30", title: "Active leads — fresh (#1 calls)", target: 50, queueId: ids.freshQ, viewId: ids.freshV,
-        rule: (t) => isBillyActive(t) && t.attempt === 1 && !(ids.eveningExtra && ids.eveningExtra(t)), sort: "oldest" },
+        rule: (t) => isBillyActive(t) && t.attempt === 1 && !(ids.eveningExtra && ids.eveningExtra(t)), sort: "oldest", first: ids.priority },
       { key: "lunch", start: "12:30", end: "13:30", title: "Lunch", lunch: true },
       { key: "reengage", start: "13:30", end: "16:30", title: "Reengage — high priority first (Complete plan)", target: 50, queueId: ids.reQ, viewId: ids.reV,
         rule: (t) => /\bRe-?engage(ment)?\b/i.test(t.name), sort: "priority" },
       { key: "followups", start: "16:30", end: "18:30", title: ids.eveningTitle || "Active leads — follow-ups (#2, #3, #4)", target: 50, queueId: ids.fuQ, viewId: ids.fuV,
-        rule: ids.eveningRule || ((t) => (isBillyActive(t) && [2, 3, 4].includes(t.attempt)) || !!(ids.eveningExtra && ids.eveningExtra(t))), sort: ids.eveningSort || "oldestDue", first: ids.eveningExtra },
+        rule: ids.eveningRule || ((t) => (isBillyActive(t) && [2, 3, 4].includes(t.attempt)) || !!(ids.eveningExtra && ids.eveningExtra(t))), sort: ids.eveningSort || "oldestDue", first: (ids.eveningExtra || ids.priority) && ((t) => !!((ids.eveningExtra && ids.eveningExtra(t)) || (ids.priority && ids.priority(t)))) },
     ];
 const REP_PLANS = {
   "78571230": { slots: repSlots() }, // Ryan Welby — simple version: buttons open his "Ryan Active" view by campaign, no queues (Beth, 24 Nov)
@@ -2907,11 +3012,19 @@ const REP_PLANS = {
     eveningTitle: () => ukDay() === "2026-11-24" ? "Fresh leads (#1 calls) — Black Friday first" : "Active leads — follow-ups (#2, #3, #4)",
     eveningRule: (t) => ukDay() === "2026-11-24" ? isBillyActive(t) && t.attempt === 1 : isBillyActive(t) && [2, 3, 4].includes(t.attempt),
     eveningSort: () => ukDay() === "2026-11-24" ? "oldest" : "oldestDue",
+    // New "Call | Active | …" campaigns (New Meta Form BTL, Best Budget, Ltd for BTL, the P1/P4 VSLs…) go to the
+    // top of his first and last slots, so their follow-ups aren't buried under 200 older Ltd Company Set-up ones (Adam, 27 Nov).
+    priority: (t) => /^Call \| Active \|/i.test(t.name),
     freshQ: "26605949", freshV: "163751796", reQ: "26605950", reV: "163751827", fuQ: "26605951", fuV: "163751835" }) }, // Carlos Lam
 };
 async function repPlan(url, env) {
   const owner = url.searchParams.get("owner") || "";
   if (!REP_PLANS[owner]) return json({ error: "no plan for this owner" }, 404);
+  // ?from=&to= (YYYY-MM-DD): the plan isn't stored, so for any range other than just today show
+  // what the rep completed in each slot over that range (added up) instead of the live list.
+  const from = url.searchParams.get("from") || "", to = url.searchParams.get("to") || "";
+  const isDay = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
+  if (isDay(from) && isDay(to) && from <= to && to <= ukDay()) return json(await buildRepPlanHistory(owner, from, to, env));
   const r = await buildRepPlan(owner, env);
   const [, report] = getReport(url);
   r.out.hubspot = { subdomain: report.hubspotSubdomain, portalId: "25516403", objectTypeId: "0-27", viewId: (report.ownerViews || {})[owner] || null };
@@ -3002,6 +3115,37 @@ async function buildRepPlan(owner, env) {
   const openById = Object.fromEntries(openT.map((t) => [t.id, t]));
   return { out, openById, picksBySlot };
 }
+// Past-range view of a rep's plan (Adam, 26 Nov): call tasks the rep completed between `from`
+// and `to` (London days, inclusive), sorted into the same slots with the same rules, against
+// each slot's target × working days. Slot rules that depend on ukDay() (Carlos's 24 Nov evening)
+// use today's version, not the historical one.
+async function buildRepPlanHistory(owner, from, to, env) {
+  const API = "https://api.hubapi.com";
+  const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
+  const plan = REP_PLANS[owner];
+  const nextDay = (d) => new Date(Date.parse(`${d}T00:00:00Z`) + 864e5).toISOString().slice(0, 10);
+  const londonStart = (d) => { const offH = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "numeric", hourCycle: "h23" }).format(new Date(`${d}T12:00:00Z`))) - 12; return new Date(Date.parse(`${d}T00:00:00Z`) - offH * 3600e3).toISOString(); };
+  let days = 0, workdays = 0;
+  for (let d = from; d <= to; d = nextDay(d)) { days++; const wd = new Date(`${d}T12:00:00Z`).getUTCDay(); if (wd !== 0 && wd !== 6) workdays++; }
+  const done = await runTaskSearch(API, H, [{ filters: [
+    { propertyName: "hubspot_owner_id", operator: "EQ", value: owner }, { propertyName: "hs_task_status", operator: "EQ", value: "COMPLETED" },
+    { propertyName: "hs_task_type", operator: "EQ", value: "CALL" },
+    { propertyName: "hs_task_completion_date", operator: "GTE", value: londonStart(from) }, { propertyName: "hs_task_completion_date", operator: "LT", value: londonStart(nextDay(to)) },
+  ] }], 40);
+  const doneT = done.results.map((t) => { const subj = String(t.properties.hs_task_subject || ""); const m = subj.match(/^\s*#\s*(\d+)\s*\|/);
+    return { id: t.id, name: subj.replace(/^\s*#\s*\d+\s*\|\s*/, "").replace(/\s+/g, " ").trim(), attempt: m ? Number(m[1]) : null }; });
+  const used = new Set();
+  const slots = plan.slots.map((sl) => {
+    if (sl.lunch) return { key: sl.key, start: sl.start, end: sl.end, title: sl.title, lunch: true };
+    const mine = doneT.filter((t) => !used.has(t.id) && sl.rule(t)); mine.forEach((t) => used.add(t.id));
+    const by = {}; mine.forEach((t) => { const c = (by[t.name] ||= { name: t.name, n: 0, att: new Set() }); c.n++; c.att.add(t.attempt); });
+    return { key: sl.key, start: sl.start, end: sl.end, title: typeof sl.title === "function" ? sl.title() : sl.title, target: sl.target * workdays, done: mine.length,
+      byCampaign: Object.values(by).sort((a, b) => b.n - a.n).map((c) => ({ name: c.name, n: c.n, attempts: [...c.att].filter((x) => x != null).sort((x, y) => x - y) })) };
+  });
+  const other = {}; doneT.filter((t) => !used.has(t.id)).forEach((t) => { other[t.name] = (other[t.name] || 0) + 1; });
+  return { owner, history: true, from, to, days, workdays, generatedAt: new Date().toISOString(), truncated: done.truncated, total: doneT.length,
+    slots, notInPlan: Object.entries(other).sort((a, b) => b[1] - a[1]).map(([name, n]) => ({ name, n })) };
+}
 
 async function listSizes(url, env) {
   const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}` };
@@ -3070,6 +3214,82 @@ async function campaignMeetings(url, env) {
         return { id: d.id, name: d.dealname, createdate: d.createdate, pipeline: stageInfo.pipelines[d.pipeline] || d.pipeline, stage: st.label || d.dealstage, status: st.won ? "won" : st.lost ? "lost" : "open" }; }), fromLink: m.hs_meeting_source === "MEETINGS_PUBLIC" };
   }).sort((a, b) => b.bookedAt.localeCompare(a.bookedAt));
   return json({ generatedAt: new Date().toISOString(), meetings });
+}
+
+// /api/form-leads?forms=<guid,…>&since=YYYY-MM-DD — everyone who submitted one of these HubSpot
+// forms since `since`, with every meeting and deal they've had since their first submission, and
+// where each lead is at. For the two acquisition campaigns whose leads weren't all given a call
+// task (Landlord savings calculator, Accounting VSL — Adam, 27 Nov), so their task-based meeting
+// and deal cards under-count. New campaigns get their tasks from the workflows, so stay task-based.
+async function formLeads(url, env) {
+  const API = "https://api.hubapi.com";
+  const H = { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" };
+  const forms = (url.searchParams.get("forms") || "").split(",").filter((x) => /^[0-9a-f-]{36}$/i.test(x)).slice(0, 3);
+  const sinceMs = Date.parse(`${url.searchParams.get("since") || ""}T00:00:00Z`) || 0;
+  if (!forms.length || !sinceMs) return json({ error: "forms and since required" }, 400);
+  // 1. Submissions -> each email's first fill (needs the token's forms scope, as btlCalcReport).
+  const firstFill = {}; let submissions = 0;
+  for (const f of forms) {
+    let after;
+    do {
+      const j = await hsFetch(`${API}/form-integrations/v1/submissions/forms/${f}?limit=50${after ? `&after=${after}` : ""}`, { headers: H });
+      for (const sub of j.results || []) {
+        if (sub.submittedAt < sinceMs) continue;
+        const em = ((sub.values || []).find((v) => v.name === "email") || {}).value;
+        if (!em) continue;
+        submissions++; const k = em.trim().toLowerCase();
+        if (!firstFill[k] || sub.submittedAt < firstFill[k]) firstFill[k] = sub.submittedAt;
+      }
+      after = j.paging && j.paging.next && j.paging.next.after;
+    } while (after);
+  }
+  // 2. Contacts by email.
+  const contacts = {};
+  for (const c of chunk(Object.keys(firstFill), 100)) {
+    const j = await hsFetch(`${API}/crm/v3/objects/contacts/batch/read`, { method: "POST", headers: H, body: JSON.stringify({ idProperty: "email", inputs: c.map((id) => ({ id })), properties: ["firstname", "lastname", "email", "lifecyclestage"] }) });
+    for (const r of j.results || []) contacts[r.id] = { ...r.properties, filledAt: firstFill[String(r.properties.email || "").toLowerCase()] };
+  }
+  const ids = Object.keys(contacts);
+  const assoc = async (to) => { const out = {}; for (const c of chunk(ids, 100)) {
+    const j = await hsFetch(`${API}/crm/v4/associations/contacts/${to}/batch/read`, { method: "POST", headers: H, body: JSON.stringify({ inputs: c.map((id) => ({ id })) }) });
+    for (const r of j.results || []) out[String(r.from.id)] = (r.to || []).map((t) => String(t.toObjectId)); } return out; };
+  // 3. Meetings created on/after the contact's first fill.
+  const mOf = await assoc("meetings");
+  const mp = await batchRead(API, H, "meetings", [...new Set(Object.values(mOf).flat())], ["hs_meeting_title", "hs_createdate", "hs_meeting_start_time", "hubspot_owner_id", "hs_meeting_outcome", "hs_meeting_source"]);
+  // 4. Deals created on/after the first fill (a failed deals read leaves deals empty, not a 500).
+  let dOf = {}, dp = {}, stageInfo = { pipelines: {}, stages: {} }, dealsError = null;
+  try { dOf = await assoc("deals"); dp = await batchRead(API, H, "deals", [...new Set(Object.values(dOf).flat())], ["dealname", "dealstage", "pipeline", "createdate", "closedate"]); stageInfo = await dealStageInfo(API, H); }
+  catch (e) { dealsError = String(e.message || e).slice(0, 200); }
+  const owners = {};
+  try { for (const o of (await hsFetch(`${API}/crm/v3/owners?limit=500`, { headers: H })).results || []) owners[o.id] = [o.firstName, o.lastName].filter(Boolean).join(" ") || o.email; } catch (_) {}
+  const now = Date.now();
+  const leads = ids.map((id) => {
+    const c = contacts[id], from = c.filledAt || sinceMs;
+    const meetings = (mOf[id] || []).map((m) => mp[m] && { id: m, ...mp[m] }).filter((m) => m && Date.parse(m.hs_createdate) >= from)
+      .sort((a, b) => a.hs_createdate.localeCompare(b.hs_createdate))
+      .map((m) => { const oc = (m.hs_meeting_outcome || "").toUpperCase(), v = MEETING_VERDICT[oc];
+        // Same status rules as meetingSummary() so this matches the Meetings card.
+        const status = oc === "CANCELED" || oc === "CANCELLED" ? "Cancelled" : oc === "NO_SHOW" ? "No-show" : Date.parse(m.hs_meeting_start_time) > now && !v ? "Upcoming" : "Happened";
+        return { id: m.id, title: m.hs_meeting_title, host: owners[m.hubspot_owner_id] || "", bookedAt: m.hs_createdate, startTime: m.hs_meeting_start_time,
+          status, verdict: v ? v[0] : null, verdictTone: v ? v[1] : null,
+          // Booked by the lead through a meetings link (e.g. the calendar on the landing page), not by a rep.
+          selfBooked: m.hs_meeting_source === "MEETINGS_PUBLIC" }; });
+    const deals = (dOf[id] || []).map((d) => dp[d] && { id: d, ...dp[d] }).filter((d) => d && Date.parse(d.createdate) >= from)
+      .map((d) => { const st = stageInfo.stages[d.dealstage] || {};
+        return { id: d.id, name: d.dealname, createdate: d.createdate, pipeline: stageInfo.pipelines[d.pipeline] || d.pipeline, stage: st.label || d.dealstage, status: isClosedPlansDeal(d) || st.won ? "won" : st.lost ? "lost" : "open" }; });
+    // Where they're at: furthest step reached.
+    const won = deals.find((d) => d.status === "won"), open = deals.find((d) => d.status === "open"), last = meetings[meetings.length - 1];
+    const at = won ? ["won", `Closed won — ${won.stage}`] : open ? ["deal", `Deal open — ${open.stage}`] : deals.length ? ["lost", "Deal lost"]
+      : last ? (last.status === "Upcoming" ? ["upcoming", "Meeting booked (upcoming)"] : last.verdict ? ["met", `Met — ${last.verdict}`] : /No-show|Cancel/i.test(last.status) ? ["noshow", `Meeting ${last.status.toLowerCase()}`] : ["met", "Met — no outcome logged"])
+      : ["none", "No meeting yet"];
+    return { contactId: id, name: [c.firstname, c.lastname].filter(Boolean).join(" ") || c.email || id, filledAt: new Date(from).toISOString(), lifecycle: c.lifecyclestage || "", meetings, deals, at: at[0], atLabel: at[1] };
+  });
+  const order = { won: 0, deal: 1, upcoming: 2, met: 3, noshow: 4, lost: 5, none: 6 };
+  leads.sort((a, b) => order[a.at] - order[b.at] || b.filledAt.localeCompare(a.filledAt));
+  return json({ generatedAt: new Date().toISOString(), forms, since: url.searchParams.get("since"), submissions, dealsError,
+    totals: { leads: leads.length, withMeeting: leads.filter((l) => l.meetings.length).length, meetings: leads.reduce((n, l) => n + l.meetings.length, 0),
+      selfBooked: leads.reduce((n, l) => n + l.meetings.filter((m) => m.selfBooked).length, 0),
+      withDeal: leads.filter((l) => l.deals.length).length, deals: leads.reduce((n, l) => n + l.deals.length, 0), won: leads.filter((l) => l.at === "won").length }, leads });
 }
 
 // /api/campaign-leads?campaign=<project key>&since=YYYY-MM-DD — the paid leads behind a

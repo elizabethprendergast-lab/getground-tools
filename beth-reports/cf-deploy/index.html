@@ -309,6 +309,30 @@
   .mtg-table td.muted { color: var(--text-secondary); }
   .mtg-table td.nowrap { white-space: nowrap; }
   .mtg-table a { color: var(--text-primary); }
+  /* All form leads card (27 Nov) */
+  .fl-table { table-layout: fixed; }
+  .fl-table td { vertical-align: middle; padding: 10px 8px; }
+  .fl-table col.c-name { width: 22%; } .fl-table col.c-fill { width: 11%; } .fl-table col.c-mtg { width: 30%; } .fl-table col.c-deal { width: 14%; } .fl-table col.c-at { width: 23%; }
+  .fl-table .fl-name a { font-weight: 600; text-decoration: none; color: var(--text-primary); } .fl-table .fl-name a:hover { text-decoration: underline; }
+  .fl-table .fl-fill { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+  .fl-mtg { display: flex; align-items: center; gap: 8px; white-space: nowrap; line-height: 1.3; }
+  .fl-mtg + .fl-mtg { margin-top: 6px; }
+  .fl-mtg .mtg-status { min-width: 74px; text-align: center; font-size: 11px; padding: 1px 6px; }
+  .fl-mtg .who { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }
+  .fl-deal { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--purple-soft); color: var(--purple); white-space: nowrap; }
+  .fl-deal.won { background: color-mix(in srgb, var(--good) 15%, transparent); color: var(--good); } .fl-deal.lost { background: var(--gridline); color: var(--text-muted); }
+  .fl-none { color: var(--text-muted); }
+  .fl-rep { font-size: 10px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--text-secondary); background: var(--gridline); border-radius: 4px; padding: 1px 5px; }
+  .fl-self { font-size: 10px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--purple); background: var(--purple-soft); border-radius: 4px; padding: 1px 5px; }
+  .fl-at { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap; background: var(--gridline); color: var(--text-secondary); }
+  .fl-at::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+  .fl-at.a-won { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
+  .fl-at.a-deal { background: var(--purple-soft); color: var(--purple); }
+  .fl-at.a-upcoming { background: color-mix(in srgb, var(--series-1) 12%, transparent); color: var(--series-1); }
+  .fl-at.a-met { background: var(--gridline); color: var(--text-secondary); }
+  .fl-at.a-nolog { background: color-mix(in srgb, var(--warning) 16%, transparent); color: color-mix(in srgb, var(--warning) 70%, var(--text-primary)); }
+  .fl-at.a-noshow, .fl-at.a-lost { background: color-mix(in srgb, var(--critical) 12%, transparent); color: var(--critical); }
+  .fl-at.a-none { background: transparent; color: var(--text-muted); border: 1px dashed var(--border); }
   .mtg-status { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; white-space: nowrap; border: 1px solid var(--border); }
   .mtg-status.s-upcoming { color: var(--series-1); border-color: currentColor; }
   .mtg-status.s-happened { color: var(--good); border-color: currentColor; }
@@ -404,10 +428,10 @@
 
   /* Section identity (18 Nov): Campaigns = teal overview, Call tasks = purple task detail. */
   body[data-sec="campaigns"] { --sec: var(--teal); --sec-ink: var(--teal-ink); --sec-soft: var(--accent-soft); }
-  body[data-sec="calls"] { --sec: var(--purple); --sec-ink: var(--purple); --sec-soft: var(--purple-soft); }
+  body[data-sec="calls"], body[data-sec="reps"] { --sec: var(--purple); --sec-ink: var(--purple); --sec-soft: var(--purple-soft); }
   body[data-sec="home"] { --sec: var(--teal); --sec-ink: var(--teal-ink); --sec-soft: var(--accent-soft); }
   .tabs a.on { color: var(--sec-ink); border-bottom-color: var(--sec); }
-  body[data-sec="calls"] header { background: linear-gradient(180deg, var(--surface-1), color-mix(in srgb, var(--purple) 5%, var(--surface-1))); }
+  body[data-sec="calls"] header, body[data-sec="reps"] header { background: linear-gradient(180deg, var(--surface-1), color-mix(in srgb, var(--purple) 5%, var(--surface-1))); }
   body[data-sec="campaigns"] header { background: linear-gradient(180deg, var(--surface-1), color-mix(in srgb, var(--teal) 5%, var(--surface-1))); }
   /* Sub-nav groups as separate boxes. */
   .subnav { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; padding: 12px 0 14px; }
@@ -415,6 +439,19 @@
   .sub-group .grp { color: var(--sec-ink); }
   .sub-group.sub-closed { align-self: start; border-top-color: var(--baseline); background: transparent; border-style: dashed; justify-content: center; }
   .sub-items { gap: 6px; }
+  /* Acquisition sub-nav (27 Nov): Platform row on top, Property row below, one box. */
+  .acq-rows { grid-column: 1 / -1; display: flex; flex-direction: column; background: var(--surface-1); border: 1px solid var(--border); border-top: 3px solid var(--sec); border-radius: 12px; overflow: hidden; }
+  .acq-row { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: center; padding: 10px 14px; }
+  .acq-row + .acq-row { border-top: 1px solid var(--gridline); }
+  .acq-lbl { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--sec-ink); }
+  @media (max-width: 600px) { .acq-row { grid-template-columns: 1fr; gap: 6px; } }
+  /* SDR overview rep switcher (27 Nov) */
+  .rep-switch { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
+  .rep-chip { display: inline-flex; align-items: center; gap: 9px; padding: 5px 14px 5px 5px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary); text-decoration: none; font-size: 14px; font-weight: 600; transition: border-color .15s, background .15s, color .15s; }
+  .rep-chip:hover { border-color: var(--sec); color: var(--text-primary); }
+  .rep-chip .av { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; letter-spacing: .02em; background: var(--sec-soft); color: var(--sec-ink); }
+  .rep-chip.on { border-color: var(--sec); background: var(--sec-soft); color: var(--sec-ink); }
+  .rep-chip.on .av { background: var(--sec); color: #fff; }
   .sub-items a.on { background: var(--sec-soft); border-color: var(--sec); color: var(--sec-ink); }
   @media (max-width: 700px) { .sub-group { grid-template-columns: none; } }
 
@@ -545,9 +582,15 @@
   .rr-pill { border: 0; background: transparent; color: var(--text-secondary); white-space: nowrap; font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
   .rr-pill:hover { color: var(--text-primary); background: var(--gridline); }
   .rr-pill.active { background: var(--text-primary); color: var(--surface-1); }
+  /* Compact so it fits on one line inside the page, even with Custom's dates showing (Adam, 26 Nov):
+     short pill labels, the dates sit inside the pill bar next to Custom, smaller Update. It still
+     wraps (never overflows) on a narrow screen. */
   .rep-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .rep-controls input[type=date] { font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-1); color: var(--text-primary); }
-  .rep-controls .upd { background: var(--purple); color: #fff; border: 0; font: inherit; font-weight: 600; font-size: 14px; padding: 8px 16px; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 12px rgba(123,92,240,0.25); }
+  .rep-controls .range-pills { align-items: center; }
+  .rep-controls .rr-pill { padding: 6px 10px; }
+  .rep-controls .rr-dates { display: inline-flex; align-items: center; gap: 4px; padding: 0 4px 0 6px; border-left: 1px solid var(--border); margin-left: 2px; color: var(--text-muted); font-size: 13px; }
+  .rep-controls input[type=date] { font: inherit; font-size: 13px; width: 122px; padding: 3px 4px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-1); color: var(--text-primary); }
+  .rep-controls .upd { background: var(--purple); color: #fff; border: 0; font: inherit; font-weight: 600; font-size: 13px; padding: 7px 14px; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 12px rgba(123,92,240,0.25); }
   .card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
   .seg.sm button { padding: 4px 10px; font-size: 12px; } .seg button:disabled { opacity: 0.35; cursor: not-allowed; }
   body[data-sec="acquisition"] { --sec: var(--purple); --sec-ink: var(--purple); --sec-soft: var(--purple-soft); }
@@ -871,14 +914,71 @@ function wireOutcomeHovers(label, portalId) {
 
 // Meetings booked from this campaign (from /api/outcomes, enrollment-matched campaigns only):
 // has each one happened yet, and how did it go.
-function meetingsCardHtml(label, o, portalId, loading) {
+// Form-based funnel (Adam, 27 Nov): Landlord savings calculator and Accounting VSL leads weren't all
+// given a call task, so their task-based meeting/deal cards under-count. For just these two, this
+// card counts everyone who submitted the form, with every meeting and deal since their first fill.
+// New campaigns get their call tasks from the workflows, so they stay task-based.
+const FORM_LEADS = {
+  "landlord-savings-calculator": { forms: ["1fd6509d-41d1-4ec6-9337-f89a5a5bc238"], formName: "CALC Form", since: "2026-10-28" },
+  "accounting-vsl": { forms: ["c8a471be-6eb1-4b29-8184-3f2c8cc13cac"], formName: "Acc Form", since: "2026-11-13" },
+  // /profit-consult page form (live 22 Nov): leads book straight into Asya's calendar on the page.
+  "unprofitable-landlord": { forms: ["41fb545e-657c-459a-8173-35921fa1116a"], formName: "Unprofitable Landlord form", since: "2026-11-22" },
+  // Carlos's property pages (P1–P4, live 21–22 Nov) all show a booking calendar, so leads self-book.
+  "best-setup-btl": { forms: ["440b2205-59ee-4e3a-ad51-4795c9d53bf7"], formName: "Best Setup For BTL Form [P1]", since: "2026-11-21" },
+  "ltd-company-btl-lm": { forms: ["79269b39-d01e-4b1c-94b4-b33d92ed054d"], formName: "Should you get a limited company for your BTL [P2]", since: "2026-11-21" },
+  "best-budget-btl": { forms: ["0a6342cf-26d4-44cf-a04e-508e2711a8ea"], formName: "Best property for BTL for your situation [P3]", since: "2026-11-21" },
+  "hands-free-property": { forms: ["41f3581b-48b0-488a-b7da-f74d9d308138"], formName: "Hands Free Property [P4]", since: "2026-11-22" },
+};
+const formLeadsByKey = {};
+function formLeadsCardHtml(cfg, d, portalId) {
+  const head = `<h2>All form leads — ${esc(cfg.formName)}</h2><p class="sub">Everyone who submitted the ${esc(cfg.formName)} since ${esc(fmtDate(cfg.since))}, whether or not they got a call task: every meeting and deal since they filled it in, and where each lead is at now. Click a name to open them in HubSpot.</p>`;
+  if (d === undefined) return `<section class="card">${head}<div class="empty-state">Loading form leads…</div></section>`;
+  if (!d || d.error) return `<section class="card">${head}<div class="empty-state">Couldn't load: ${esc((d && d.error) || "network error")}</div></section>`;
+  const t = d.totals, dealsOk = !d.dealsError;
+  const tiles = [["Form leads", t.leads, ""], ["Booked a meeting", t.withMeeting, ""], ["Meetings", t.meetings, ""], ["Self-booked", t.selfBooked ?? "–", ""], ["Deals opened", dealsOk ? t.withDeal : "–", ""], ["Closed won", dealsOk ? t.won : "–", dealsOk && t.won ? "done" : ""]];
+  const fmtM = (m) => `<div class="fl-mtg"><span class="mtg-status s-${esc(m.status.toLowerCase().replace(/[^a-z]/g, ""))}">${esc(m.status)}</span><span>${fmtDateTime(m.startTime || m.bookedAt)}</span>${m.host ? `<span class="who">· ${esc(m.host)}</span>` : ""}</div>`;
+  const atCls = (l) => l.at === "met" && /no outcome/i.test(l.atLabel) ? "nolog" : l.at;
+  const rows = d.leads.map((l) => `<tr>
+      <td class="fl-name"><a href="https://app-eu1.hubspot.com/contacts/${portalId}/record/0-1/${l.contactId}" target="_blank" rel="noopener">${esc(l.name)}</a></td>
+      <td class="fl-fill">${fmtDate(l.filledAt)}</td>
+      <td>${l.meetings.length ? l.meetings.map(fmtM).join("") : `<span class="fl-none">—</span>`}</td>
+      <td>${l.deals.length ? l.deals.map((x) => `<span class="fl-deal ${x.status === "open" ? "" : x.status}" title="${esc(x.pipeline)} pipeline">${esc(x.stage)}</span>`).join(" ") : `<span class="fl-none">—</span>`}</td>
+      <td><span class="fl-at a-${atCls(l)}">${esc(l.atLabel.replace(/^Deal open — .*/, "Deal open").replace(/^Met — /, "Met · "))}</span></td></tr>`).join("");
+  const noMeet = d.leads.filter((l) => l.at === "none").length;
+  return `<section class="card">${head}
+    <div class="stat-row">${tiles.map(([l, v, c]) => `<div class="stat-tile ${c}"><div class="label">${l}</div><div class="value">${v}</div></div>`).join("")}</div>
+    ${dealsOk ? "" : `<p class="sub warn-t">Deals couldn't be read (${esc(d.dealsError)}), so deal counts are missing.</p>`}
+    <div class="mtg-table-wrap"><table class="mtg-table fl-table"><colgroup><col class="c-name"><col class="c-fill"><col class="c-mtg"><col class="c-deal"><col class="c-at"></colgroup><thead><tr><th>Contact</th><th>Filled in</th><th>Meetings</th><th>Deal stage</th><th>Where they're at</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    ${noMeet ? `<p class="sub" style="margin-top:12px">${fmtN(noMeet)} of ${fmtN(t.leads)} leads have no meeting yet (listed last).</p>` : ""}
+  </section>`;
+}
+// Meetings card rows built from /api/form-leads, so the Meetings card matches the All form leads
+// card on the form-based campaigns (same meetings, same status rules as the outcomes endpoint).
+function formLeadMeetingRows(d) {
+  return d.leads.flatMap((l) => l.meetings.map((m) => {
+    const booked = Date.parse(m.bookedAt);
+    const won = l.deals.find((x) => x.status === "won"), opened = l.deals.find((x) => Date.parse(x.createdate) >= booked - 3600e3);
+    let result = "No outcome logged", tone = "neutral";
+    if (m.status === "Upcoming") result = "Upcoming";
+    else if (m.status !== "Happened") { result = m.status; tone = "negative"; }
+    else if (won) { result = `Closed won — ${won.stage}`; tone = "positive"; }
+    else if (opened) { result = `Deal opened — ${opened.stage}`; tone = "positive"; }
+    else if (m.verdict) { result = m.verdict; tone = m.verdictTone || "neutral"; }
+    const deal = opened || l.deals[0];
+    return { contactId: l.contactId, name: l.name, title: m.title, host: m.host, bookedAt: m.bookedAt, startTime: m.startTime, status: m.status, result, tone, selfBooked: m.selfBooked,
+      dealStage: deal ? deal.stage : "", dealStatus: deal ? deal.status : "" };
+  }));
+}
+function meetingsCardHtml(label, o, portalId, loading, formName) {
   if (loading) {
     return `<section class="card"><h2>Meetings — ${esc(label)}</h2><div class="empty-state">Loading meetings…</div></section>`;
   }
   const rows = o && o.meetings;
   if (!rows) return ""; // campaign doesn't use enrollment matching — no meeting data
   const viaEmail = rows.some((r) => r.fromEmail);
-  const sub = viaEmail
+  const sub = formName ? `Every meeting booked by someone who filled in the ${esc(formName)}, since they filled it in (same leads as the All form leads card above), whether or not they had a call task. Click a name to open them in HubSpot.`
+    : viaEmail
     ? `Meetings booked from this campaign${rangeIsSet() ? ` ${esc(rangeLabel())} (by the date they were booked)` : ""}: the ones credited to a call task, plus every meeting booked straight from the campaign email's booking link, with or without a call. Whether they've happened yet and how they went. Click a name to open them in HubSpot.`
     : `Meetings booked from this campaign${rangeIsSet() ? ` ${esc(rangeLabel())} (by the date they were booked)` : ""} — whether they've happened yet and how they went. Click a name to open them in HubSpot.`;
   if (!rows.length) {
@@ -888,6 +988,7 @@ function meetingsCardHtml(label, o, portalId, loading) {
   const tiles = [
     ...(viaEmail
       ? [["Booked", rows.length, ""], ["From email", n(r => r.fromEmail), ""], ["By rep", n(r => !r.fromEmail), ""]]
+      : formName ? [["Booked", rows.length, ""], ["Self-booked", n(r => r.selfBooked), ""], ["By rep", n(r => !r.selfBooked), ""]]
       : [["Booked (call tasks)", rows.length, ""]]),
     ["Upcoming", n(r => r.status === "Upcoming"), ""],
     ["Happened", n(r => r.status === "Happened"), ""],
@@ -904,16 +1005,18 @@ function meetingsCardHtml(label, o, portalId, loading) {
       <p class="sub">${sub}</p>
       <div class="stat-row">${tiles.map(([l, v, c]) => `<div class="stat-tile ${c}"><div class="label">${l}</div><div class="value">${v}</div></div>`).join("")}</div>
       <div class="mtg-table-wrap"><table class="mtg-table">
-        <thead><tr><th>Contact</th><th>Call</th><th>Meeting</th><th>With</th><th>Booked</th><th>When</th><th>Status</th><th>Result</th></tr></thead>
+        <thead><tr><th>Contact</th><th>${formName ? "Booked by" : "Call"}</th><th>Meeting</th><th>With</th><th>Booked</th><th>When</th><th>Status</th>${formName ? "<th>Deal stage</th>" : ""}<th>Result</th></tr></thead>
         <tbody>${sorted.map(r => `
           <tr>
             <td><a href="https://app-eu1.hubspot.com/contacts/${portalId}/record/0-1/${r.contactId}" target="_blank" rel="noopener">${esc(r.name)}</a></td>
-            <td class="muted nowrap">${r.callNo ? `#${esc(r.callNo)}` : "—"}${r.fromEmail ? `<div class="ph-note">from email</div>` : ""}</td>
+            ${formName ? `<td class="nowrap">${r.selfBooked ? `<span class="fl-self" title="Booked by the lead through a meetings link">Self-booked</span>` : `<span class="fl-rep">Rep</span>`}</td>`
+              : `<td class="muted nowrap">${r.callNo ? `#${esc(r.callNo)}` : "—"}${r.fromEmail ? `<div class="ph-note">from email</div>` : ""}</td>`}
             <td class="muted">${esc(r.title)}</td>
             <td>${esc(r.host || "—")}</td>
             <td class="nowrap muted">${r.bookedAt ? fmtDateTime(r.bookedAt) : "—"}</td>
             <td class="nowrap">${r.startTime ? fmtDateTime(r.startTime) : "—"}</td>
             <td><span class="mtg-status s-${esc(r.status.toLowerCase().replace(/[^a-z]/g, ""))}">${esc(r.status)}</span></td>
+            ${formName ? `<td class="nowrap">${r.dealStage ? `<span class="fl-deal ${r.dealStatus === "open" ? "" : esc(r.dealStatus)}">${esc(r.dealStage)}</span>` : `<span class="fl-none">—</span>`}</td>` : ""}
             <td class="mtg-result t-${esc(r.tone)}">${esc(r.status === "Upcoming" ? "—" : r.result)}</td>
           </tr>`).join("")}
         </tbody>
@@ -1142,6 +1245,7 @@ function campaignPageHtml(proj, sprintStart, hubspot) {
     </div>
     ${isClosed(proj) ? `<div class="closed-banner">This campaign is closed — kept here for reference. Any tasks still open in HubSpot are shown below.</div>` : ""}
     ${completionCardHtml(proj, sprintStart, hubspot)}
+    <div id="formleads-slot"></div>
     <div id="outcomes-slot"></div>
     <div id="meetings-slot"></div>
     <div id="deals-slot"></div>
@@ -1225,6 +1329,7 @@ function homeRowHtml(p, sec) {
 function landingHtml(stats) {
   const projects = sortedByPriority(stats.projects || []);
   const panel = (sec) => {
+    if (sec.key === "reps") return `<section class="home-panel" style="--c:${SECTION_COLOR[sec.key]}"><a class="home-panel-head" href="${REPS_LINKS[0].href}"><span class="dot"></span>${sec.label}<span class="go">Open →</span></a>${REPS_LINKS.map((l) => `<a class="home-row" href="${l.href}"><span class="nm">${esc(l.label)}</span><span class="left">rep page →</span></a>`).join("")}</section>`;
     if (sec.key === "campaigns") {
       const webLinks = NAV_GROUPS.filter((g) => g.section === "campaigns" && !g.keys.length).flatMap((g) => g.links || []);
       const rowsC = `<div class="home-grp">Campaigns</div>` + initiativesList(stats).map((i) => `<a class="home-row" href="/?initiative=${i.key}"><span class="nm">${esc(i.label)}</span><span class="left">${i.parts.length > 1 ? `${i.parts.length} parts · ` : ""}overview →</span></a>`).join("")
@@ -1237,6 +1342,7 @@ function landingHtml(stats) {
     return `<section class="home-panel" style="--c:${SECTION_COLOR[sec.key]}"><a class="home-panel-head" href="/?section=${sec.key}"><span class="dot"></span>${sec.label}<span class="go">Open →</span></a>${rows || '<p class="sub">Nothing live.</p>'}</section>`;
   };
   const hero = (sec) => {
+    if (sec.key === "reps") return `<a class="hero-tile" style="--c:${SECTION_COLOR[sec.key]}" href="${REPS_LINKS[0].href}"><div class="k">${sec.label}</div><div class="v">${REPS_LINKS.length}</div><div class="s">rep pages</div></a>`;
     if (sec.key === "campaigns") return `<a class="hero-tile" style="--c:${SECTION_COLOR[sec.key]}" href="/?section=campaigns"><div class="k">${sec.label}</div><div class="v">${initiativesList(stats).length}</div><div class="s">live campaigns</div></a>`;
     const live = projects.filter((p) => !isClosed(p) && inSection(p, sec.key));
     const left = live.reduce((n, p) => n + (p.tasks.notDone || 0), 0);
@@ -1259,7 +1365,7 @@ function landingHtml(stats) {
 
 // A section's own page: deliberately empty (Beth, 18 Nov: no overview cards) — pick from the tabs above.
 function sectionPageHtml(stats, secKey) {
-  return `<p class="pick-hint">${secKey === "calls" ? "Pick a call queue above." : "Pick a campaign above."}</p>`;
+  return `<p class="pick-hint">${secKey === "calls" || isAcqSec(secKey) ? "Pick a call queue above." : secKey === "reps" ? "Pick a rep above." : "Pick a campaign above."}</p>`;
 }
 
 // ---- Campaign overview pages (18 Nov) --------------------------------------------------
@@ -1575,22 +1681,35 @@ function referralPageHtml() {
 // pages, grouped by initiative; Call tasks = calling queues only. SECTION_OF overrides the split.
 const SECTIONS = [
   { key: "campaigns", label: "Campaigns", desc: "Email campaigns, their call follow-up and web pages — sends, outcomes, meetings, deals and visitors." },
+  // Order (Adam, 27 Nov): Acquisition before Reengage, then the SDR overview tab (the rep pages).
+  // One Acquisition tab, its campaigns in two rows: Platform (Plans) on top, Property below (Adam, 27 Nov).
+  { key: "acquisition", label: "Call tasks - Acquisition", desc: "New-customer calling queues. Platform: Black Friday, the Landlord savings calculator, the Accounting VSL and Unprofitable Landlord. Property: the new Meta BTL form, the Ltd company lead magnet, Best Budget For BTL and the two property VSLs." },
   { key: "calls", label: "Call tasks - Reengage", desc: "Calling queues — tasks done vs left, call outcomes, meetings and deals." },
-  { key: "acquisition", label: "Call tasks - Acquisition", desc: "New-customer calling queues: Black Friday, the Landlord savings calculator and the Accounting VSL." },
+  { key: "reps", label: "SDR overview", desc: "One page per SDR: today's plan, tasks done, meetings booked and call outcomes." },
 ];
 // Call tasks - Acquisition (23 Nov): just these queues, shown the same way as Call tasks.
 const ACQ_GROUPS = [
   { title: "Black Friday", keys: ["black-friday"] },
   { title: "Landlord savings calculator", keys: ["landlord-savings-calculator"] },
   { title: "Accounting VSL", keys: ["accounting-vsl"] },
+  { title: "Unprofitable Landlord", keys: ["unprofitable-landlord"] },
 ];
 const ACQ_KEYS = ACQ_GROUPS.flatMap((g) => g.keys);
+// Acquisition - Property (27 Nov): Carlos's property campaigns.
+const PROP_GROUPS = [
+  { title: "New Meta Form BTL", keys: ["new-meta-form-btl"] },
+  { title: "Should you get a Ltd for BTL", keys: ["ltd-company-btl-lm"] },
+  { title: "Best Budget For BTL", keys: ["best-budget-btl"] },
+  { title: "Best Setup For BTL VSL", keys: ["best-setup-btl"] },
+  { title: "Hands Free Property VSL", keys: ["hands-free-property"] },
+];
+const PROP_KEYS = PROP_GROUPS.flatMap((g) => g.keys);
 // Always-on tools (Tools tab = /tools/, data proxied from Beth Watchlist).
 const TOOLS = [
   { key: "consultant-ticket-tool", label: "Consultant ticket tool" },
   { key: "complete-post-purchase", label: "Complete post-purchase" },
 ];
-const SECTION_COLOR = { campaigns: "var(--teal)", calls: "var(--purple)", acquisition: "var(--purple)", reports: "var(--teal-ink)" };
+const SECTION_COLOR = { campaigns: "var(--teal)", calls: "var(--purple)", acquisition: "var(--purple)", reps: "var(--purple)", reports: "var(--teal-ink)" };
 const SECTION_OF = {};
 // Groups inside a section: sub-tabs and section-page cards are laid out in this order, under
 // these labels. Keys not listed land in "Other".
@@ -1599,9 +1718,9 @@ const NAV_GROUPS = [
   { title: "Black Friday", keys: ["black-friday", "black-friday-reengage", "reengage-post-webinar-bf"], section: "campaigns", links: [{ href: "/black-friday-pages/", label: "Black Friday pages (web)" }] },
   { title: "Upsell / Complete", keys: ["experiment-epc", "rent-anniversary", "hapi-areas"] },
   { title: "Reengage & follow-up", keys: ["upsell-complete", "rra-cantonese-webinar", "properties-outside", "reengage-property-closed-lost", "reengage-ltd-core-plan", "reengage-nonpaying-master"] },
-  { title: "Active Lead & offers", keys: ["active-lead", "plan-close-month-end", "landlord-savings-calculator", "accounting-vsl"] },
-  // Per-rep pages (Billy tab, 23 Nov) — listed under Call tasks like the campaign groups.
-  { title: "Reps", keys: [], section: "calls", links: REPS_LINKS },
+  { title: "Active Lead & offers", keys: ["active-lead", "plan-close-month-end", "landlord-savings-calculator", "accounting-vsl", "unprofitable-landlord", "new-meta-form-btl", "ltd-company-btl-lm", "best-budget-btl", "best-setup-btl", "hands-free-property"] },
+  // Per-rep pages (Billy tab, 23 Nov) — own "SDR overview" tab since 27 Nov (was under Call tasks - Reengage).
+  { title: "Reps", keys: [], section: "reps", links: REPS_LINKS },
   // Web/funnel report pages (separate pages, or the Referral tab) — shown as links in Campaigns.
   { title: "Web & funnels", keys: [], section: "campaigns", links: [
     { href: "/meetings-booked/", label: "Meetings booked" },
@@ -1612,7 +1731,8 @@ const NAV_GROUPS = [
 ];
 // A group's report links only show in its own section (g.section).
 const groupsFor = (list, sec) => {
-  if (sec === "acquisition") return ACQ_GROUPS.map((g) => ({ ...g, items: list.filter((p) => g.keys.includes(p.key)), links: [] })).filter((g) => g.items.length);
+  if (sec === "acquisition") return [["Platform", ACQ_KEYS], ["Property", PROP_KEYS]]
+    .map(([title, keys]) => ({ title, keys, items: keys.map((k) => list.find((p) => p.key === k)).filter(Boolean), links: [] })).filter((g) => g.items.length);
   const known = new Set(NAV_GROUPS.flatMap((g) => g.keys));
   return NAV_GROUPS.map((g) => ({ ...g, items: list.filter((p) => g.keys.includes(p.key)), links: g.section === sec ? (g.links || []) : [] }))
     .concat([{ title: "Other", items: list.filter((p) => !known.has(p.key)), links: [] }])
@@ -1623,8 +1743,9 @@ const sectionOf = (p) => SECTION_OF[p.key] || (p.hasEmails ? "campaigns" : "call
 // Call tasks lists EVERY calling queue (campaigns' calls too) and shows only the call cards
 // (?view=calls hides emails + workflows). Campaigns = the full picture.
 // Call tasks - Reengage = every calling queue except the acquisition ones (they have their own tab).
-const inSection = (p, sec) => sec === "calls" ? !ACQ_KEYS.includes(p.key) : sec === "acquisition" ? ACQ_KEYS.includes(p.key) : sectionOf(p) === sec;
-const projectHref = (p, sec) => `/?campaign=${p.key}${(sec === "calls" || sec === "acquisition") && sectionOf(p) !== "calls" ? "&view=calls" : ""}${sec === "acquisition" ? "&in=acquisition" : ""}`;
+const inSection = (p, sec) => sec === "calls" ? !ACQ_KEYS.includes(p.key) && !PROP_KEYS.includes(p.key) : sec === "acquisition" ? ACQ_KEYS.includes(p.key) || PROP_KEYS.includes(p.key) : sectionOf(p) === sec;
+const isAcqSec = (sec) => sec === "acquisition";
+const projectHref = (p, sec) => `/?campaign=${p.key}${(sec === "calls" || isAcqSec(sec)) && sectionOf(p) !== "calls" ? "&view=calls" : ""}${isAcqSec(sec) ? "&in=acquisition" : ""}`;
 const WEB_REPORTS = [
   { href: "/black-friday-pages/", label: "Black Friday pages", desc: "/black-friday and its cost comparison page — visitors by source, book-a-call and claim clicks, meetings, plans bought." },
   { href: "/meetings-booked/", label: "Meetings booked", desc: "Every meeting booked through a HubSpot meeting link — by link, GetGrounder, contact and UTM." },
@@ -1646,14 +1767,23 @@ const NAV_SHORT = {
   "plan-close-month-end": "Plan close (month end)",
   "landlord-savings-calculator": "Landlord savings calculator",
   "accounting-vsl": "Accounting VSL",
+  "unprofitable-landlord": "Unprofitable Landlord",
+  "new-meta-form-btl": "New Meta Form BTL",
+  "ltd-company-btl-lm": "Should you get a Ltd for BTL",
+  "best-budget-btl": "Best Budget For BTL",
+  "best-setup-btl": "Best Setup For BTL VSL",
+  "hands-free-property": "Hands Free Property VSL",
   "black-friday": "Black Friday",
   "black-friday-reengage": "Black Friday reengage",
 };
 
 function currentSection(stats) {
   const q = new URLSearchParams(location.search);
-  if (q.get("rep")) return "calls";
+  if (q.get("rep")) return "reps";
   if (q.get("in") === "acquisition") return "acquisition";
+  if (q.get("in") === "property") return "acquisition";
+  // A campaign opened without ?in= (e.g. an old link) still lights up the Acquisition tab.
+  { const k = q.get("campaign"); if (k && (ACQ_KEYS.includes(k) || PROP_KEYS.includes(k))) return "acquisition"; }
   if (q.get("section")) return q.get("section") === "reports" ? "campaigns" : q.get("section");
   if (q.get("view") === "calls") return "calls";
   if (q.get("initiative")) return "campaigns";
@@ -1681,7 +1811,9 @@ const currentRepKey = () => new URLSearchParams(location.search).get("rep");
 const REP_PRESETS = [["today", "Today"], ["yesterday", "Yesterday"], ["7d", "Last 7 days"], ["30d", "Last 30 days"], ["month", "This month"], ["3m", "Last 3 months"], ["custom", "Custom"]];
 const ukToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 const addDays = (d, n) => new Date(Date.parse(d + "T00:00:00Z") + n * 864e5).toISOString().slice(0, 10);
-let repRange = (() => { try { return JSON.parse(sessionStorage.getItem("rep-range")) || { preset: "30d" }; } catch (_) { return { preset: "30d" }; } })();
+// Opens on Today so the rep sees today's live plan first (Adam, 26 Nov — other ranges turn the
+// plan card into added-up results).
+let repRange = (() => { try { return JSON.parse(sessionStorage.getItem("rep-range")) || { preset: "today" }; } catch (_) { return { preset: "today" }; } })();
 function repRangeDates() {
   const t = ukToday(), p = repRange.preset;
   if (p === "today") return { from: t, to: t };
@@ -1707,18 +1839,67 @@ function bucketLabel(iso, period, short) {
 }
 function repControlsHtml() {
   const r = repRangeDates();
-  return `<span class="range-pills">${REP_PRESETS.map(([v, l]) => `<button type="button" class="rr-pill${repRange.preset === v ? " active" : ""}" data-rr="${v}">${l}</button>`).join("")}</span>`
-    + (repRange.preset === "custom" ? `<input type="date" id="rr-from" value="${r.from}"><span>–</span><input type="date" id="rr-to" value="${r.to}">` : "")
-    + `<button type="button" class="upd" id="rep-update">Update</button>`;
+  const short = { "7d": "7 days", "30d": "30 days", "3m": "3 months" }; // short labels keep the bar on one line
+  return `<span class="range-pills">${REP_PRESETS.map(([v, l]) => `<button type="button" class="rr-pill${repRange.preset === v ? " active" : ""}" data-rr="${v}">${short[v] || l}</button>`).join("")}`
+    + (repRange.preset === "custom" ? `<span class="rr-dates"><input type="date" id="rr-from" value="${r.from}"><span>–</span><input type="date" id="rr-to" value="${r.to}"></span>` : "")
+    + `</span><button type="button" class="upd" id="rep-update">Update</button>`;
 }
 function periodSegHtml() {
   const ok = allowedPeriods(), per = repPeriod();
   return `<div class="seg sm" id="rep-period">${["day", "week", "month"].map((p) => `<button data-p="${p}" class="${p === per ? "on" : ""}"${ok[p] ? "" : " disabled"}>By ${p}</button>`).join("")}</div>`;
 }
+// The plan card follows the date filter (Adam, 26 Nov): "Today" shows the live plan; any other
+// range (Yesterday, Last 7/30 days, This month, Custom…) adds up what the rep completed in each
+// slot vs target × working days — the plan itself isn't stored, so past lists can't be rebuilt.
+const repPlanPast = () => { const r = repRangeDates(), t = ukToday(); return !(r.from === t && r.to === t); };
+const repPlanKey = (rep) => { const r = repRangeDates(); return repPlanPast() ? `${rep.key}:${r.from}:${r.to}` : rep.key; };
+// Long ranges are fetched a week at a time (each request has its own 50-subrequest Cloudflare
+// budget, and HubSpot search stops at 10,000 results) and added up here. Each task is completed
+// on one day, so it lands in exactly one week and the totals are exact.
+async function fetchRepPlan(rep) {
+  if (!repPlanPast()) return fetch(`/api/rep-plan?owner=${rep.ownerId}`).then((r) => r.json());
+  const { from, to } = repRangeDates(), weeks = [];
+  for (let s = from; s <= to; s = addDays(s, 7)) { const e = addDays(s, 6); weeks.push([s, e < to ? e : to]); }
+  const parts = new Array(weeks.length); let next = 0;
+  const worker = async () => { while (next < weeks.length) { const i = next++; parts[i] = await fetch(`/api/rep-plan?owner=${rep.ownerId}&from=${weeks[i][0]}&to=${weeks[i][1]}`).then((r) => r.json()); } };
+  await Promise.all([worker(), worker(), worker()]);
+  const bad = parts.find((p) => p.error); if (bad) return bad;
+  const out = JSON.parse(JSON.stringify(parts[0])); out.from = from; out.to = to;
+  const addTo = (list, c) => { const x = list.find((y) => y.name === c.name); if (!x) list.push({ ...c, attempts: [...(c.attempts || [])] }); else { x.n += c.n; if (c.attempts) x.attempts = [...new Set(x.attempts.concat(c.attempts))].sort((a, b) => a - b); } };
+  parts.slice(1).forEach((p) => {
+    out.days += p.days; out.workdays += p.workdays; out.total += p.total; out.truncated = out.truncated || p.truncated;
+    p.slots.forEach((s, i) => { const o = out.slots[i]; if (s.lunch) return; o.done += s.done; o.target += s.target; s.byCampaign.forEach((c) => addTo(o.byCampaign, c)); });
+    p.notInPlan.forEach((c) => addTo(out.notInPlan, c));
+  });
+  out.slots.forEach((s) => s.byCampaign && s.byCampaign.sort((a, b) => b.n - a.n)); out.notInPlan.sort((a, b) => b.n - a.n);
+  return out;
+}
+function repPlanHeadHtml(rep) {
+  if (!repPlanPast()) return `<h2>Today's plan</h2><p class="sub">Rebuilt from the live queue every time this page loads · aim for each slot's target.</p>`;
+  return `<h2>Plan: ${esc(repRangeLabel())}</h2><p class="sub">Call tasks ${esc(rep.label)} completed in each slot, added up over ${esc(repRangeLabel())}, vs target · click Today for today's live plan.</p>`;
+}
+function renderRepPlanHistory(rep, p) {
+  const el = document.getElementById("rep-plan"); if (!el) return;
+  const days = p.workdays === 1 ? "1 working day" : `${fmtN(p.workdays)} working days`;
+  const slots = p.slots.map((x) => {
+    if (x.lunch) return `<div class="slot lunch"><div class="tm">${x.start}–${x.end}</div><div class="blk">${esc(x.title)}</div></div>`;
+    const pct = x.target ? Math.min(100, Math.round((x.done / x.target) * 100)) : 0;
+    const chips = x.byCampaign.map((c) => { const ca = c.attempts.length ? (c.attempts.length > 1 ? ` #${c.attempts[0]}–#${c.attempts[c.attempts.length - 1]}` : ` #${c.attempts[0]}`) : "";
+      return `<span class="slot-btn"><b>${fmtN(c.n)}</b> ${esc(c.name.replace(/^Call \| /, ""))}${ca}</span>`; }).join("");
+    return `<div class="slot ${x.key}"><div class="tm">${x.start}–${x.end}</div><div class="blk">
+      <div class="ttl"><span>${esc(x.title)}</span><span class="sub">${fmtN(x.done)} / ${fmtN(x.target)} done</span></div>
+      <div class="prog"><i style="width:${pct}%"></i></div>
+      <div class="meta">Target ${fmtN(x.target / (p.workdays || 1))} a day × ${days}</div>
+      <div class="slot-btns">${chips || `<span class="sub">No calls completed in this slot.</span>`}</div>
+    </div></div>`;
+  }).join("");
+  const out = p.notInPlan.length ? `<details class="tbl"><summary>Other calls completed (not in any slot): ${fmtN(p.notInPlan.reduce((n, c) => n + c.n, 0))}</summary><table class="rep-table">${p.notInPlan.map((c) => `<tr><td>${esc(c.name)}</td><td class="n">${fmtN(c.n)}</td></tr>`).join("")}</table></details>` : "";
+  el.innerHTML = `${p.truncated ? `<p class="sub warn-t">Range too big: some completed tasks may be missing — try a shorter range.</p>` : ""}<div class="plan">${slots}</div>${out}`;
+}
 function repPageHtml(rep) {
   const per = repPeriod();
   return `<div class="rep-head"><div><h1>${esc(rep.name)}</h1><div class="sub">Live from HubSpot · call tasks done, meetings booked and what's in the queue now</div></div></div>
-    ${rep.simple ? `<section class="card rep-card"><h2>Your campaigns</h2><p class="sub">Click a campaign to open those tasks in HubSpot, then click Start tasks.</p><div id="rep-simple"><p class="sub">Loading…</p></div></section>` : `<section class="card rep-card"><h2>Today's plan</h2><p class="sub">Rebuilt from the live queue every time this page loads · aim for each slot's target.</p><div id="rep-plan"><p class="sub">Loading…</p></div></section>`}
+    ${rep.simple ? `<section class="card rep-card"><h2>Your campaigns</h2><p class="sub">Click a campaign to open those tasks in HubSpot, then click Start tasks.</p><div id="rep-simple"><p class="sub">Loading…</p></div></section>` : `<section class="card rep-card"><div id="rep-plan-head">${repPlanHeadHtml(rep)}</div><div id="rep-plan"><p class="sub">Loading…</p></div></section>`}
     <div class="rep-controls" id="rep-controls" style="margin: 4px 0 16px;">${repControlsHtml()}</div>
     <div class="stat-row" id="rep-tiles"><div class="stat-tile"><div class="label">Loading…</div><div class="value">–</div></div></div>
     <section class="card rep-card"><div class="card-head"><h2>Tasks completed</h2><span id="rep-period-wrap">${periodSegHtml()}</span></div><div id="rep-tasks-chart" class="rep-chart"><p class="sub">Loading…</p></div></section>
@@ -1907,9 +2088,10 @@ async function loadRep(rep) {
     .then((c) => { if (c.error) throw new Error(c.error); repCache.calls[aKey] = c; if (repActKey(rep) === aKey) renderRepCalls(rep, c); })
     .catch((e) => { const el = document.getElementById("rep-calls-chart"); if (el) el.innerHTML = `<p class="sub warn-t">Couldn't load: ${esc(e.message)}</p>`; });
   if (!repCache.plan) repCache.plan = {};
-  if (!rep.simple) (repCache.plan[rep.key] ? Promise.resolve(repCache.plan[rep.key]) : fetch(`/api/rep-plan?owner=${rep.ownerId}`).then((r) => r.json()))
-    .then((p) => { if (p.error) throw new Error(p.error); repCache.plan[rep.key] = p; renderRepPlan(rep, p); })
-    .catch((e) => { const el = document.getElementById("rep-plan"); if (el) el.innerHTML = `<p class="sub warn-t">Couldn't load today's plan: ${esc(e.message)}</p>`; });
+  const pKey = repPlanKey(rep);
+  if (!rep.simple) (repCache.plan[pKey] ? Promise.resolve(repCache.plan[pKey]) : fetchRepPlan(rep))
+    .then((p) => { if (p.error) throw new Error(p.error); repCache.plan[pKey] = p; if (repPlanKey(rep) !== pKey) return; (p.history ? renderRepPlanHistory : renderRepPlan)(rep, p); })
+    .catch((e) => { const el = document.getElementById("rep-plan"); if (el && repPlanKey(rep) === pKey) el.innerHTML = `<p class="sub warn-t">Couldn't load the plan: ${esc(e.message)}</p>`; });
   qP.then((q) => { if (q.error) throw new Error(q.error); repCache.queue[rep.key] = q; renderRepQueue(rep, q); })
     .catch((e) => { const el = document.getElementById("rep-queue"); if (el) el.innerHTML = `<p class="sub warn-t">Couldn't load the queue: ${esc(e.message)}</p>`; });
   aP.then((a) => { if (a.error) throw new Error(a.error); repCache.activity[aKey] = a; if (repActKey(rep) === aKey) renderRepActivity(rep, a); })
@@ -1920,6 +2102,8 @@ function repRefreshCharts(rep) {
   const c = document.getElementById("rep-controls"); if (c) c.innerHTML = repControlsHtml();
   ["rep-tasks-chart", "rep-meet-chart"].forEach((id) => { const el = document.getElementById(id); if (el && !repCache.activity[repActKey(rep)]) el.innerHTML = `<p class="sub">Loading…</p>`; });
   { const el = document.getElementById("rep-calls-chart"); if (el && !(repCache.calls || {})[repActKey(rep)]) el.innerHTML = `<p class="sub">Loading…</p>`; }
+  { const h = document.getElementById("rep-plan-head"); if (h) h.innerHTML = repPlanHeadHtml(rep);
+    const el = document.getElementById("rep-plan"); if (el && !(repCache.plan || {})[repPlanKey(rep)]) el.innerHTML = `<p class="sub">Loading…</p>`; }
   repTiles(rep); loadRep(rep);
 }
 document.addEventListener("click", (e) => {
@@ -1945,7 +2129,7 @@ function renderNav(stats, activeKey) {
   document.body.dataset.sec = sec || "home";
   const liveIn = (k) => projects.filter((p) => !isClosed(p) && inSection(p, k));
   const top = [].concat(SECTIONS.map((x) => {
-    const n = x.key === "campaigns" ? initiativesList(stats).length : liveIn(x.key).length;
+    const n = x.key === "campaigns" ? initiativesList(stats).length : x.key === "reps" ? REPS_LINKS.length : liveIn(x.key).length;
     return `<a href="/?section=${x.key}" class="${sec === x.key ? "on" : ""}">${x.label}${stats.noStats ? "" : `<span class="count">${n}</span>`}</a>`;
   })).concat([`<a href="/tools/">Tools<span class="count">${TOOLS.length}</span></a>`]).join("");
   let sub = "";
@@ -1954,6 +2138,13 @@ function renderNav(stats, activeKey) {
     const webLinks = NAV_GROUPS.filter((g) => g.section === "campaigns" && !g.keys.length).flatMap((g) => g.links || []);
     sub = `<div class="sub-group"><span class="grp">Campaigns</span><div class="sub-items">${initiativesList(stats).map((i) => `<a href="/?initiative=${i.key}" class="${i.key === iniKey || (!iniKey && i.parts.includes(activeKey)) ? "on" : ""}">${esc(i.label)}</a>`).join("")}</div></div>`
 ;
+  } else if (sec === "acquisition") {
+    sub = `<div class="acq-rows">${groupsFor(liveIn(sec), sec).map((g) => `<div class="acq-row"><span class="acq-lbl">${esc(g.title)}</span><div class="sub-items">`
+      + g.items.map((p) => `<a href="${projectHref(p, sec)}" class="${p.key === activeKey ? "on" : ""}">${esc(NAV_SHORT[p.key] || p.label)}</a>`).join("") + `</div></div>`).join("")}</div>`;
+  } else if (sec === "reps") {
+    // SDR overview (Adam, 27 Nov): one row of rep buttons with initials, not a box inside the bar.
+    const cur = currentRepKey();
+    sub = `<div class="rep-switch">${REPS.map((r) => `<a href="/?rep=${r.key}" class="rep-chip${r.key === cur ? " on" : ""}"><span class="av">${esc((r.name || r.label).split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase())}</span><span class="nm">${esc(r.name || r.label)}</span></a>`).join("")}</div>`;
   } else if (sec) {
     const groups = groupsFor(liveIn(sec), sec);
     sub = groups.map((g) => `<div class="sub-group"><span class="grp">${esc(g.title)}</span><div class="sub-items">`
@@ -2420,7 +2611,19 @@ function render() {
     window.__repOutcomes = outcomesLoading ? undefined : ((outcomeData && outcomeData.byRep) || {});
     wireRepHovers();
 
-    document.getElementById("meetings-slot").innerHTML = meetingsCardHtml(proj.label, outcomeData, portalId, outcomesLoading);
+    const flCfg = FORM_LEADS[key];
+    const flData = flCfg && formLeadsByKey[key];
+    document.getElementById("meetings-slot").innerHTML = flCfg
+      ? meetingsCardHtml(proj.label, flData && !flData.error ? { meetings: formLeadMeetingRows(flData) } : null, portalId, flData === undefined, flCfg.formName)
+      : meetingsCardHtml(proj.label, outcomeData, portalId, outcomesLoading);
+    if (flCfg) {
+      if (!(key in formLeadsByKey)) {
+        formLeadsByKey[key] = undefined;
+        fetch(`/api/form-leads?forms=${flCfg.forms.join(",")}&since=${flCfg.since}`).then((r) => r.json()).catch(() => null)
+          .then((res) => { formLeadsByKey[key] = res; if (currentCampaignKey() === key) render(); });
+      }
+      document.getElementById("formleads-slot").innerHTML = formLeadsCardHtml(flCfg, formLeadsByKey[key], portalId);
+    }
 
     const dealsByKey = Object.fromEntries((dealsRes && dealsRes.projects || []).map(p => [p.key, p]));
     const { data: dealAll, loading: dealsLoading } = resolveScoped("deals", key, dealsByKey);
@@ -2505,6 +2708,7 @@ async function load({ force = false } = {}) {
       for (const k of parts) { fetchScoped("outcomes", k); fetchScoped("deals", k); }
       delete campaignEmailsByKey[key];
       delete campaignAssetsByKey[key];
+      delete formLeadsByKey[key];
     }
     if (force) { initEmails = {}; initWeb = {}; }
     if (force || !cache.stats) {
