@@ -4837,12 +4837,12 @@ async function waLogActivity(env, { sid, phone, text, inbound, at, dry }) {
     body: JSON.stringify({ filterGroups: [{ filters: [{ propertyName: "hs_communication_body", operator: "CONTAINS_TOKEN", value: sid }] }], limit: 1 }) });
   if (dup.ok && (await dup.json()).total > 0) return "timeline: already logged";
   if (dry) return `timeline: would log on contact ${contactId}`;
-  const label = inbound ? "WhatsApp reply received (Twilio marketing number +44 7863 781489)" : "WhatsApp sent from Twilio marketing number +44 7863 781489";
+  const label = inbound ? "⬅️ Reply received on our Twilio marketing number (+44 7863 781489)" : "➡️ Sent from our Twilio marketing number (+44 7863 781489)";
   const payload = {
     properties: {
       hs_communication_channel_type: "WHATS_APP",
       hs_communication_logged_from: "CRM",
-      hs_communication_body: `<p><b>${label}</b></p><p>${waEsc(text || "(no text: media or reaction)").replace(/\n/g, "<br>")}</p><p style="color:#888">Twilio ${sid}</p>`,
+      hs_communication_body: `<p>${waEsc(text || "(no text: media or reaction)").replace(/\n/g, "<br>")}</p><p style="color:#888;font-size:12px">${label} · Twilio ${sid}</p>`,
       hs_timestamp: at || new Date().toISOString(),
     },
     associations: [{ to: { id: contactId }, types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 81 }] }],
