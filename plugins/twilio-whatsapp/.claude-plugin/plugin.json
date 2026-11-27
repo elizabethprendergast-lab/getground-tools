@@ -1,0 +1,7 @@
+{
+  "name": "twilio-whatsapp",
+  "version": "0.1.0",
+  "description": "Send one-off bulk WhatsApp campaigns from GetGround's Twilio marketing number: audience tiers, WhatsApp-unsubscribe + DNC check, Meta template approval, test, cost estimate, batched send and results. HubSpot timeline logging and the auto-reply happen automatically.",
+  "author": { "name": "GetGround" },
+  "keywords": ["whatsapp", "twilio", "bulk send", "campaign", "webinar", "hubspot", "getground"]
+}
