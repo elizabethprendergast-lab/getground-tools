@@ -4761,21 +4761,28 @@ return { toolsApi };
 
 
 // ---------------------------------------------------------------------------------------------
-// Twilio WhatsApp auto-reply (marketing number +44 7863 781489, subaccount "GetGround Marketing WhatsApp").
-// The marketing number isn't monitored, so anyone who messages it gets one reply (max once per 24h per
-// number) pointing them to the main GetGround WhatsApp (+44 7407 837450), which feeds the HubSpot help desk.
-// Set as the Messaging Service inbound URL: POST /api/twilio-wa?key=TWILIO_WA_KEY  (form-encoded).
-// debug=1 runs inline and returns the result; dry=1 skips the actual send.
+// Twilio WhatsApp (marketing number +44 7863 781489, subaccount "GetGround Marketing WhatsApp").
+// POST /api/twilio-wa?key=TWILIO_WA_KEY            → Messaging Service inbound URL
+//   - auto-reply (max once per 24h per number) pointing to the main GetGround WhatsApp (+44 7407 837450,
+//     which feeds the HubSpot help desk)
+//   - logs the incoming message as a WhatsApp activity on the contact's HubSpot timeline
+// POST /api/twilio-wa?key=TWILIO_WA_KEY&kind=status → Messaging Service status callback
+//   - logs each outbound message once (on "sent") as a WhatsApp activity on the contact's timeline
+// debug=1 runs inline and returns the result; dry=1 skips the auto-reply send and HubSpot writes.
 // ---------------------------------------------------------------------------------------------
 const WA_SERVICE_SID = "MG05cb5285413091e1b053f1c71472bd0b";
 const WA_AUTO_REPLY = "Thanks for your message! This number can't receive replies.\n\nPlease message our team on WhatsApp here and we'll help: https://wa.me/447407837450";
+const WA_HS = "https://api.hubapi.com";
+const WA_COUNTRY_CODES = ["852", "853", "886", "971", "44", "86", "65", "60", "61", "1"];
 
 async function twilioWhatsApp(request, url, env, ctx) {
   if (!env.TWILIO_WA_KEY || url.searchParams.get("key") !== env.TWILIO_WA_KEY) return json({ error: "bad key" }, 401);
   if (request.method !== "POST") return json({ ok: true });
   const f = Object.fromEntries(await request.formData());
   if (env.TWILIO_WA_AC && f.AccountSid && f.AccountSid !== env.TWILIO_WA_AC) return json({ error: "wrong account" }, 403);
-  const run = waAutoReply(f, env, url.searchParams.get("dry") === "1");
+  const dry = url.searchParams.get("dry") === "1";
+  const run = url.searchParams.get("kind") === "status" ? waStatus(f, env, dry)
+    : Promise.all([waAutoReply(f, env, dry), waLogInbound(f, env, dry)]);
   if (url.searchParams.get("debug") === "1") {
     try { return json({ ok: true, result: await run }); } catch (e) { return json({ ok: false, error: String(e) }, 500); }
   }
@@ -4783,23 +4790,81 @@ async function twilioWhatsApp(request, url, env, ctx) {
   return new Response("<Response/>", { headers: { "content-type": "text/xml" } });
 }
 
+function waTwAuth(env) { return { Authorization: "Basic " + btoa(`${env.TWILIO_WA_SID}:${env.TWILIO_WA_SECRET}`) }; }
+function waHsHeaders(env) { return { Authorization: `Bearer ${env.HUBSPOT_TOKEN}`, "Content-Type": "application/json" }; }
+
 async function waAutoReply(f, env, dry) {
   const from = String(f.From || "");
   if (!from.startsWith("whatsapp:")) return "skip: not whatsapp";
-  const auth = { Authorization: "Basic " + btoa(`${env.TWILIO_WA_SID}:${env.TWILIO_WA_SECRET}`) };
   const base = `https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_WA_AC}/Messages.json`;
-  // Already auto-replied to this number in the last 24h? Then stay quiet.
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10);
-  const q = new URLSearchParams({ To: from, "DateSent>": since, PageSize: "50" });
-  const r = await fetch(`${base}?${q}`, { headers: auth });
+  const r = await fetch(`${base}?${new URLSearchParams({ To: from, "DateSent>": since, PageSize: "50" })}`, { headers: waTwAuth(env) });
   if (!r.ok) throw new Error(`twilio list ${r.status}`);
   const cutoff = Date.now() - 24 * 3600 * 1000;
   const recent = ((await r.json()).messages || []).some((m) =>
     m.direction !== "inbound" && (m.body || "").startsWith("Thanks for your message!") && Date.parse(m.date_created) >= cutoff);
-  if (recent) return "skip: auto-replied in last 24h";
-  if (dry) return "would send";
-  const s = await fetch(base, { method: "POST", headers: { ...auth, "Content-Type": "application/x-www-form-urlencoded" },
+  if (recent) return "auto-reply: skipped (sent in last 24h)";
+  if (dry) return "auto-reply: would send";
+  const s = await fetch(base, { method: "POST", headers: { ...waTwAuth(env), "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ MessagingServiceSid: WA_SERVICE_SID, To: from, Body: WA_AUTO_REPLY }) });
   if (!s.ok) throw new Error(`twilio send ${s.status} ${await s.text()}`);
-  return "sent";
+  return "auto-reply: sent";
+}
+
+async function waFindContact(env, phone) {
+  const e164 = String(phone || "").replace(/^whatsapp:/, "").trim();
+  const digits = e164.replace(/\D/g, "");
+  if (!digits) return null;
+  const cc = WA_COUNTRY_CODES.find((c) => digits.startsWith(c));
+  const national = cc ? digits.slice(cc.length).replace(/^0/, "") : digits.slice(-10);
+  const eq = (p, v) => ({ filters: [{ propertyName: p, operator: "EQ", value: v }] });
+  const body = {
+    filterGroups: [eq("phone", e164), eq("mobilephone", e164), eq("hs_whatsapp_phone_number", e164),
+      eq("hs_searchable_calculated_mobile_number", national), eq("hs_searchable_calculated_phone_number", national)],
+    properties: ["firstname"], sorts: [{ propertyName: "lastmodifieddate", direction: "DESCENDING" }], limit: 1,
+  };
+  const r = await fetch(`${WA_HS}/crm/v3/objects/contacts/search`, { method: "POST", headers: waHsHeaders(env), body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(`contact search ${r.status}`);
+  return (await r.json()).results?.[0]?.id || null;
+}
+
+// One activity per Twilio message: the SID goes in the body and is checked first, so Twilio retries
+// and the backfill never double-log.
+async function waLogActivity(env, { sid, phone, text, inbound, at, dry }) {
+  const contactId = await waFindContact(env, phone);
+  if (!contactId) return `timeline: no HubSpot contact for ${String(phone).slice(0, -4)}xxxx`;
+  const dup = await fetch(`${WA_HS}/crm/v3/objects/communications/search`, { method: "POST", headers: waHsHeaders(env),
+    body: JSON.stringify({ filterGroups: [{ filters: [{ propertyName: "hs_communication_body", operator: "CONTAINS_TOKEN", value: sid }] }], limit: 1 }) });
+  if (dup.ok && (await dup.json()).total > 0) return "timeline: already logged";
+  if (dry) return `timeline: would log on contact ${contactId}`;
+  const label = inbound ? "WhatsApp reply received (Twilio marketing number +44 7863 781489)" : "WhatsApp sent from Twilio marketing number +44 7863 781489";
+  const payload = {
+    properties: {
+      hs_communication_channel_type: "WHATS_APP",
+      hs_communication_logged_from: "CRM",
+      hs_communication_body: `<p><b>${label}</b></p><p>${waEsc(text || "(no text: media or reaction)").replace(/\n/g, "<br>")}</p><p style="color:#888">Twilio ${sid}</p>`,
+      hs_timestamp: at || new Date().toISOString(),
+    },
+    associations: [{ to: { id: contactId }, types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 81 }] }],
+  };
+  const r = await fetch(`${WA_HS}/crm/v3/objects/communications`, { method: "POST", headers: waHsHeaders(env), body: JSON.stringify(payload) });
+  if (!r.ok) throw new Error(`communication ${r.status} ${(await r.text()).slice(0, 200)}`);
+  return `timeline: logged on contact ${contactId}`;
+}
+function waEsc(s) { return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+
+async function waLogInbound(f, env, dry) {
+  if (!String(f.From || "").startsWith("whatsapp:") || !f.MessageSid) return "timeline: skip";
+  const media = Number(f.NumMedia) > 0 ? `\n[${f.NumMedia} attachment(s): see Twilio console]` : "";
+  return waLogActivity(env, { sid: f.MessageSid, phone: f.From, text: String(f.Body || "") + media, inbound: true, dry });
+}
+
+async function waStatus(f, env, dry) {
+  const status = f.MessageStatus || f.SmsStatus;
+  if (status !== "sent" || !String(f.To || "").startsWith("whatsapp:") || !f.MessageSid) return `status ${status}: skip`;
+  const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_WA_AC}/Messages/${f.MessageSid}.json`, { headers: waTwAuth(env) });
+  if (!r.ok) throw new Error(`twilio fetch ${r.status}`);
+  const m = await r.json();
+  return waLogActivity(env, { sid: m.sid, phone: m.to, text: m.body, inbound: false,
+    at: m.date_sent ? new Date(m.date_sent).toISOString() : undefined, dry });
 }
