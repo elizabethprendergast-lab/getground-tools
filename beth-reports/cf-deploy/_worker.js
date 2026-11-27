@@ -511,7 +511,8 @@ const REPORTS = {
         // 12 Nov, several booked before the contact's call task existed). Every meeting with this
         // UTM is listed on the Meetings card, with or without a call task, and a task whose contact
         // booked one counts as "Meeting booked — from email" whenever it was booked.
-        utmMeetings: ["bf_reengage_1126"],
+        // + the Complete 50% off email (27 Nov), whose links carry its own utm_campaign.
+        utmMeetings: ["bf_reengage_1126", "BF50OFF_COMPLETE_1126"],
         // The re-engagement email is a one-off A/B batch send, not sent by either workflow:
         // "BF26 | Reengage email 01 - Specialised Accounting | 1126" (list 24683). Only list it —
         // ownEmailsOnly stops the ads workflow's email (5163907314) showing on this tab.
@@ -523,6 +524,8 @@ const REPORTS = {
           { id: 519327638751, label: "BF26 Reengage email 01 — Generic leads — Specialised Accounting" },
           // Final reminder to all leads, 25 Nov ("Can I save you a slot before Monday?").
           { id: 523440659661, label: "BF26 Reengage — All leads — Final reminder" },
+          // Complete plan offer, sent 27 Nov ("Is your letting agent worth 15% of your rent?", A/B).
+          { id: 524350737633, label: "BF26 Complete 50% off — email 01 (A/B)" },
         ],
         ownEmailsOnly: true,
       },
